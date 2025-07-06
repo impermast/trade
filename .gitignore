@@ -5,3 +5,5 @@ logs/
 
 pics/
 data/
+
+__pycache__

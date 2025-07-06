@@ -272,8 +272,6 @@ class Analytic:
         except Exception as e:
             self.logger.error(f"Ошибка при построении графика: {e}")
 
-import logging
-import os
 
 class Bot:
     def __init__(self, logger, initial_balance=100000,commission=0.003):
@@ -597,6 +595,7 @@ class TradeBot:
 
 
 def main():    
+    load_dotenv()
     ticker = "LKOH"
     logger = setup_global_logging()
     bot = TradeBot(ticker, logger)

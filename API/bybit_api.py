@@ -12,7 +12,7 @@ from BOTS.loggerbot import Logger
 
 class BybitAPI(BirzaAPI):
     def __init__(self, api_key: str, api_secret: str, testnet: bool = True):
-        self.logger = Logger(name="bybitAPI", logfile="logs/bybitAPI.log", console=True).get_logger()
+        self.logger = Logger(name="bybitAPI", tag = "[API]", logfile="logs/bybitAPI.log", console=True).get_logger()
 
         self.exchange = ccxt.bybit({
             'apiKey': api_key,

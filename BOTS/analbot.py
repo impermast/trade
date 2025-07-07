@@ -1,13 +1,16 @@
 # strategy/analbot.py
-
+import os, sys
+sys.path.append(os.path.abspath("."))
+from BOTS.loggerbot import Logger
+from STRATEGY.rsi import RSIonly_Strategy
 from ta.trend import SMAIndicator, EMAIndicator, MACD
 from ta.momentum import RSIIndicator
 from ta.volatility import BollingerBands
 
 class Analytic:
-    def __init__(self, df, logger):
+    def __init__(self, df):
         self.df = df
-        self.logger = logger
+        self.logger = Logger(name="Analitic", tag="[ANAL]", logfile="logs/analitic.log", console=True).get_logger()
         self.indicators = self.Indicators(self)
 
     class Indicators:
@@ -122,9 +125,23 @@ class Analytic:
                 self.logger.error(f"Ошибка при расчёте {name}: {e}")
 
     def make_strategy(self, strategy_cls):
-        strategy = strategy_cls(self.df, **params)
+        strategy = strategy_cls()
         indicators = strategy.check_indicators()
         self.make_calc(indicators)
         result = strategy.get_signals(self.df)
         return result
 
+if __name__ == "__main__":
+    import pandas as pd
+    # Получаем путь к текущему файлу (аналог __file__)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Путь на уровень выше → в папку DATA
+    csv_path = os.path.join(current_dir, "..", "DATA", "BTCUSDT_15m.csv")
+    csv_path = os.path.abspath(csv_path)  # абсолютный путь (на всякий случай)
+    df = pd.read_csv(csv_path)
+    if 'timestamp' in df.columns:
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+    anal = Analytic(df)
+    r = anal.make_strategy(RSIonly_Strategy)
+    print(df[::-1])

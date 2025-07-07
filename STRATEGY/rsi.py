@@ -17,15 +17,10 @@ class RSIonly_Strategy(BaseStrategy):
             "rsi_upper": 70.0
         }
 
-    def generate_signal(self, df: pd.DataFrame) -> int:
+    def get_signals(self, df: pd.DataFrame) -> int:
         if len(df) < self.params["rsi_period"]:
             return 0
 
-        delta = df["close"].diff()
-        gain = delta.clip(lower=0).rolling(window=self.params["rsi_period"]).mean()
-        loss = -delta.clip(upper=0).rolling(window=self.params["rsi_period"]).mean()
-        rs = gain / loss
-        df["rsi"] = 100 - (100 / (1 + rs))
 
         rsi = df["rsi"].iloc[-1]
         if rsi < self.params["rsi_lower"]:
@@ -36,5 +31,5 @@ class RSIonly_Strategy(BaseStrategy):
 
 
 if __name__ == "__main__":
-    strat = RSIonly_Strategy(rsi_period = 11)
+    strat = RSIonly_Strategy()
     print(strat)

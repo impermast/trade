@@ -9,14 +9,14 @@ class BaseStrategy(ABC):
     Абстрактная стратегия, работающая с DataFrame OHLCV.
     """
 
-    def __init__(self, name:str, indicators: list[str] = None, **params):
+    def __init__(self, name:str, indicators = None, **params):
         self.name = name
         default_params = self.default_params()
         self.params = {**default_params, **params}
         self.indicators = indicators or []
 
     @abstractmethod
-    def generate_signal(self, df: pd.DataFrame) -> int:
+    def get_signals(self, df: pd.DataFrame) -> int:
         """
         Возвращает сигнал:
         -1 = Продажа

@@ -50,10 +50,13 @@ def fetch_live_data(exchange, symbol, timeframe='1m', limit=100):
 if __name__ == "__main__":
     exchange = ccxt.bybit({'enableRateLimit': True})
     symbol = 'BTC/USDT'
-
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(project_root, "..", "DATA")
+    data_dir = os.path.abspath(data_dir)
+    save_path = os.path.join(data_dir, "BTCUSDT_15m.csv")
     # Исторические данные
-    df_hist = fetch_historical_data(exchange, symbol, start_date='2023-01-01T00:00:00Z',
-                                     timeframe='15m', save_path='DATA/BTCUSDT_15m_historical.csv')
+    df_hist = fetch_historical_data(exchange, symbol, start_date='2025-01-01T00:00:00Z',
+                                     timeframe='15m', save_path=save_path)
 
     # Актуальные данные (например, для стратегии в реальном времени)
     df_live = fetch_live_data(exchange, symbol, timeframe='1m', limit=50)

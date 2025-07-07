@@ -3,14 +3,17 @@
 from abc import ABC, abstractmethod
 import pandas as pd
 
+
 class BaseStrategy(ABC):
     """
     Абстрактная стратегия, работающая с DataFrame OHLCV.
     """
 
-    def __init__(self, name: str = "BaseStrategy", **params):
+    def __init__(self, name:str, indicators: list[str] = None, **params):
         self.name = name
-        self.params = params  # сюда передаются настройки, например: threshold=0.01, rsi_period=14
+        default_params = self.default_params()
+        self.params = {**default_params, **params}
+        self.indicators = indicators or []
 
     @abstractmethod
     def generate_signal(self, df: pd.DataFrame) -> int:
@@ -21,6 +24,21 @@ class BaseStrategy(ABC):
          1 = Покупка
         """
         pass
+    
+    
+    @abstractmethod
+    def default_params(self) -> dict:
+        """Определяет список нужных параметров и их дефолты"""
+        pass
+    
+    
+    def get_indicators(self) -> list:
+        """
+        Возвращает список используемых индикаторов (строками),
+        например: ["rsi", "macd", "macd_signal", "sma"]
+        """
+        return self.indicators
+
 
     def __str__(self):
-        return f"{self.name}(params={self.params})"
+        return f"Strategy = {self.name}  (params = {self.params})"

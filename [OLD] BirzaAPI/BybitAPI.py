@@ -11,7 +11,7 @@ class BybitAPI(BirzaAPI):
             api_key=api_key,
             api_secret=api_secret,
         )
-        self.logger = local_logging("BirzaAPI")
+        self.logger = local_logging("[OLD] BirzaAPI")
     def check_connection(self):
         logger = self.logger    
         try:

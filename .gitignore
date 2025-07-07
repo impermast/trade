@@ -1,9 +1,9 @@
 .env
 .venv
 
-logs/
-
-pics/
-data/
+LOGS/
+PIC/
+FIG/
+DATA/
 
 __pycache__

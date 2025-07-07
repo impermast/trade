@@ -12,7 +12,7 @@ class BaseStrategy(ABC):
         self.params = self._merge_with_defaults(self.default_params(), params)
 
     @abstractmethod
-    def generate_signal(self, df: pd.DataFrame) -> int:
+    def get_signals(self, df: pd.DataFrame) -> int:
         pass
 
     @abstractmethod
@@ -28,8 +28,8 @@ class BaseStrategy(ABC):
                 merged[k] = v
         return merged
 
-    def get_indicators(self):
-        return self.indicators
+    def check_indicators(self):
+        return [self.indicators, self.params]
 
     def __str__(self):
         return f"{self.name}(params={self.params})"

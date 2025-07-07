@@ -21,7 +21,7 @@ class RSIonly_Strategy(BaseStrategy):
             }
         }
 
-    def generate_signal(self, df: pd.DataFrame) -> int:
+    def get_signals(self, df: pd.DataFrame) -> int:
         rsi_cfg = self.params["rsi"]
         period = rsi_cfg["period"]
         lower = rsi_cfg["lower"]

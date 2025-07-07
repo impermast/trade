@@ -83,55 +83,45 @@ class Analytic:
         else:
             return []
 
-    def make_calc(self, indicators):
-        """
-        indicators: список элементов:
-            - либо кортежи вида: ("sma", {"period": 20})
-            - либо строки: "sma" (используются параметры по умолчанию)
-        """
-        default_params = {
-            "sma": {"period": 10},
-            "ema": {"period": 10},
-            "rsi": {
-                "period": 14,
-                "lower": 30,
-                "upper": 70
-                },
-            "macd": {"window_fast": 12, "window_slow": 26, "window_sign": 9},
-            "bollinger_bands": {"period": 20, "window_dev": 2},
-        }
 
-        for item in indicators:
-            if isinstance(item, str):
-                name = item
-                params = default_params.get(name, {})
-            elif isinstance(item, tuple) and len(item) == 2:
-                name, params = item
-            else:
-                self.logger.warning(f"Неверный формат индикатора: {item}")
-                continue
 
-            method = getattr(self.indicators, name, None)
+    def make_calc(self, indicators, stratparams):
+        import inspect
+        self.logger.info(f"Выполняю вычисления для индикаторов {stratparams}")
+
+        for item in stratparams:
+            indicator_name = item
+            params = stratparams.get(indicator_name, {})
+
+            self.logger.info(f"Вычисляю для индикатора {indicator_name} при параметрах {params}")
+
+            method = getattr(self.indicators, indicator_name, None)
             if method is None:
-                self.logger.warning(f"Индикатор {name} не найден.")
+                self.logger.warning(f"Индикатор {indicator_name} не найден.")
                 continue
 
-            expected_columns = self._get_expected_columns(name, params)
+            expected_columns = self._get_expected_columns(indicator_name, params)
             missing = [col for col in expected_columns if col not in self.df.columns]
             if not missing:
-                self.logger.info(f"Пропускаем {name} — уже рассчитан.")
+                self.logger.info(f"Пропускаем {indicator_name} — уже рассчитан.")
                 continue
 
-            try:
-                method(inplace=True, **params)
-                self.logger.info(f"Индикатор {name} рассчитан.")
-            except Exception as e:
-                self.logger.error(f"Ошибка при расчёте {name}: {e}")
+            # 🔧 Фильтруем только допустимые параметры
+            method_params = inspect.signature(method).parameters
+            filtered_params = {k: v for k, v in params.items() if k in method_params}
 
-    def make_strategy(self, strategy_cls):
-        strategy = strategy_cls()
-        indicators = strategy.check_indicators()
-        self.make_calc(indicators)
+            try:
+                method(inplace=True, **filtered_params)
+                self.logger.info(f"Индикатор {indicator_name} рассчитан.")
+            except Exception as e:
+                self.logger.error(f"Ошибка при расчёте {indicator_name}: {e}")
+
+
+    def make_strategy(self, strategy_cls, **params):
+        strategy = strategy_cls(**params)
+        self.logger.info(f"Начинаю расчет для стратегии {strategy.name}")
+        indicators, stratparams = strategy.check_indicators()
+        self.make_calc(indicators, stratparams)
         result = strategy.get_signals(self.df)
         return result
 
@@ -141,11 +131,11 @@ if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Путь на уровень выше → в папку DATA
-    csv_path = os.path.join(current_dir, "..", "DATA", "BTCUSDT_15m.csv")
+    csv_path = os.path.join(current_dir, "..", "DATA", "BTCUSDT_1h.csv")
     csv_path = os.path.abspath(csv_path)  # абсолютный путь (на всякий случай)
     df = pd.read_csv(csv_path)
     if 'timestamp' in df.columns:
         df['timestamp'] = pd.to_datetime(df['timestamp'])
     anal = Analytic(df)
-    r = anal.make_strategy(RSIonly_Strategy)
-    print(df[::-1])
+    r = anal.make_strategy(RSIonly_Strategy,rsi={"period": 20, "lower": 20})
+    print(r)

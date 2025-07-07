@@ -82,23 +82,35 @@ class Analytic:
 
     def make_calc(self, indicators):
         """
-        indicators: список кортежей вида:
-            [
-                ("sma", {"period": 20}),
-                ("rsi", {"period": 14}),
-                ("macd", {"window_fast": 12, "window_slow": 26}),
-                ("bollinger_bands", {"period": 20}),
-            ]
+        indicators: список элементов:
+            - либо кортежи вида: ("sma", {"period": 20})
+            - либо строки: "sma" (используются параметры по умолчанию)
         """
-        for name, params in indicators:
+        default_params = {
+            "sma": {"period": 10},
+            "ema": {"period": 10},
+            "rsi": {"period": 14},
+            "macd": {"window_fast": 12, "window_slow": 26, "window_sign": 9},
+            "bollinger_bands": {"period": 20, "window_dev": 2},
+        }
+
+        for item in indicators:
+            if isinstance(item, str):
+                name = item
+                params = default_params.get(name, {})
+            elif isinstance(item, tuple) and len(item) == 2:
+                name, params = item
+            else:
+                self.logger.warning(f"Неверный формат индикатора: {item}")
+                continue
+
             method = getattr(self.indicators, name, None)
             if method is None:
                 self.logger.warning(f"Индикатор {name} не найден.")
                 continue
 
             expected_columns = self._get_expected_columns(name, params)
-
-            missing = [col for col in expected_columns if col not in df.columns]
+            missing = [col for col in expected_columns if col not in self.df.columns]
             if not missing:
                 self.logger.info(f"Пропускаем {name} — уже рассчитан.")
                 continue

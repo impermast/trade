@@ -1,5 +1,9 @@
 # api/bybit_api.py
 
+import sys
+import os
+sys.path.append(os.path.abspath("."))
+
 import ccxt
 import pandas as pd
 from API.birza_api import BirzaAPI
@@ -8,7 +12,7 @@ from BOTS.loggerbot import Logger
 
 class BybitAPI(BirzaAPI):
     def __init__(self, api_key: str, api_secret: str, testnet: bool = True):
-        self.logger = Logger(name="bybitAPI", logfile="logs/bybitAPI.log").get_logger()
+        self.logger = Logger(name="bybitAPI", tag = "[API]", logfile="logs/bybitAPI.log", console=True).get_logger()
 
         self.exchange = ccxt.bybit({
             'apiKey': api_key,
@@ -73,21 +77,22 @@ class BybitAPI(BirzaAPI):
             self.logger.error(f"Ошибка при проверке статуса ордера {order_id}: {e}")
             return {}
 
-    def download_candels_to_csv(self, symbol: str, start_date: str = "2023-01-01T00:00:00Z", 
+    def download_candels_to_csv(self, symbol: str, start_date: str = "2025-01-01T00:00:00Z", 
                                  timeframe: str = "1h", save_folder: str = "DATA") -> pd.DataFrame:
         """
         Загрузка исторических данных и сохранение в CSV с помощью датапарсер.
         Для того чтобы не сохранял пишите None в save_folder
         """
         self.logger.info(f"Загрузка исторических данных {symbol} с {start_date}, timeframe={timeframe}")
-        df = fetch_data(exchange="bybit", symbol=symbol, start_date='2023-01-01T00:00:00Z', timeframe='1h')
-        save_path = f'{save_folder}/{symbol_clean}_{timeframe}.csv'            
+        df = fetch_data(exchange="bybit", symbol=symbol, start_date=start_date, timeframe=timeframe)
+        file_name = f'{symbol}_{timeframe}.csv'.replace("/", "")
+        save_path = f'{save_folder}/{file_name}'            
         
         if save_folder != None:
             try:    
                 os.makedirs(save_folder, exist_ok=True)
                 df.to_csv(save_path, index=False)
-                self.logger.info(f"Данные сохранены: {full_path}")
+                self.logger.info(f"Данные сохранены: {save_path}")
             except Exception as e:
                 self.logger.error(f"Ошибка при сохранении исторических данных: {e}")
                 return pd.DataFrame()
@@ -95,5 +100,8 @@ class BybitAPI(BirzaAPI):
             return df
 
 
-if "__name__" == __main__:
-    bot
+if __name__ == "__main__":
+    bot = BybitAPI(api_key=None, api_secret=None)
+    # bot.download_candels_to_csv("BTC/USDT")
+    df = bot.get_ohlcv("BTC/USDT")
+    print(df.head)

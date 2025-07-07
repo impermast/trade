@@ -5,12 +5,10 @@ import time
 import os
 
 
-def fetch_data(exchange_id, symbol, timeframe='1h', start_date='2025-01-01T00:00:00Z', limit=100):
+def fetch_data(exchange, symbol, timeframe='1h', start_date='2025-01-01T00:00:00Z', limit=100):
 
-    exchange_class = getattr(ccxt, exchange_id)
+    exchange_class = getattr(ccxt, exchange)
     exchange = exchange_class({'enableRateLimit': True})
-
-    print(f"Загружаем данные {symbol} ({timeframe}) через {exchange_id}...")
 
     if not start_date:
         raise ValueError("Необходимо указать start_date.")

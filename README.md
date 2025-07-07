@@ -9,11 +9,38 @@
 - Визуализация графиков
 - Логирование и симуляция торговли
 
-## Установка
 ```bash
-git clone https://github.com/yourname/trading-bot
-cd trading-bot
-python -m venv .venv
-source .venv/bin/activate  # или .venv\Scripts\activate на Windows
-pip install -r requirements.txt
+project_root/
+├── main.py                        # Главный async-бот
+├── .env                           # API-ключи и секреты
+├── config.yaml                    # Конфигурация стратегий, таймфреймов и т.п.
+│
+├── core/                          # Базовые классы и интерфейсы
+│   ├── __init__.py
+│   └── birza_api.py               # Абстрактный API-класс
+│
+├── api/                           # Реализации API для разных бирж
+│   ├── __init__.py
+│   └── bybit_api.py               # Реализация API через pybit
+│
+├── bots/                          # Подсистемы бота
+│   ├── __init__.py
+│   ├── databot.py                # API, данные, ордера
+│   ├── strategybot.py            # Анализ и генерация сигналов
+│   ├── loggerbot.py              # Логгер и обработка ошибок
+│   └── plotbot.py                # Графики, визуализация, GUI
+│
+├── strategies/                    # Плагины стратегий
+│   ├── __init__.py
+│   ├── base.py                   # BaseStrategy
+│   ├── rsi_macd.py               # RSI + MACD
+│   └── breakout.py               # Пример альтернативной
+│
+├── ui/                            # Интерфейс (опционально)
+│   └── streamlit_ui.py
+│
+├── logs/                          # Все логи
+│   └── bot.log
+└── data/                          # История свечей и сделок
+    └── BTCUSDT_1m.csv
 ```

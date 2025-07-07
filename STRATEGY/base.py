@@ -32,7 +32,7 @@ class BaseStrategy(ABC):
         pass
     
     
-    def get_indicators(self) -> list:
+    def check_indicators(self) -> list:
         """
         Возвращает список используемых индикаторов (строками),
         например: ["rsi", "macd", "macd_signal", "sma"]

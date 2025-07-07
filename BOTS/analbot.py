@@ -14,7 +14,7 @@ class Analytic:
         def __init__(self, parent):
             self.parent = parent
 
-        def sma(self, period=10, inplace=True):
+        def sma(self, period:int=10, inplace=True):
             self.parent.logger.info("Вычисление SMA.")
             df = self.parent.df
             df['sma'] = SMAIndicator(df['close'], window=period).sma_indicator()
@@ -23,7 +23,7 @@ class Analytic:
                 return None
             else: return df.copy()
 
-        def ema(self, period=10, inplace=True):
+        def ema(self, period:int=10, inplace=True):
             self.parent.logger.info("Вычисление EMA.")
             df = self.parent.df
             df['ema']= EMAIndicator(df['close'], window=period).ema_indicator()
@@ -32,7 +32,7 @@ class Analytic:
                 return None
             else: return df.copy()
 
-        def rsi(self, period=14, inplace=True):
+        def rsi(self, period:int=14, inplace=True):
             self.parent.logger.info("Вычисление RSI.")
             df = self.parent.df
             df['rsi'] = RSIIndicator(df['close'], window=period).rsi()
@@ -41,7 +41,7 @@ class Analytic:
                 return None
             else: return df.copy()
 
-        def macd(self, window_slow=12, window_fast=26, window_sign=9, inplace=True):
+        def macd(self, window_slow:int=12, window_fast:int=26, window_sign:int=9, inplace=True):
             self.parent.logger.info("Вычисление MACD.")
             df = self.parent.df
             df['macd'] = MACD(df['close'], window_slow=window_slow, window_fast=window_fast, window_sign=window_sign).macd_diff()
@@ -50,7 +50,7 @@ class Analytic:
                 return None
             else: return df.copy()
 
-        def bollinger_bands(self, period=20, window_dev=2, inplace=True):
+        def bollinger_bands(self, period:int=20, window_dev=2, inplace=True):
             self.parent.logger.info("Вычи Bollinger Bands.")
             df = self.parent.df
             bb = BollingerBands(df['close'], window=period, window_dev=window_dev)
@@ -65,24 +65,22 @@ class Analytic:
             else: return df.copy()
 
     @staticmethod
-    def _get_expected_columns(name):
-        """
-        Вспомогательный метод: какие колонки создаёт каждый индикатор
-        """
+    def _get_expected_columns(name, params):
         if name == "sma":
-            return [f"sma"]
+            return [f"sma_{params['period']}"]
         elif name == "ema":
-            return [f"ema"]
+            return [f"ema_{params['period']}"]
         elif name == "rsi":
-            return [f"rsi"]
+            return [f"rsi_{params['period']}"]
         elif name == "macd":
-            return [f"macd"]
+            return [f"macd_{params['window_fast']}_{params['window_slow']}"]
         elif name == "bollinger_bands":
-            return ["bb_h", "bb_m", "bb_l"]
+            p = params['period']
+            return [f"bb_h_{p}", f"bb_m_{p}", f"bb_l_{p}"]
         else:
             return []
 
-    def make_calc(self, df, indicators):
+    def make_calc(self, indicators):
         """
         indicators: список кортежей вида:
             [
@@ -98,7 +96,7 @@ class Analytic:
                 self.logger.warning(f"Индикатор {name} не найден.")
                 continue
 
-            expected_columns = self._get_expected_columns(name)
+            expected_columns = self._get_expected_columns(name, params)
 
             missing = [col for col in expected_columns if col not in df.columns]
             if not missing:
@@ -111,10 +109,10 @@ class Analytic:
             except Exception as e:
                 self.logger.error(f"Ошибка при расчёте {name}: {e}")
 
-    def make_strategy(self):
+    def make_strategy(self, strategy_cls):
         strategy = strategy_cls(self.df, **params)
         indicators = strategy.check_indicators()
-        self.make_calc(self.df, indicators)
+        self.make_calc(indicators)
         result = strategy.get_signals(self.df)
         return result
 

@@ -81,7 +81,7 @@ class BybitAPI(BirzaAPI):
                                  timeframe: str = "1h", save_folder: str = "DATA") -> pd.DataFrame:
         """
         Загрузка исторических данных и сохранение в CSV с помощью датапарсер.
-        Для того чтобы не сохранял пишите None в save_folder
+        Для того чтобы не сохранял - пишите None в save_folder
         """
         self.logger.info(f"Загрузка исторических данных {symbol} с {start_date}, timeframe={timeframe}")
         df = fetch_data(exchange="bybit", symbol=symbol, start_date=start_date, timeframe=timeframe)
@@ -102,6 +102,6 @@ class BybitAPI(BirzaAPI):
 
 if __name__ == "__main__":
     bot = BybitAPI(api_key=None, api_secret=None)
-    # bot.download_candels_to_csv("BTC/USDT")
+    bot.download_candels_to_csv("BTC/USDT")
     df = bot.get_ohlcv("BTC/USDT")
     print(df.head)

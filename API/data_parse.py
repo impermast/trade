@@ -1,11 +1,10 @@
 import ccxt
 import pandas as pd
-from datetime import datetime
 import time
-import os
 
 
-def fetch_data(exchange, symbol, timeframe='1h', start_date='2025-01-01T00:00:00Z', limit=100):
+
+def fetch_data(exchange, symbol, timeframe='1h', start_date='2025-01-01T00:00:00Z', limit=1000):
 
     exchange_class = getattr(ccxt, exchange)
     exchange = exchange_class({'enableRateLimit': True})
@@ -17,7 +16,7 @@ def fetch_data(exchange, symbol, timeframe='1h', start_date='2025-01-01T00:00:00
     now = exchange.milliseconds()
 
     while since < now:
-        ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=since, limit=1000)
+        ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=since, limit=limit)
         if not ohlcv:
             break
         all_data += ohlcv

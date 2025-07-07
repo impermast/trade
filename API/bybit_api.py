@@ -3,6 +3,7 @@
 import ccxt
 import pandas as pd
 from API.birza_api import BirzaAPI
+from API.data_parse import fetch_data
 from BOTS.loggerbot import Logger
 
 class BybitAPI(BirzaAPI):
@@ -71,3 +72,28 @@ class BybitAPI(BirzaAPI):
         except Exception as e:
             self.logger.error(f"Ошибка при проверке статуса ордера {order_id}: {e}")
             return {}
+
+    def download_candels_to_csv(self, symbol: str, start_date: str = "2023-01-01T00:00:00Z", 
+                                 timeframe: str = "1h", save_folder: str = "DATA") -> pd.DataFrame:
+        """
+        Загрузка исторических данных и сохранение в CSV с помощью датапарсер.
+        Для того чтобы не сохранял пишите None в save_folder
+        """
+        self.logger.info(f"Загрузка исторических данных {symbol} с {start_date}, timeframe={timeframe}")
+        df = fetch_data(exchange="bybit", symbol=symbol, start_date='2023-01-01T00:00:00Z', timeframe='1h')
+        save_path = f'{save_folder}/{symbol_clean}_{timeframe}.csv'            
+        
+        if save_folder != None:
+            try:    
+                os.makedirs(save_folder, exist_ok=True)
+                df.to_csv(save_path, index=False)
+                self.logger.info(f"Данные сохранены: {full_path}")
+            except Exception as e:
+                self.logger.error(f"Ошибка при сохранении исторических данных: {e}")
+                return pd.DataFrame()
+        else:
+            return df
+
+
+if "__name__" == __main__:
+    bot

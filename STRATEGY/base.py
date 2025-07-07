@@ -3,42 +3,33 @@
 from abc import ABC, abstractmethod
 import pandas as pd
 
-
 class BaseStrategy(ABC):
-    """
-    Абстрактная стратегия, работающая с DataFrame OHLCV.
-    """
-
-    def __init__(self, name:str, indicators = None, **params):
+    def __init__(self, name: str = "BaseStrategy", indicators: list[str] = None, **params):
         self.name = name
-        default_params = self.default_params()
-        self.params = {**default_params, **params}
         self.indicators = indicators or []
 
+        # Объединяем default_params и пользовательские:
+        self.params = self._merge_with_defaults(self.default_params(), params)
+
     @abstractmethod
-    def get_signals(self, df: pd.DataFrame) -> int:
-        """
-        Возвращает сигнал:
-        -1 = Продажа
-         0 = Пропустить
-         1 = Покупка
-        """
+    def generate_signal(self, df: pd.DataFrame) -> int:
         pass
-    
-    
+
     @abstractmethod
     def default_params(self) -> dict:
-        """Определяет список нужных параметров и их дефолты"""
         pass
-    
-    
-    def check_indicators(self) -> list:
-        """
-        Возвращает список используемых индикаторов (строками),
-        например: ["rsi", "macd", "macd_signal", "sma"]
-        """
+
+    def _merge_with_defaults(self, defaults, overrides):
+        merged = defaults.copy()
+        for k, v in overrides.items():
+            if isinstance(v, dict) and k in merged and isinstance(merged[k], dict):
+                merged[k].update(v)
+            else:
+                merged[k] = v
+        return merged
+
+    def get_indicators(self):
         return self.indicators
 
-
     def __str__(self):
-        return f"Strategy = {self.name}  (params = {self.params})"
+        return f"{self.name}(params={self.params})"

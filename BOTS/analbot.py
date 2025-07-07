@@ -92,7 +92,11 @@ class Analytic:
         default_params = {
             "sma": {"period": 10},
             "ema": {"period": 10},
-            "rsi": {"period": 14},
+            "rsi": {
+                "period": 14,
+                "lower": 30,
+                "upper": 70
+                },
             "macd": {"window_fast": 12, "window_slow": 26, "window_sign": 9},
             "bollinger_bands": {"period": 20, "window_dev": 2},
         }

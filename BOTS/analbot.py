@@ -1,5 +1,5 @@
-import pandas as pd
-import numpy as np
+# strategy/analbot.py
+
 from ta.trend import SMAIndicator, EMAIndicator, MACD
 from ta.momentum import RSIIndicator
 from ta.volatility import BollingerBands
@@ -18,28 +18,36 @@ class Analytic:
             self.parent.logger.info("Вычисление SMA.")
             df = self.parent.df
             df['sma'] = SMAIndicator(df['close'], window=period).sma_indicator()
-            if inplace: self.parent.df["sma"] = df["sma"]
+            if inplace:
+                self.parent.df["sma"] = df["sma"]
+                return None
             else: return df.copy()
 
         def ema(self, period=10, inplace=True):
             self.parent.logger.info("Вычисление EMA.")
             df = self.parent.df
             df['ema']= EMAIndicator(df['close'], window=period).ema_indicator()
-            if inplace: self.parent.df["ema"] = df["ema"]
+            if inplace:
+                self.parent.df["ema"] = df["ema"]
+                return None
             else: return df.copy()
 
         def rsi(self, period=14, inplace=True):
             self.parent.logger.info("Вычисление RSI.")
             df = self.parent.df
             df['rsi'] = RSIIndicator(df['close'], window=period).rsi()
-            if inplace: self.parent.df["rsi"] = df["rsi"]
+            if inplace:
+                self.parent.df["rsi"] = df["rsi"]
+                return None
             else: return df.copy()
 
         def macd(self, window_slow=12, window_fast=26, window_sign=9, inplace=True):
             self.parent.logger.info("Вычисление MACD.")
             df = self.parent.df
             df['macd'] = MACD(df['close'], window_slow=window_slow, window_fast=window_fast, window_sign=window_sign).macd_diff()
-            if inplace: self.parent.df["macd"] = df["macd"]
+            if inplace:
+                self.parent.df["macd"] = df["macd"]
+                return None
             else: return df.copy()
 
         def bollinger_bands(self, period=20, window_dev=2, inplace=True):
@@ -53,4 +61,60 @@ class Analytic:
                 self.parent.df["bb_h"] = df["bb_h"]
                 self.parent.df["bb_m"] = df["bb_m"]
                 self.parent.df["bb_l"] = df["bb_l"]
+                return None
             else: return df.copy()
+
+    @staticmethod
+    def _get_expected_columns(name):
+        """
+        Вспомогательный метод: какие колонки создаёт каждый индикатор
+        """
+        if name == "sma":
+            return [f"sma"]
+        elif name == "ema":
+            return [f"ema"]
+        elif name == "rsi":
+            return [f"rsi"]
+        elif name == "macd":
+            return [f"macd"]
+        elif name == "bollinger_bands":
+            return ["bb_h", "bb_m", "bb_l"]
+        else:
+            return []
+
+    def make_calc(self, df, indicators):
+        """
+        indicators: список кортежей вида:
+            [
+                ("sma", {"period": 20}),
+                ("rsi", {"period": 14}),
+                ("macd", {"window_fast": 12, "window_slow": 26}),
+                ("bollinger_bands", {"period": 20}),
+            ]
+        """
+        for name, params in indicators:
+            method = getattr(self.indicators, name, None)
+            if method is None:
+                self.logger.warning(f"Индикатор {name} не найден.")
+                continue
+
+            expected_columns = self._get_expected_columns(name)
+
+            missing = [col for col in expected_columns if col not in df.columns]
+            if not missing:
+                self.logger.info(f"Пропускаем {name} — уже рассчитан.")
+                continue
+
+            try:
+                method(inplace=True, **params)
+                self.logger.info(f"Индикатор {name} рассчитан.")
+            except Exception as e:
+                self.logger.error(f"Ошибка при расчёте {name}: {e}")
+
+    def make_strategy(self):
+        strategy = strategy_cls(self.df, **params)
+        indicators = strategy.check_indicators()
+        self.make_calc(self.df, indicators)
+        result = strategy.get_signals(self.df)
+        return result
+

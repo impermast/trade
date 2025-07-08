@@ -6,7 +6,6 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 
 sys.path.append(os.path.abspath("."))
-
 from BOTS.PLOTBOTS.BaseBot import BasePlotBot
 
 

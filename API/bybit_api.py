@@ -2,9 +2,13 @@
 
 import os
 import sys
-sys.path.append(os.path.abspath("."))
+
 import ccxt
 import pandas as pd
+
+sys.path.append(os.path.abspath("."))
+print(sys.path)
+
 from API.birza_api import BirzaAPI
 from API.data_parse import fetch_data
 from BOTS.loggerbot import Logger

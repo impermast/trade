@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import pandas as pd
 
 class BaseStrategy(ABC):
-    def __init__(self, name: str = "BaseStrategy", indicators: list[str] = None, **params):
+    def __init__(self, name: str = "BaseStrategy", indicators = None, **params):
         self.name = name
         self.indicators = indicators or []
 

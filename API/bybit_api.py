@@ -1,9 +1,8 @@
 # api/bybit_api.py
 
-import sys
 import os
+import sys
 sys.path.append(os.path.abspath("."))
-
 import ccxt
 import pandas as pd
 from API.birza_api import BirzaAPI
@@ -86,8 +85,10 @@ class BybitAPI(BirzaAPI):
         self.logger.info(f"Загрузка исторических данных {symbol} с {start_date}, timeframe={timeframe}")
         df = fetch_data(exchange="bybit", symbol=symbol, start_date=start_date, timeframe=timeframe)
         file_name = f'{symbol}_{timeframe}.csv'.replace("/", "")
-        save_path = f'{save_folder}/{file_name}'            
-        
+        save_path = f'{save_folder}/{file_name}'
+        # current_dir = os.path.dirname(os.path.abspath(__file__))
+        # csv_path = os.path.join(current_dir, "..", save_folder, file_name)
+        # save_path = os.path.abspath(csv_path)
         if save_folder != None:
             try:    
                 os.makedirs(save_folder, exist_ok=True)
@@ -102,6 +103,6 @@ class BybitAPI(BirzaAPI):
 
 if __name__ == "__main__":
     bot = BybitAPI(api_key=None, api_secret=None)
-    bot.download_candels_to_csv("BTC/USDT")
+    bot.download_candels_to_csv("BTC/USDT", start_date="2025-05-05T00:00:00Z", timeframe="1h")
     df = bot.get_ohlcv("BTC/USDT")
     print(df.head)

@@ -4,6 +4,18 @@ from xgboost import XGBRegressor
 model = joblib.load('xgb_model_multi.joblib')
 features = joblib.load('xgb_model_features.joblib')
 
+# df['rsi']         = ta.momentum.RSIIndicator(df['close'], window=14).rsi()
+# df['ema']         = ta.trend.EMAIndicator(df['close'], window=10).ema_indicator()
+# df['macd']        = ta.trend.MACD(df['close']).macd()
+# df['boll_upper']  = ta.volatility.BollingerBands(df['close']).bollinger_hband()
+# df['boll_lower']  = ta.volatility.BollingerBands(df['close']).bollinger_lband()
+# df['atr']         = ta.volatility.AverageTrueRange(df['high'], df['low'], df['close']).average_true_range()
+# df['obv']         = ta.volume.OnBalanceVolumeIndicator(df['close'], df['volume']).on_balance_volume()
+# df['return_1h']   = df['close'].pct_change(1)
+# df['return_3h']   = df['close'].pct_change(3)
+# df['return_6h']   = df['close'].pct_change(6)
+# df['hour']        = df['timestamp'].dt.hour
+
 for i in range(len(df) - 2):  # -2 для проскальзывания
     row = df.iloc[i]
     price_exec = df.iloc[i + 1]['open'] * (1 + slippage_percent)  # цена сделки с проскальзыванием

@@ -11,7 +11,7 @@ from BOTS.PLOTBOTS.BaseBot import BasePlotBot
 
 
 class PlotBot(BasePlotBot):
-    def split_indicators(self, df: pd.DataFrame, indicators_overlay: list[str]= {"sma", "ema", "bb_h", "bb_m", "bb_l"}) -> tuple[list[str], list[str]]:
+    def split_indicators(self, df: pd.DataFrame, indicators_overlay = {"sma", "ema", "bb_h", "bb_m", "bb_l"}) -> tuple[list[str], list[str]]:
         # Индикаторы, которые лучше рисовать прямо на графике цены
         
         base_columns = {"time", "timestamp", "open", "high", "low", "close", "volume", "orders", "position", "pnl"}

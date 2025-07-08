@@ -32,7 +32,7 @@ class PlotBot(BasePlotBot):
     def update_axes(self, df: pd.DataFrame):
         self.ax_price.clear()
         self.ax_pnl.clear()
-
+        
         self.ax_price.plot(df["time"], df["close"], label="Цена закрытия", color="black")
 
         #Строю оверлей индикаторы
@@ -40,7 +40,8 @@ class PlotBot(BasePlotBot):
         self.logger.info(f'Строю дополнительные графики для индикаторов {overlay_inds}')
         for ind in overlay_inds:
             self.ax_price.plot(df["time"], df[ind], label=ind)
-
+        for ind in subplot_inds:
+            self.ax_indicators.plot(df["time"], df[ind], label=ind)
         #выставляю ордера на графике
         entry_price = None
         equity = [0]
@@ -85,6 +86,9 @@ class PlotBot(BasePlotBot):
         by_label = dict(zip(labels, handles))  # убираем дубликаты
         self.ax_price.legend(by_label.values(), by_label.keys(), loc="upper right", fontsize=10)
 
+        self.ax_indicators.legend(loc="lower right", fontsize=10)
+
+        
     def _update_graph(self):
         try:
             df = pd.read_csv(self.csv_file)
@@ -109,6 +113,6 @@ class PlotBot(BasePlotBot):
         self.root.mainloop()
 
 if __name__ == "__main__":
-    plotbot = PlotBot(csv_file="DATA/BTCUSDT_1h.csv", refresh_interval=15)
+    plotbot = PlotBot(csv_file="DATA/BTCUSDT_1h_anal.csv", refresh_interval=15)
     plotbot.start()
     

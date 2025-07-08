@@ -1,5 +1,6 @@
 # strategy/analbot.py
 import os, sys
+import pandas as pd
 
 sys.path.append(os.path.abspath("."))
 from BOTS.loggerbot import Logger
@@ -10,10 +11,13 @@ from ta.momentum import RSIIndicator
 from ta.volatility import BollingerBands
 
 class Analytic:
-    def __init__(self, df):
+    def __init__(self, df, data_name:str ,output_file = "anal.csv"):
         self.df = df
         self.logger = Logger(name="Analitic", tag="[ANAL]", logfile="logs/analitic.log", console=True).get_logger()
         self.indicators = self.Indicators(self)
+        self.output_file = output_file
+        self.data_name = data_name
+        self.output_path = f'DATA/{data_name}_{output_file}'
 
     class Indicators:
         def __init__(self, parent):
@@ -119,12 +123,21 @@ class Analytic:
                 self.logger.error(f"Ошибка при расчёте {indicator_name}: {e}")
 
 
-    def make_strategy(self, strategy_cls, **params):
+    def make_strategy(self, strategy_cls, inplace = True, **params):
         strategy = strategy_cls(**params)
         self.logger.info(f"Начинаю расчет для стратегии {strategy.name}")
+        
         indicators, stratparams = strategy.check_indicators()
         self.make_calc(indicators, stratparams)
         result = strategy.get_signals(self.df)
+        
+        if inplace:
+            try:
+                df.to_csv(self.output_path, index=False)
+                self.logger.info(f"Данные анализа сохранены в {self.output_path}")
+            except Exception as e:
+                self.logger.error(f"Ошибка сохранения {self.output_path}: {e}")
+                
         return result
 
 if __name__ == "__main__":
@@ -138,6 +151,6 @@ if __name__ == "__main__":
     df = pd.read_csv(csv_path)
     if 'timestamp' in df.columns:
         df['timestamp'] = pd.to_datetime(df['timestamp'])
-    anal = Analytic(df)
+    anal = Analytic(df,"BTCUSDT_1h")
     r = anal.make_strategy(RSIonly_Strategy,rsi={"period": 20, "lower": 20})
     print(r)

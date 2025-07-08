@@ -1,7 +1,4 @@
-import pandas as pd
-import ta
 import joblib
-import numpy as np
 from xgboost import XGBRegressor
 
 model = joblib.load('xgb_model_multi.joblib')

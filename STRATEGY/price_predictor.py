@@ -1,22 +1,15 @@
-import ccxt
-import pandas as pd
-import pandas_ta as ta
-import torch
-import torch.nn as nn
-from sklearn.preprocessing import StandardScaler
-import joblib
-import matplotlib.pyplot as plt
 import time
 
 import ccxt
+import joblib
+import matplotlib.pyplot as plt
 import pandas as pd
 import pandas_ta as ta
 import torch
 import torch.nn as nn
 from sklearn.preprocessing import StandardScaler
-import joblib
-import matplotlib.pyplot as plt
-import time
+
+
 
 # === 1. Скачать данные с биржи через ccxt ===
 def fetch_ohlcv_to_df(exchange, symbol, timeframe='5m', limit=10000):

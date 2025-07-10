@@ -2,9 +2,13 @@
 import os
 import sys
 import inspect
+import time
 import pandas as pd
 import concurrent.futures
-from functools import lru_cache
+from functools import lru_cache, partial
+from hashlib import md5
+import pickle
+import json
 from multiprocessing import cpu_count
 from typing import Dict, List, Any, Optional, Union, Type, Callable, TypeVar, cast, Tuple
 
@@ -18,7 +22,8 @@ from STRATEGY.base import BaseStrategy
 T = TypeVar('T', bound=BaseStrategy)
 
 class Analytic:
-    def __init__(self, df: pd.DataFrame, data_name: str, output_file: str = "anal.csv") -> None:
+    def __init__(self, df: pd.DataFrame, data_name: str, output_file: str = "anal.csv", 
+                 cache_dir: str = "DATA/cache") -> None:
         """
         Initialize the Analytic class with data and output settings.
 
@@ -26,6 +31,7 @@ class Analytic:
             df: DataFrame containing price data
             data_name: Name of the data (used for output file naming)
             output_file: Suffix for the output file name
+            cache_dir: Directory for caching strategy results
         """
         self.df: pd.DataFrame = df
         self.logger = Logger(name="Analitic", tag="[ANAL]", logfile="LOGS/analitic.log", console=True).get_logger()
@@ -33,6 +39,10 @@ class Analytic:
         self.output_file: str = output_file
         self.data_name: str = data_name
         self.output_path: str = f'DATA/{data_name}_{output_file}'
+        self.cache_dir: str = cache_dir
+
+        # Create cache directory if it doesn't exist
+        os.makedirs(self.cache_dir, exist_ok=True)
 
     @staticmethod
     @lru_cache(maxsize=128)
@@ -210,8 +220,83 @@ class Analytic:
             self.logger.error(f"Error saving to {self.output_path}: {e}")
             return False
 
+    def _generate_cache_key(self, strategy_cls: Type[T], **params) -> str:
+        """
+        Generate a unique cache key for a strategy with specific parameters.
+
+        Args:
+            strategy_cls: Strategy class
+            **params: Strategy parameters
+
+        Returns:
+            A unique cache key string
+        """
+        # Create a dictionary with strategy class name and parameters
+        cache_dict = {
+            "strategy_class": strategy_cls.__name__,
+            "data_name": self.data_name,
+            "params": params,
+            # Include the last modified timestamp of the data file to invalidate cache when data changes
+            "data_timestamp": os.path.getmtime(self.output_path) if os.path.exists(self.output_path) else 0
+        }
+
+        # Convert to a stable JSON string (sort keys for consistency)
+        cache_json = json.dumps(cache_dict, sort_keys=True)
+
+        # Create an MD5 hash of the JSON string
+        cache_hash = md5(cache_json.encode()).hexdigest()
+
+        return cache_hash
+
+    def _get_cached_result(self, cache_key: str) -> Optional[int]:
+        """
+        Try to get a cached strategy result.
+
+        Args:
+            cache_key: The cache key for the strategy
+
+        Returns:
+            The cached result if available, None otherwise
+        """
+        cache_file = os.path.join(self.cache_dir, f"{cache_key}.pkl")
+
+        if not os.path.exists(cache_file):
+            return None
+
+        try:
+            # Check if the cache file is recent enough (less than 1 day old)
+            cache_age = time.time() - os.path.getmtime(cache_file)
+            if cache_age > 86400:  # 24 hours in seconds
+                self.logger.info(f"Cache file {cache_file} is too old, recalculating")
+                return None
+
+            with open(cache_file, 'rb') as f:
+                result = pickle.load(f)
+                self.logger.info(f"Using cached result for strategy (key: {cache_key})")
+                return result
+        except Exception as e:
+            self.logger.warning(f"Error reading cache file {cache_file}: {e}")
+            return None
+
+    def _cache_result(self, cache_key: str, result: int) -> None:
+        """
+        Cache a strategy result.
+
+        Args:
+            cache_key: The cache key for the strategy
+            result: The result to cache
+        """
+        cache_file = os.path.join(self.cache_dir, f"{cache_key}.pkl")
+
+        try:
+            with open(cache_file, 'wb') as f:
+                pickle.dump(result, f)
+            self.logger.info(f"Cached result for strategy (key: {cache_key})")
+        except Exception as e:
+            self.logger.warning(f"Error writing cache file {cache_file}: {e}")
+
     def make_strategy(self, strategy_cls: Type[T], inplace: bool = True, 
-                  parallel: bool = True, **params) -> int:
+                  parallel: bool = True, use_cache: bool = True, **params) -> int:
         """
         Apply a trading strategy to the data.
 
@@ -219,25 +304,80 @@ class Analytic:
             strategy_cls: Strategy class to instantiate
             inplace: Whether to save results to file
             parallel: Whether to calculate indicators in parallel
+            use_cache: Whether to use cached results if available
             **params: Parameters to pass to the strategy
 
         Returns:
             Signal value from the strategy
         """
+        # Check cache first if enabled
+        if use_cache:
+            cache_key = self._generate_cache_key(strategy_cls, **params)
+            cached_result = self._get_cached_result(cache_key)
+            if cached_result is not None:
+                return cached_result
+
         # Create strategy instance
         strategy = strategy_cls(**params)
         self.logger.info(f"Starting calculation for strategy {strategy.name}")
 
         # Get required indicators and calculate them
         indicators, stratparams = strategy.check_indicators()
-        self.make_calc(indicators, stratparams, parallel=parallel)
+
+        # Use batch processing for large datasets
+        if len(self.df) > 10000:  # Threshold for "large" dataset
+            self.logger.info(f"Using batch processing for large dataset ({len(self.df)} rows)")
+            # Process in batches of 10,000 rows
+            batch_size = 10000
+            num_batches = (len(self.df) + batch_size - 1) // batch_size  # Ceiling division
+
+            # Process each batch
+            for i in range(num_batches):
+                start_idx = i * batch_size
+                end_idx = min((i + 1) * batch_size, len(self.df))
+                self.logger.info(f"Processing batch {i+1}/{num_batches} (rows {start_idx}-{end_idx})")
+
+                # Create a view of the dataframe for this batch
+                batch_df = self.df.iloc[start_idx:end_idx].copy()
+
+                # Create a temporary Analytic instance for this batch
+                batch_indicators = Indicators(batch_df, self.logger)
+
+                # Calculate indicators for this batch
+                for indicator_name in indicators:
+                    params = stratparams.get(indicator_name, {})
+                    method = getattr(batch_indicators, indicator_name, None)
+                    if method is not None:
+                        method_params = inspect.signature(method).parameters
+                        filtered_params = {k: v for k, v in params.items() if k in method_params}
+                        try:
+                            method(inplace=True, **filtered_params)
+                        except Exception as e:
+                            self.logger.error(f"Error calculating {indicator_name} for batch {i+1}: {e}")
+
+                # Copy the calculated indicators back to the main dataframe
+                for col in batch_df.columns:
+                    if col not in self.df.columns:
+                        self.df[col] = None
+                    self.df.iloc[start_idx:end_idx, self.df.columns.get_loc(col)] = batch_df[col]
+        else:
+            # For smaller datasets, use the standard calculation method
+            self.make_calc(indicators, stratparams, parallel=parallel)
 
         # Generate signals using the strategy
+        start_time = time.time()
         result = strategy.get_signals(self.df)
+        end_time = time.time()
+        self.logger.info(f"Strategy signal generation took {end_time - start_time:.2f} seconds")
 
         # Save results if requested
         if inplace:
             self._save_results_to_csv()
+
+        # Cache the result if caching is enabled
+        if use_cache:
+            cache_key = self._generate_cache_key(strategy_cls, **params)
+            self._cache_result(cache_key, result)
 
         return result
 

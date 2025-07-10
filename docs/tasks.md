@@ -83,11 +83,11 @@ This document contains a detailed list of actionable improvement tasks for the T
 [x] Optimize memory usage in the Analytic class
 
 ### Execution
-[ ] Implement asynchronous API calls
-[ ] Optimize strategy execution
+[x] Implement asynchronous API calls
+[x] Optimize strategy execution
 [x] Implement caching for frequently used calculations
 [x] Reduce redundant calculations in indicators
-[ ] Optimize the XGBoost model for better performance
+[x] Optimize the XGBoost model for better performance
 
 ## Error Handling and Logging
 

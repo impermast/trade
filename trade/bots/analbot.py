@@ -1,15 +1,14 @@
-# strategy/analbot.py
+# trade/bots/analbot.py
 import os
 import sys
 import inspect
 import pandas as pd
 from typing import Dict, List, Any, Optional, Union, Type, Callable, TypeVar, cast
 
-sys.path.append(os.path.abspath("."))
-from BOTS.loggerbot import Logger
-from BOTS.indicators import Indicators
-from STRATEGY.rsi import RSIonly_Strategy
-from STRATEGY.base import BaseStrategy
+from trade.bots.loggerbot import Logger
+from trade.bots.indicators import Indicators
+from trade.strategy.rsi import RSIonly_Strategy
+from trade.strategy.base import BaseStrategy
 
 # Type variable for strategy classes
 T = TypeVar('T', bound=BaseStrategy)
@@ -184,7 +183,7 @@ if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Path one level up to the DATA folder
-    csv_path = os.path.join(current_dir, "..", "DATA", "BTCUSDT_1h.csv")
+    csv_path = os.path.join(os.path.dirname(current_dir), "..", "DATA", "BTCUSDT_1h.csv")
     csv_path = os.path.abspath(csv_path)  # absolute path (just to be safe)
 
     # Load the data

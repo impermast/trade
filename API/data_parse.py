@@ -1,11 +1,25 @@
 import ccxt
 import pandas as pd
 import time
+from typing import Optional, Union, List
 
 
+def fetch_data(exchange: str, symbol: str, timeframe: str = '1h', 
+              start_date: str = '2023-01-01T00:00:00Z', limit: int = 1000) -> pd.DataFrame:
+    """
+    Fetch historical OHLCV data from a cryptocurrency exchange.
 
-def fetch_data(exchange, symbol, timeframe='1h', start_date='2023-01-01T00:00:00Z', limit=1000):
+    Args:
+        exchange: Name of the exchange (e.g., 'bybit', 'binance')
+        symbol: Trading pair symbol (e.g., 'BTC/USDT')
+        timeframe: Candlestick timeframe (e.g., '1m', '5m', '1h', '1d')
+        start_date: Start date for historical data in ISO format
+        limit: Maximum number of candles to fetch per request
 
+    Returns:
+        DataFrame containing OHLCV data with columns:
+        [timestamp, open, high, low, close, volume]
+    """
     exchange_class = getattr(ccxt, exchange)
     exchange = exchange_class({'enableRateLimit': True})
 

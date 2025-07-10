@@ -1,11 +1,8 @@
-# strategies/rsi_only.py
-import sys
-import os
-sys.path.append(os.path.abspath("."))
+# trade/strategy/rsi.py
 
 import pandas as pd
 from typing import Dict, Any, Optional
-from STRATEGY.base import BaseStrategy
+from trade.strategy.base import BaseStrategy
 
 
 class RSIonly_Strategy(BaseStrategy):
@@ -72,7 +69,7 @@ class RSIonly_Strategy(BaseStrategy):
         col = "rsi" if period == 14 else f"rsi_{period}"
 
         if col not in df.columns:
-            raise ValueError(f"Колонка {col} не найдена в датафрейме.")
+            raise ValueError(f"Column {col} not found in the DataFrame.")
 
         rsi = df[col].iloc[-1]
 

@@ -1,4 +1,4 @@
-# strategy/base.py
+# trade/strategy/base.py
 
 from abc import ABC, abstractmethod
 import pandas as pd

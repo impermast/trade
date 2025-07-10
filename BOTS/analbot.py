@@ -3,7 +3,10 @@ import os
 import sys
 import inspect
 import pandas as pd
-from typing import Dict, List, Any, Optional, Union, Type, Callable, TypeVar, cast
+import concurrent.futures
+from functools import lru_cache
+from multiprocessing import cpu_count
+from typing import Dict, List, Any, Optional, Union, Type, Callable, TypeVar, cast, Tuple
 
 sys.path.append(os.path.abspath("."))
 from BOTS.loggerbot import Logger
@@ -32,17 +35,23 @@ class Analytic:
         self.output_path: str = f'DATA/{data_name}_{output_file}'
 
     @staticmethod
-    def _get_expected_columns(name: str, params: Dict[str, Any]) -> List[str]:
+    @lru_cache(maxsize=128)
+    def _get_expected_columns(name: str, params_tuple: Tuple[Tuple[str, Any], ...]) -> List[str]:
         """
         Get the expected column names for a given indicator with specific parameters.
 
+        This method is cached to avoid recalculating the same column names multiple times.
+
         Args:
             name: Name of the indicator
-            params: Parameters for the indicator
+            params_tuple: Parameters for the indicator as a tuple of (key, value) pairs
 
         Returns:
             List of expected column names in the DataFrame
         """
+        # Convert params_tuple back to a dictionary
+        params = dict(params_tuple)
+
         defaults: Dict[str, Dict[str, Any]] = {
             "sma": {"period": 10},
             "ema": {"period": 10},
@@ -80,6 +89,21 @@ class Analytic:
 
         return []
 
+    def _get_expected_columns_dict(self, name: str, params: Dict[str, Any]) -> List[str]:
+        """
+        Wrapper for _get_expected_columns that accepts a dictionary.
+
+        Args:
+            name: Name of the indicator
+            params: Parameters for the indicator as a dictionary
+
+        Returns:
+            List of expected column names in the DataFrame
+        """
+        # Convert dictionary to a tuple of tuples for caching
+        params_tuple = tuple(sorted(params.items()))
+        return self._get_expected_columns(name, params_tuple)
+
     def _calculate_single_indicator(self, indicator_name: str, params: Dict[str, Any]) -> bool:
         """
         Calculate a single indicator with the given parameters.
@@ -100,7 +124,7 @@ class Analytic:
             return False
 
         # Check if the indicator is already calculated
-        expected_columns = self._get_expected_columns(indicator_name, params)
+        expected_columns = self._get_expected_columns_dict(indicator_name, params)
         missing = [col for col in expected_columns if col not in self.df.columns]
         if not missing:
             self.logger.info(f"Skipping {indicator_name} - already calculated.")
@@ -119,19 +143,57 @@ class Analytic:
             self.logger.error(f"Error calculating {indicator_name}: {e}")
             return False
 
-    def make_calc(self, indicators: List[str], stratparams: Dict[str, Dict[str, Any]]) -> None:
+    def make_calc(self, indicators: List[str], stratparams: Dict[str, Dict[str, Any]], 
+              parallel: bool = True) -> None:
         """
         Calculate indicators based on strategy parameters.
 
         Args:
             indicators: List of indicator names to calculate
             stratparams: Dictionary of indicator parameters
+            parallel: Whether to calculate indicators in parallel
         """
         self.logger.info(f"Calculating indicators: {stratparams}")
 
-        for indicator_name in stratparams:
-            params = stratparams.get(indicator_name, {})
-            self._calculate_single_indicator(indicator_name, params)
+        # Filter indicators that are in stratparams
+        indicators_to_calculate = [ind for ind in indicators if ind in stratparams]
+
+        if not indicators_to_calculate:
+            self.logger.warning("No indicators to calculate")
+            return
+
+        if not parallel or len(indicators_to_calculate) <= 1:
+            # Calculate indicators sequentially
+            for indicator_name in indicators_to_calculate:
+                params = stratparams.get(indicator_name, {})
+                self._calculate_single_indicator(indicator_name, params)
+        else:
+            # Calculate indicators in parallel
+            # Use ThreadPoolExecutor since indicator calculations are mostly I/O-bound
+            max_workers = min(len(indicators_to_calculate), cpu_count() * 2)
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit all tasks
+                futures = {
+                    executor.submit(
+                        self._calculate_single_indicator, 
+                        indicator_name, 
+                        stratparams.get(indicator_name, {})
+                    ): indicator_name for indicator_name in indicators_to_calculate
+                }
+
+                # Process results as they complete
+                for future in concurrent.futures.as_completed(futures):
+                    indicator_name = futures[future]
+                    try:
+                        result = future.result()
+                        if result:
+                            self.logger.info(f"Parallel calculation of {indicator_name} completed successfully")
+                    except Exception as e:
+                        self.logger.error(f"Error in parallel calculation of {indicator_name}: {e}")
+                        # Cancel remaining tasks if one fails
+                        for f in futures:
+                            f.cancel()
 
     def _save_results_to_csv(self) -> bool:
         """
@@ -148,13 +210,15 @@ class Analytic:
             self.logger.error(f"Error saving to {self.output_path}: {e}")
             return False
 
-    def make_strategy(self, strategy_cls: Type[T], inplace: bool = True, **params) -> int:
+    def make_strategy(self, strategy_cls: Type[T], inplace: bool = True, 
+                  parallel: bool = True, **params) -> int:
         """
         Apply a trading strategy to the data.
 
         Args:
             strategy_cls: Strategy class to instantiate
             inplace: Whether to save results to file
+            parallel: Whether to calculate indicators in parallel
             **params: Parameters to pass to the strategy
 
         Returns:
@@ -166,7 +230,7 @@ class Analytic:
 
         # Get required indicators and calculate them
         indicators, stratparams = strategy.check_indicators()
-        self.make_calc(indicators, stratparams)
+        self.make_calc(indicators, stratparams, parallel=parallel)
 
         # Generate signals using the strategy
         result = strategy.get_signals(self.df)

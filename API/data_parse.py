@@ -4,7 +4,7 @@ import time
 
 
 
-def fetch_data(exchange, symbol, timeframe='1h', start_date='2025-01-01T00:00:00Z', limit=1000):
+def fetch_data(exchange, symbol, timeframe='1h', start_date='2023-01-01T00:00:00Z', limit=1000):
 
     exchange_class = getattr(ccxt, exchange)
     exchange = exchange_class({'enableRateLimit': True})
@@ -31,5 +31,5 @@ def fetch_data(exchange, symbol, timeframe='1h', start_date='2025-01-01T00:00:00
 
 
 if __name__ == "__main__":
-    a = fetch_data("bybit", "BTC/USDT", timeframe="15m", start_date="2025-05-05T00:00:00Z")
+    a = fetch_data("bybit", "BTC/USDT", timeframe="15m", start_date="2023-05-05T00:00:00Z")
     print(a)

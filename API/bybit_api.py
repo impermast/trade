@@ -14,7 +14,7 @@ from BOTS.loggerbot import Logger
 
 class BybitAPI(BirzaAPI):
     def __init__(self, api_key: str, api_secret: str, testnet: bool = True):
-        self.logger = Logger(name="bybitAPI", tag = "[API]", logfile="logs/bybitAPI.log", console=True).get_logger()
+        self.logger = Logger(name="bybitAPI", tag = "[API]", logfile="LOGS/bybitAPI.log", console=True).get_logger()
 
         self.exchange = ccxt.bybit({
             'apiKey': api_key,
@@ -79,7 +79,7 @@ class BybitAPI(BirzaAPI):
             self.logger.error(f"Ошибка при проверке статуса ордера {order_id}: {e}")
             return {}
 
-    def download_candels_to_csv(self, symbol: str, start_date: str = "2025-01-01T00:00:00Z", 
+    def download_candels_to_csv(self, symbol: str, start_date: str = "2023-01-01T00:00:00Z", 
                                  timeframe: str = "1h", save_folder: str = "DATA") -> pd.DataFrame:
         """
         Загрузка исторических данных и сохранение в CSV с помощью датапарсер.
@@ -92,7 +92,7 @@ class BybitAPI(BirzaAPI):
         # current_dir = os.path.dirname(os.path.abspath(__file__))
         # csv_path = os.path.join(current_dir, "..", save_folder, file_name)
         # save_path = os.path.abspath(csv_path)
-        if save_folder != None:
+        if save_folder is not None:
             try:    
                 os.makedirs(save_folder, exist_ok=True)
                 df.to_csv(save_path, index=False)
@@ -106,6 +106,6 @@ class BybitAPI(BirzaAPI):
 
 if __name__ == "__main__":
     bot = BybitAPI(api_key=None, api_secret=None)
-    bot.download_candels_to_csv("BTC/USDT", start_date="2025-05-05T00:00:00Z", timeframe="1h")
+    bot.download_candels_to_csv("BTC/USDT", start_date="2023-05-05T00:00:00Z", timeframe="1h")
     df = bot.get_ohlcv("BTC/USDT")
     # print(df.head)

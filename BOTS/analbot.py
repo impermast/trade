@@ -13,7 +13,7 @@ from ta.volatility import BollingerBands
 class Analytic:
     def __init__(self, df, data_name:str ,output_file = "anal.csv"):
         self.df = df
-        self.logger = Logger(name="Analitic", tag="[ANAL]", logfile="logs/analitic.log", console=True).get_logger()
+        self.logger = Logger(name="Analitic", tag="[ANAL]", logfile="LOGS/analitic.log", console=True).get_logger()
         self.indicators = self.Indicators(self)
         self.output_file = output_file
         self.data_name = data_name
@@ -163,18 +163,18 @@ class Analytic:
     def make_strategy(self, strategy_cls, inplace = True, **params):
         strategy = strategy_cls(**params)
         self.logger.info(f"Начинаю расчет для стратегии {strategy.name}")
-        
+
         indicators, stratparams = strategy.check_indicators()
         self.make_calc(indicators, stratparams)
         result = strategy.get_signals(self.df)
-        
+
         if inplace:
             try:
-                df.to_csv(self.output_path, index=False)
+                self.df.to_csv(self.output_path, index=False)
                 self.logger.info(f"Данные анализа сохранены в {self.output_path}")
             except Exception as e:
                 self.logger.error(f"Ошибка сохранения {self.output_path}: {e}")
-                
+
         return result
 
 if __name__ == "__main__":

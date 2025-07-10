@@ -12,6 +12,6 @@ csv_path = os.path.abspath(csv_path)  # абсолютный путь (на вс
 df = pd.read_csv(csv_path)
 if 'timestamp' in df.columns:
     df['timestamp'] = pd.to_datetime(df['timestamp'])
-anal = Analytic(df)
+anal = Analytic(df, "BTCUSDT_1h")
 r = anal.make_strategy(RSIonly_Strategy,rsi={"period": 20, "lower": 20})
 print(r)

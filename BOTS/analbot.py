@@ -23,73 +23,110 @@ class Analytic:
         def __init__(self, parent):
             self.parent = parent
 
-        def sma(self, period:int=10, inplace=True):
+        def sma(self, period: int = 10, inplace=True):
             self.parent.logger.info("Вычисление SMA.")
             df = self.parent.df
-            df['sma'] = SMAIndicator(df['close'], window=period).sma_indicator()
+            col_name = f"sma_{period}" if period != 10 else "sma"
+            df[col_name] = SMAIndicator(df['close'], window=period).sma_indicator()
             if inplace:
-                self.parent.df["sma"] = df["sma"]
-                return None
-            else: return df.copy()
+                self.parent.df[col_name] = df[col_name]
+            else:
+                return df[[col_name]].copy()
 
-        def ema(self, period:int=10, inplace=True):
+        def ema(self, period: int = 10, inplace=True):
             self.parent.logger.info("Вычисление EMA.")
             df = self.parent.df
-            df['ema']= EMAIndicator(df['close'], window=period).ema_indicator()
+            col_name = f"ema_{period}" if period != 10 else "ema"
+            df[col_name] = EMAIndicator(df['close'], window=period).ema_indicator()
             if inplace:
-                self.parent.df["ema"] = df["ema"]
-                return None
-            else: return df.copy()
+                self.parent.df[col_name] = df[col_name]
+            else:
+                return df[[col_name]].copy()
 
-        def rsi(self, period:int=14, inplace=True):
+        def rsi(self, period: int = 14, inplace=True):
             self.parent.logger.info("Вычисление RSI.")
             df = self.parent.df
-            df['rsi'] = RSIIndicator(df['close'], window=period).rsi()
+            col_name = f"rsi_{period}" if period != 14 else "rsi"
+            df[col_name] = RSIIndicator(df['close'], window=period).rsi()
             if inplace:
-                self.parent.df["rsi"] = df["rsi"]
-                return None
-            else: return df.copy()
+                self.parent.df[col_name] = df[col_name]
+            else:
+                return df[[col_name]].copy()
 
-        def macd(self, window_slow:int=12, window_fast:int=26, window_sign:int=9, inplace=True):
+        def macd(self, window_slow: int = 12, window_fast: int = 26, window_sign: int = 9, inplace=True):
             self.parent.logger.info("Вычисление MACD.")
             df = self.parent.df
-            df['macd'] = MACD(df['close'], window_slow=window_slow, window_fast=window_fast, window_sign=window_sign).macd_diff()
+            is_default = (window_slow == 12 and window_fast == 26)
+            col_name = f"macd_{window_fast}_{window_slow}" if not is_default else "macd"
+            df[col_name] = MACD(
+                df['close'],
+                window_slow=window_slow,
+                window_fast=window_fast,
+                window_sign=window_sign
+            ).macd_diff()
             if inplace:
-                self.parent.df["macd"] = df["macd"]
-                return None
-            else: return df.copy()
+                self.parent.df[col_name] = df[col_name]
+            else:
+                return df[[col_name]].copy()
 
-        def bollinger_bands(self, period:int=20, window_dev=2, inplace=True):
-            self.parent.logger.info("Вычи Bollinger Bands.")
+        def bollinger_bands(self, period: int = 20, window_dev=2, inplace=True):
+            self.parent.logger.info("Вычисление Bollinger Bands.")
             df = self.parent.df
+            suffix = f"_{period}" if period != 20 else ""
+            col_h = f"bb_h{suffix}"
+            col_m = f"bb_m{suffix}"
+            col_l = f"bb_l{suffix}"
+
             bb = BollingerBands(df['close'], window=period, window_dev=window_dev)
-            df['bb_h'] = bb.bollinger_hband()
-            df['bb_m'] = bb.bollinger_mavg()
-            df['bb_l'] = bb.bollinger_lband()
+            df[col_h] = bb.bollinger_hband()
+            df[col_m] = bb.bollinger_mavg()
+            df[col_l] = bb.bollinger_lband()
+
             if inplace:
-                self.parent.df["bb_h"] = df["bb_h"]
-                self.parent.df["bb_m"] = df["bb_m"]
-                self.parent.df["bb_l"] = df["bb_l"]
-                return None
-            else: return df.copy()
+                self.parent.df[col_h] = df[col_h]
+                self.parent.df[col_m] = df[col_m]
+                self.parent.df[col_l] = df[col_l]
+            else:
+                return df[[col_h, col_m, col_l]].copy()
 
     @staticmethod
     def _get_expected_columns(name, params):
+        defaults = {
+            "sma": {"period": 10},
+            "ema": {"period": 10},
+            "rsi": {"period": 14},
+            "macd": {"window_fast": 12, "window_slow": 26},
+            "bollinger_bands": {"period": 20},
+        }
+
+        def is_default(param, value):
+            return defaults.get(name, {}).get(param) == value
+
         if name == "sma":
-            return [f"sma_{params['period']}"]
+            suffix = f"_{params['period']}" if not is_default("period", params.get("period")) else ""
+            return [f"sma{suffix}"]
+
         elif name == "ema":
-            return [f"ema_{params['period']}"]
+            suffix = f"_{params['period']}" if not is_default("period", params.get("period")) else ""
+            return [f"ema{suffix}"]
+
         elif name == "rsi":
-            return [f"rsi_{params['period']}"]
+            suffix = f"_{params['period']}" if not is_default("period", params.get("period")) else ""
+            return [f"rsi{suffix}"]
+
         elif name == "macd":
-            return [f"macd_{params['window_fast']}_{params['window_slow']}"]
+            fast = params.get("window_fast")
+            slow = params.get("window_slow")
+            is_def = is_default("window_fast", fast) and is_default("window_slow", slow)
+            suffix = f"_{fast}_{slow}" if not is_def else ""
+            return [f"macd{suffix}"]
+
         elif name == "bollinger_bands":
-            p = params['period']
-            return [f"bb_h_{p}", f"bb_m_{p}", f"bb_l_{p}"]
-        else:
-            return []
+            p = params["period"]
+            suffix = f"_{p}" if not is_default("period", p) else ""
+            return [f"bb_h{suffix}", f"bb_m{suffix}", f"bb_l{suffix}"]
 
-
+        return []
 
     def make_calc(self, indicators, stratparams):
         import inspect

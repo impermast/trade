@@ -30,7 +30,12 @@ class RSIonly_Strategy(BaseStrategy):
         if len(df) < period:
             return 0
 
-        rsi = df["rsi"].iloc[-1]
+        col = "rsi" if period == 14 else f"rsi_{period}"
+
+        if col not in df.columns:
+            raise ValueError(f"Колонка {col} не найдена в датафрейме.")
+
+        rsi = df[col].iloc[-1]
 
         if rsi < lower:
             return 1

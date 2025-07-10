@@ -10,8 +10,9 @@ from ta.momentum import RSIIndicator
 from ta.volatility import BollingerBands
 
 class Analytic:
-    def __init__(self, df):
+    def __init__(self, df, source_file):
         self.df = df
+        self.source_file = source_file
         self.logger = Logger(name="Analitic", tag="[ANAL]", logfile="logs/analitic.log", console=True).get_logger()
         self.indicators = self.Indicators(self)
 
@@ -119,11 +120,23 @@ class Analytic:
                 self.logger.error(f"Ошибка при расчёте {indicator_name}: {e}")
 
 
+    def save_to_file(self):
+        if self.source_file:
+            try:
+                self.df.to_csv(self.source_file, index=False)
+                self.logger.info(f"Данные успешно сохранены в файл: {self.source_file}")
+            except Exception as e:
+                self.logger.error(f"Ошибка при сохранении файла: {e}")
+        else:
+            self.logger.warning("Файл не указан — сохранение невозможно.")
+
+
     def make_strategy(self, strategy_cls, **params):
         strategy = strategy_cls(**params)
         self.logger.info(f"Начинаю расчет для стратегии {strategy.name}")
         indicators, stratparams = strategy.check_indicators()
         self.make_calc(indicators, stratparams)
+        self.save_to_file()
         result = strategy.get_signals(self.df)
         return result
 
@@ -138,6 +151,6 @@ if __name__ == "__main__":
     df = pd.read_csv(csv_path)
     if 'timestamp' in df.columns:
         df['timestamp'] = pd.to_datetime(df['timestamp'])
-    anal = Analytic(df)
+    anal = Analytic(df,csv_path)
     r = anal.make_strategy(RSIonly_Strategy,rsi={"period": 20, "lower": 20})
     print(r)

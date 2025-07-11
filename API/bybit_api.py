@@ -7,10 +7,12 @@ import ccxt.async_support as ccxt_async
 import pandas as pd
 from typing import Dict, Any, Optional
 import asyncio
+import ssl
 
 sys.path.append(os.path.abspath("."))
 
 from API.birza_api import BirzaAPI
+from CORE.security import Security
 
 class BybitAPI(BirzaAPI):
     """
@@ -20,22 +22,40 @@ class BybitAPI(BirzaAPI):
     using the ccxt library.
     """
 
-    def __init__(self, api_key: Optional[str], api_secret: Optional[str], testnet: bool = True):
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, 
+              password: Optional[str] = None, testnet: bool = True):
         """
         Initialize the Bybit API client.
 
         Args:
-            api_key: API key for authentication (None for public API only)
-            api_secret: API secret for authentication (None for public API only)
+            api_key: API key for authentication (None to load from secure storage)
+            api_secret: API secret for authentication (None to load from secure storage)
+            password: Password to decrypt API keys from secure storage
             testnet: Whether to use the testnet (sandbox) environment
         """
         super().__init__(name="bybitAPI", log_tag="[API]", log_file="LOGS/bybitAPI.log", console=True)
+
+        # Load API keys from secure storage if not provided directly
+        if (api_key is None or api_secret is None) and password is not None:
+            try:
+                keys = Security.load_api_keys(password)
+                api_key = keys.get('api_key')
+                api_secret = keys.get('api_secret')
+                self.logger.info("Loaded API keys from secure storage")
+            except Exception as e:
+                self.logger.error(f"Failed to load API keys from secure storage: {e}")
 
         # Initialize the ccxt exchange object (synchronous)
         self.exchange = ccxt.bybit({
             'apiKey': api_key,
             'secret': api_secret,
             'enableRateLimit': True,
+            'rateLimit': 500,  # Enforce rate limiting (500ms between requests)
+            # Enable SSL/TLS for secure communication
+            'options': {
+                'verify': True,
+                'timeout': 30000,
+            }
         })
 
         # Initialize the ccxt async exchange object
@@ -43,6 +63,12 @@ class BybitAPI(BirzaAPI):
             'apiKey': api_key,
             'secret': api_secret,
             'enableRateLimit': True,
+            'rateLimit': 500,  # Enforce rate limiting (500ms between requests)
+            # Enable SSL/TLS for secure communication
+            'options': {
+                'verify': True,
+                'timeout': 30000,
+            }
         })
 
         # Set sandbox mode if testnet is True
@@ -70,6 +96,20 @@ class BybitAPI(BirzaAPI):
         Returns:
             DataFrame containing OHLCV data
         """
+        # Validate inputs
+        if not Security.validate_symbol(symbol):
+            self.logger.error(f"Invalid symbol format: {symbol}")
+            return pd.DataFrame()
+
+        valid_timeframes = ["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d", "1w", "1M"]
+        if not Security.validate_input(timeframe, allowed_values=valid_timeframes):
+            self.logger.error(f"Invalid timeframe: {timeframe}")
+            return pd.DataFrame()
+
+        if not Security.validate_input(limit, min_value=1, max_value=1000):
+            self.logger.error(f"Invalid limit: {limit}")
+            return pd.DataFrame()
+
         try:
             self.logger.info(f"Fetching OHLCV: symbol={symbol}, timeframe={timeframe}, limit={limit}")
             ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
@@ -95,14 +135,28 @@ class BybitAPI(BirzaAPI):
         Returns:
             Order information including order ID and status
         """
+        # Validate order parameters
+        if not Security.validate_order_params(symbol, side, qty, order_type, price):
+            error_msg = f"Invalid order parameters: symbol={symbol}, side={side}, qty={qty}, type={order_type}, price={price}"
+            self.logger.error(error_msg)
+            return {"error": error_msg, "status": "rejected"}
+
         try:
+            # Sanitize inputs
+            symbol = Security.sanitize_input(symbol)
+            side = Security.sanitize_input(side).lower()
+
             self.logger.info(f"Creating order: {side.upper()} {qty} {symbol}, type={order_type.upper()}, price={price}")
             params = {}
 
             if order_type == "market":
-                return self.exchange.create_market_order(symbol, side.lower(), qty, params)
+                return self.exchange.create_market_order(symbol, side, qty, params)
             elif order_type == "limit":
-                return self.exchange.create_limit_order(symbol, side.lower(), qty, price, params)
+                if price is None or price <= 0:
+                    error_msg = "Price is required for limit orders and must be greater than 0"
+                    self.logger.error(error_msg)
+                    return {"error": error_msg, "status": "rejected"}
+                return self.exchange.create_limit_order(symbol, side, qty, price, params)
             else:
                 raise ValueError("Invalid order type")
         except Exception as e:
@@ -146,10 +200,66 @@ class BybitAPI(BirzaAPI):
         Returns:
             Order status information
         """
+        # Validate order_id
+        if not order_id or not isinstance(order_id, str):
+            error_msg = f"Invalid order_id: {order_id}"
+            self.logger.error(error_msg)
+            return {"error": error_msg, "status": "rejected"}
+
+        # Sanitize input
+        order_id = Security.sanitize_input(order_id)
+
         try:
             return self.exchange.fetch_order(order_id)
         except Exception as e:
             return self._handle_error(f"checking status of order {order_id}", e, {})
+
+    def download_candels_to_csv(self, symbol: str, start_date: str = "2023-01-01T00:00:00Z", 
+                               timeframe: str = "1h", save_folder: str = "DATA") -> pd.DataFrame:
+        """
+        Download historical candle data and save to CSV.
+
+        Args:
+            symbol: Trading pair symbol (e.g., "BTC/USDT")
+            start_date: Start date for historical data in ISO format
+            timeframe: Candlestick timeframe (e.g., "1m", "5m", "1h", "1d")
+            save_folder: Folder to save CSV file (None to not save)
+
+        Returns:
+            DataFrame containing the downloaded data
+        """
+        # Validate inputs
+        if not Security.validate_symbol(symbol):
+            self.logger.error(f"Invalid symbol format: {symbol}")
+            return pd.DataFrame()
+
+        valid_timeframes = ["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d", "1w", "1M"]
+        if not Security.validate_input(timeframe, allowed_values=valid_timeframes):
+            self.logger.error(f"Invalid timeframe: {timeframe}")
+            return pd.DataFrame()
+
+        # Validate date format (ISO format)
+        date_pattern = r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$'
+        if not Security.validate_input(start_date, pattern=date_pattern):
+            self.logger.error(f"Invalid date format: {start_date}. Expected format: YYYY-MM-DDThh:mm:ssZ")
+            return pd.DataFrame()
+
+        # Validate and sanitize save_folder
+        if save_folder is not None:
+            if not isinstance(save_folder, str):
+                self.logger.error(f"Invalid save_folder: {save_folder}")
+                return pd.DataFrame()
+
+            # Sanitize folder path to prevent path traversal attacks
+            save_folder = Security.sanitize_input(save_folder)
+
+            # Ensure the folder doesn't contain path traversal attempts
+            if '..' in save_folder:
+                self.logger.error(f"Invalid save_folder path: {save_folder}")
+                return pd.DataFrame()
+
+        # Call the parent implementation with validated inputs
+        return super().download_candels_to_csv(symbol, start_date, timeframe, save_folder)
 
 
     # Asynchronous API methods
@@ -242,10 +352,66 @@ class BybitAPI(BirzaAPI):
         Returns:
             Order status information
         """
+        # Validate order_id
+        if not order_id or not isinstance(order_id, str):
+            error_msg = f"Invalid order_id: {order_id}"
+            self.logger.error(error_msg)
+            return {"error": error_msg, "status": "rejected"}
+
+        # Sanitize input
+        order_id = Security.sanitize_input(order_id)
+
         try:
             return await self.async_exchange.fetch_order(order_id)
         except Exception as e:
             return await self._handle_error_async(f"checking status of order {order_id}", e, {})
+
+    async def download_candels_to_csv_async(self, symbol: str, start_date: str = "2023-01-01T00:00:00Z", 
+                               timeframe: str = "1h", save_folder: str = "DATA") -> pd.DataFrame:
+        """
+        Asynchronously download historical candle data and save to CSV.
+
+        Args:
+            symbol: Trading pair symbol (e.g., "BTC/USDT")
+            start_date: Start date for historical data in ISO format
+            timeframe: Candlestick timeframe (e.g., "1m", "5m", "1h", "1d")
+            save_folder: Folder to save CSV file (None to not save)
+
+        Returns:
+            DataFrame containing the downloaded data
+        """
+        # Validate inputs
+        if not Security.validate_symbol(symbol):
+            self.logger.error(f"Invalid symbol format: {symbol}")
+            return pd.DataFrame()
+
+        valid_timeframes = ["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d", "1w", "1M"]
+        if not Security.validate_input(timeframe, allowed_values=valid_timeframes):
+            self.logger.error(f"Invalid timeframe: {timeframe}")
+            return pd.DataFrame()
+
+        # Validate date format (ISO format)
+        date_pattern = r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$'
+        if not Security.validate_input(start_date, pattern=date_pattern):
+            self.logger.error(f"Invalid date format: {start_date}. Expected format: YYYY-MM-DDThh:mm:ssZ")
+            return pd.DataFrame()
+
+        # Validate and sanitize save_folder
+        if save_folder is not None:
+            if not isinstance(save_folder, str):
+                self.logger.error(f"Invalid save_folder: {save_folder}")
+                return pd.DataFrame()
+
+            # Sanitize folder path to prevent path traversal attacks
+            save_folder = Security.sanitize_input(save_folder)
+
+            # Ensure the folder doesn't contain path traversal attempts
+            if '..' in save_folder:
+                self.logger.error(f"Invalid save_folder path: {save_folder}")
+                return pd.DataFrame()
+
+        # Call the parent implementation with validated inputs
+        return await super().download_candels_to_csv_async(symbol, start_date, timeframe, save_folder)
 
     async def close_async(self):
         """

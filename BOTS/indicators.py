@@ -58,9 +58,9 @@ class Indicators:
             return f"rsi_{period}" if period != 14 else "rsi"
 
         elif indicator == "macd":
-            window_slow = params.get("window_slow", 12)
-            window_fast = params.get("window_fast", 26)
-            is_default = (window_slow == 12 and window_fast == 26)
+            window_fast = params.get("window_fast", 12)
+            window_slow = params.get("window_slow", 26)
+            is_default = (window_fast == 12 and window_slow == 26)
             return f"macd_{window_fast}_{window_slow}" if not is_default else "macd"
 
         elif indicator == "bollinger_bands":
@@ -250,14 +250,14 @@ class Indicators:
             result_df = pd.DataFrame({col_name: result}, index=self.df.index)
             return result_df
 
-    def macd(self, window_slow: int = 12, window_fast: int = 26, 
+    def macd(self, window_fast: int = 12, window_slow: int = 26, 
              window_sign: int = 9, inplace: bool = True) -> Optional[pd.DataFrame]:
         """
         Calculate Moving Average Convergence Divergence.
 
         Args:
-            window_slow: Slow period for MACD calculation
             window_fast: Fast period for MACD calculation
+            window_slow: Slow period for MACD calculation
             window_sign: Signal period for MACD calculation
             inplace: Whether to modify the DataFrame in place
 

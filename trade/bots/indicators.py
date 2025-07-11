@@ -10,15 +10,15 @@ from ta.volatility import BollingerBands
 class Indicators:
     """
     Class for calculating technical indicators.
-    
+
     This class contains methods for calculating various technical indicators
     like SMA, EMA, RSI, MACD, and Bollinger Bands.
     """
-    
+
     def __init__(self, df: pd.DataFrame, logger) -> None:
         """
         Initialize the Indicators class.
-        
+
         Args:
             df: DataFrame containing price data
             logger: Logger instance for logging
@@ -29,11 +29,11 @@ class Indicators:
     def sma(self, period: int = 10, inplace: bool = True) -> Optional[pd.DataFrame]:
         """
         Calculate Simple Moving Average.
-        
+
         Args:
             period: Period for the SMA calculation
             inplace: Whether to modify the DataFrame in place
-            
+
         Returns:
             DataFrame with SMA values if inplace is False, None otherwise
         """
@@ -50,11 +50,11 @@ class Indicators:
     def ema(self, period: int = 10, inplace: bool = True) -> Optional[pd.DataFrame]:
         """
         Calculate Exponential Moving Average.
-        
+
         Args:
             period: Period for the EMA calculation
             inplace: Whether to modify the DataFrame in place
-            
+
         Returns:
             DataFrame with EMA values if inplace is False, None otherwise
         """
@@ -71,11 +71,11 @@ class Indicators:
     def rsi(self, period: int = 14, inplace: bool = True) -> Optional[pd.DataFrame]:
         """
         Calculate Relative Strength Index.
-        
+
         Args:
             period: Period for the RSI calculation
             inplace: Whether to modify the DataFrame in place
-            
+
         Returns:
             DataFrame with RSI values if inplace is False, None otherwise
         """
@@ -89,23 +89,23 @@ class Indicators:
         else:
             return df[[col_name]].copy()
 
-    def macd(self, window_slow: int = 12, window_fast: int = 26, 
+    def macd(self, window_fast: int = 12, window_slow: int = 26, 
              window_sign: int = 9, inplace: bool = True) -> Optional[pd.DataFrame]:
         """
         Calculate Moving Average Convergence Divergence.
-        
+
         Args:
-            window_slow: Slow period for MACD calculation
             window_fast: Fast period for MACD calculation
+            window_slow: Slow period for MACD calculation
             window_sign: Signal period for MACD calculation
             inplace: Whether to modify the DataFrame in place
-            
+
         Returns:
             DataFrame with MACD values if inplace is False, None otherwise
         """
         self.logger.info("Calculating MACD.")
         df = self.df
-        is_default = (window_slow == 12 and window_fast == 26)
+        is_default = (window_fast == 12 and window_slow == 26)
         col_name = f"macd_{window_fast}_{window_slow}" if not is_default else "macd"
         df[col_name] = MACD(
             df['close'],
@@ -123,12 +123,12 @@ class Indicators:
                        inplace: bool = True) -> Optional[pd.DataFrame]:
         """
         Calculate Bollinger Bands.
-        
+
         Args:
             period: Period for the Bollinger Bands calculation
             window_dev: Number of standard deviations for the bands
             inplace: Whether to modify the DataFrame in place
-            
+
         Returns:
             DataFrame with Bollinger Bands values if inplace is False, None otherwise
         """

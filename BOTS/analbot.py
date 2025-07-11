@@ -34,7 +34,7 @@ class Analytic:
             cache_dir: Directory for caching strategy results
         """
         self.df: pd.DataFrame = df
-        self.logger = Logger(name="Analitic", tag="[ANAL]", logfile="LOGS/analitic.log", console=True).get_logger()
+        self.logger = Logger(name="Analytic", tag="[ANAL]", logfile="LOGS/analytic.log", console=True).get_logger()
         self.indicators = Indicators(df, self.logger)
         self.output_file: str = output_file
         self.data_name: str = data_name
@@ -398,5 +398,5 @@ if __name__ == "__main__":
 
     # Create an Analytic instance and run a strategy
     analyzer = Analytic(df, "BTCUSDT_1h")
-    result = analyzer.make_strategy(RSIonly_Strategy, rsi={"period": 20, "lower": 20})
+    result = analyzer.make_strategy(RSIonly_Strategy, rsi={"period": 14, "lower": 20})
     print(result)

@@ -3,7 +3,7 @@
 import os
 import pandas as pd
 import sqlite3
-from typing import Optional, List, Dict, Any, Union, Tuple
+from typing import Optional, List, Dict, Any, Union, Tuple, Callable
 import datetime
 import logging
 from pathlib import Path
@@ -133,7 +133,7 @@ class DataManager:
             use_cache: Whether to use caching
         """
         self.db_path = db_path or self.DEFAULT_DB_PATH
-        self.logger = get_error_logger(name="DataManager", tag="[DATA]", 
+        self.logger = get_error_logger(name="DataManager", tag="[DATA]",
                                       logfile="LOGS/data_manager.log", console=True)
 
         # Initialize the data validator
@@ -141,7 +141,7 @@ class DataManager:
 
         # Initialize the data cache
         self.cache = DataCache(max_items=cache_size, ttl_seconds=cache_ttl, logger=self.logger)
-        self.no_cache = not use_cache
+        self.use_cache = use_cache
 
         # Initialize the data pipeline
         self.pipeline = DataPipeline(logger=self.logger)
@@ -238,8 +238,24 @@ class DataManager:
                 base, quote = symbol_name.split('/')
             else:
                 # Default parsing for symbols without separator
-                base = symbol_name[:-4]
-                quote = symbol_name[-4:]
+                # Common quote currencies
+                common_quotes = ['USDT', 'USD', 'BTC', 'ETH', 'USDC', 'BUSD', 'EUR', 'GBP', 'JPY']
+
+                # Try to find a matching quote currency
+                found = False
+                for quote_currency in common_quotes:
+                    if symbol_name.endswith(quote_currency):
+                        quote = quote_currency
+                        base = symbol_name[:-len(quote_currency)]
+                        found = True
+                        break
+
+                # If no match found, use a heuristic approach
+                if not found:
+                    # Assume the quote currency is 3-4 characters
+                    quote_length = 4 if len(symbol_name) > 5 else 3
+                    base = symbol_name[:-quote_length]
+                    quote = symbol_name[-quote_length:]
 
             symbol = Symbol(
                 name=symbol_name,
@@ -393,8 +409,8 @@ class DataManager:
         Raises:
             DataError: If there's an error retrieving the data
         """
-        # Skip cache if caching is disabled
-        if not self.no_cache:
+        # Use cache if caching is enabled
+        if self.use_cache:
             # Generate a cache key
             cache_key = f"{symbol_name}_{exchange_name}_{timeframe_name}"
             if start_date:
@@ -466,7 +482,7 @@ class DataManager:
                     self.logger.info(f"Applied preprocessing to {symbol_name} {timeframe_name} data")
 
                 # Cache the result if caching is enabled
-                if not self.no_cache:
+                if self.use_cache:
                     self.cache.set(cache_key, {'dataframe': df})
                     self.logger.debug(f"Cached {len(df)} records for {symbol_name} {timeframe_name}")
 

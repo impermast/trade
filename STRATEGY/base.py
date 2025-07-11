@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 import pandas as pd
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, Tuple
 
 class BaseStrategy(ABC):
     """
@@ -105,14 +105,14 @@ class BaseStrategy(ABC):
                 merged[k] = v
         return merged
 
-    def check_indicators(self) -> List[Union[List[str], Dict[str, Any]]]:
+    def check_indicators(self) -> Tuple[List[str], Dict[str, Any]]:
         """
-        Get the list of required indicators and their parameters.
+        Get the required indicators and their parameters.
 
         Returns:
-            List[Union[List[str], Dict[str, Any]]]: List containing indicators and parameters
+            Tuple[List[str], Dict[str, Any]]: Tuple containing indicators and parameters
         """
-        return [self.indicators, self.params]
+        return (self.indicators, self.params)
 
     def __str__(self) -> str:
         """

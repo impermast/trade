@@ -72,9 +72,13 @@ class RSIonly_Strategy(BaseStrategy):
         col = "rsi" if period == 14 else f"rsi_{period}"
 
         if col not in df.columns:
-            raise ValueError(f"Колонка {col} не найдена в датафрейме.")
+            raise ValueError(f"Column {col} not found in dataframe.")
 
         rsi = df[col].iloc[-1]
+
+        # Check if RSI is None or NaN before comparison
+        if pd.isna(rsi) or rsi is None:
+            return 0  # No action if RSI is None or NaN
 
         if rsi < lower:
             return 1

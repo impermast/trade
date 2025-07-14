@@ -426,19 +426,3 @@ if __name__ == "__main__":
     bot = BybitAPI(api_key=None, api_secret=None)
     bot.download_candels_to_csv("BTC/USDT", start_date="2025-05-05T00:00:00Z", timeframe="1h")
     df = bot.get_ohlcv("BTC/USDT")
-    # print(df.head)
-
-    # Example of using async methods
-    """
-    async def test_async():
-        bot = BybitAPI(api_key=None, api_secret=None)
-        try:
-            df = await bot.get_ohlcv_async("BTC/USDT")
-            print(df.head())
-        finally:
-            await bot.close_async()
-
-    # Run the async example
-    import asyncio
-    asyncio.run(test_async())
-    """

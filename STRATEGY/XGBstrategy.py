@@ -34,8 +34,8 @@ class XGBStrategy(BaseStrategy):
     _model_cache = {}
     _features_cache = {}
 
-    def __init__(self, model_path: str = "xgb_model_multi.joblib", 
-                 features_path: str = "xgb_model_features.joblib", 
+    def __init__(self, model_path: str = "STRATEGY/predicter/xgb_model_multi.joblib",
+                 features_path: str = "STRATEGY/predicter/xgb_model_features.joblib",
                  slippage: float = 0.0005,
                  batch_size: int = 100,
                  prediction_cache_size: int = 1024,
@@ -260,7 +260,9 @@ if __name__ == "__main__":
     and print its string representation.
     """
     # Create a strategy instance with custom RSI period
-    strat = XGBStrategy(rsi={"period": 10})
+    strat = XGBStrategy(ema={"period": 10}, sma={"period": 14}, rsi={"period": 10}, macd ,
+                        bb_h={"period": 10}, bb_m={"period": 10}, bb_l={"period": 10},
+                        bb_h={"period": 1}, bb_h={"period": 3}, bb_h={"period": 6} )
 
     # Print the strategy name and parameters
     print(strat)

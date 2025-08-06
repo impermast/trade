@@ -765,7 +765,48 @@ class DataManager:
             except Exception as e:
                 session.rollback()
                 raise DataError(f"Error deleting OHLCV data: {str(e)}") from e
+        def download_data(self, symbol_name: str, timeframe_name: str, exchange_name: str, 
+                start_date: Optional[Union[str, datetime.datetime]] = None,
+                end_date: Optional[Union[str, datetime.datetime]] = None) -> str:
+            """
+            Download OHLCV data from the exchange and save it to the DATA directory.
 
+            Args:
+                symbol_name: Name of the symbol (e.g., "BTC/USDT")
+                exchange_name: Name of the exchange (default: bybit)
+                timeframe_name: Name of the timeframe (e.g., "1h")
+                start_date: Start date for the data (None for no limit)
+                end_date: End date for the data (None for no limit)
+
+            Returns:
+                Path to the saved CSV file
+            """
+            # Use default exchange if not provided
+            if exchange_name is None:
+                exchange_name = "bybit"
+
+            # Retrieve the OHLCV data
+            df = self.get_ohlcv_data(
+                symbol_name=symbol_name,
+                exchange_name=exchange_name,
+                timeframe_name=timeframe_name,
+                start_date=start_date,
+                end_date=end_date
+            )
+
+            # Generate the output path
+            clean_symbol = symbol_name.replace("/", "_")
+            output_path = f"DATA/{clean_symbol}_{timeframe_name}.csv"
+
+            # Export the data to CSV
+            self.export_to_csv(
+                symbol_name=symbol_name,
+                exchange_name=exchange_name,
+                timeframe_name=timeframe_name,
+                output_path=output_path
+            )
+
+            return output_path
 
 # Example usage
 if __name__ == "__main__":

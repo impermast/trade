@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Мониторинг торгового бота</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { padding: 20px; }
+    .tab-content { margin-top: 20px; }
+    .panel { border: 1px solid #ccc; padding: 10px; border-radius: 5px; background: #f9f9f9; }
+    .log-box { height: 400px; overflow-y: scroll; white-space: pre-wrap; background: #1e1e1e; color: #dcdcdc; padding: 10px; font-family: monospace; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1 class="mb-4">📊 Мониторинг торгового бота</h1>
+  <ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="chart-tab" data-bs-toggle="tab" data-bs-target="#chart" type="button" role="tab">График цен</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="trades-tab" data-bs-toggle="tab" data-bs-target="#trades" type="button" role="tab">История сделок</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="state-tab" data-bs-toggle="tab" data-bs-target="#state" type="button" role="tab">Баланс и позиции</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab">Логи</button>
+    </li>
+  </ul>
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="chart" role="tabpanel">
+      <div id="priceChart" style="height:500px;"></div>
+      <a href="/candles" class="btn btn-outline-secondary mt-2">Скачать CSV</a>
+    </div>
+    <div class="tab-pane fade" id="trades" role="tabpanel">
+      <table class="table table-striped" id="tradeTable">
+        <thead><tr><th>Дата</th><th>Тип</th><th>Цена</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="tab-pane fade" id="state" role="tabpanel">
+      <div class="panel" id="statePanel">Загрузка...</div>
+    </div>
+    <div class="tab-pane fade" id="logs" role="tabpanel">
+      <div class="log-box" id="logBox">Загрузка логов...</div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function updateChart() {
+  $.get("/candles", function(data) {
+    const rows = data.trim().split("\n").slice(1);
+    const time = [], close = [], marker_color = [], text = [];
+    rows.forEach(r => {
+      const cols = r.split(",");
+      time.push(cols[0]);
+      close.push(parseFloat(cols[4]));
+      const order = parseInt(cols[6]);
+      marker_color.push(order > 0 ? "green" : order < 0 ? "red" : "blue");
+      text.push(order > 0 ? "Куплено" : order < 0 ? "Продано" : "");
+    });
+    Plotly.newPlot("priceChart", [{
+      x: time, y: close,
+      type: 'scatter', mode: 'lines+markers',
+      marker: { color: marker_color, size: 6 },
+      text: text
+    }], {title: 'Цена и ордера'});
+  });
+}
+
+function updateState() {
+  $.getJSON("/state", function(data) {
+    const html = `
+      <p><b>Баланс:</b> ${data.balance}</p>
+      <p><b>Открытые позиции:</b> ${data.position}</p>
+      <p><b>Последний сигнал:</b> ${data.signal == 1 ? "Купить" : data.signal == -1 ? "Продать" : "Нет сигнала"}</p>
+      <p><b>Последняя сделка:</b> ${data.last_trade?.action || "-"}, Цена: ${data.last_trade?.price || "-"}, Дата: ${data.last_trade?.date || "-"}</p>
+    `;
+    $("#statePanel").html(html);
+  });
+}
+
+function updateLog() {
+  $.get("/log", function(data) {
+    $("#logBox").text(data);
+  });
+}
+
+function updateTrades() {
+  $.get("/candles", function(data) {
+    const rows = data.trim().split("\n").slice(1);
+    const tbody = $("#tradeTable tbody");
+    tbody.empty();
+    rows.forEach(r => {
+      const cols = r.split(",");
+      const ord = parseInt(cols[6]);
+      if (ord !== 0) {
+        tbody.append(`<tr><td>${cols[0]}</td><td>${ord > 0 ? "Куплено" : "Продано"}</td><td>${cols[4]}</td></tr>`);
+      }
+    });
+  });
+}
+
+setInterval(() => {
+  updateChart();
+  updateState();
+  updateLog();
+  updateTrades();
+}, 10000);
+updateChart(); updateState(); updateLog(); updateTrades();
+</script>
+</body>
+</html>

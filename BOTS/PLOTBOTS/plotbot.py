@@ -113,6 +113,6 @@ class PlotBot(BasePlotBot):
         self.root.mainloop()
 
 if __name__ == "__main__":
-    plotbot = PlotBot(csv_file="DATA/BTCUSDT_1h_anal.csv", refresh_interval=15)
+    plotbot = PlotBot(csv_file="DATA/BTCUSDT_1m_anal.csv", refresh_interval=15)
     plotbot.start()
     

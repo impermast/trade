@@ -6,6 +6,7 @@ import os
 from typing import Dict, Any, Optional, List
 import datetime
 import random
+import asyncio
 
 from API.birza_api import BirzaAPI
 
@@ -24,7 +25,7 @@ class MockAPI(BirzaAPI):
         mock_positions: Dictionary containing mock position data
     """
     
-    def __init__(self, data_dir: str = "DATA/mock", 
+    def __init__(self, data_dir: str = "DATA/", 
                 log_file: Optional[str] = "LOGS/mock_api.log", 
                 console: bool = True):
         """
@@ -41,9 +42,9 @@ class MockAPI(BirzaAPI):
         self.mock_data = {}
         self.mock_balance = {
             "BTC": 1.0,
-            "ETH": 10.0,
+            "ETH": 0,
             "USDT": 10000.0,
-            "USD": 10000.0
+            "USD": 0
         }
         self.mock_orders = {}
         self.mock_positions = {}
@@ -368,3 +369,32 @@ class MockAPI(BirzaAPI):
             return df
         except Exception as e:
             return self._handle_error(f"downloading mock data for {symbol}", e, pd.DataFrame())
+
+
+    # 🔹 Async versions for interface compatibility
+
+    async def get_ohlcv_async(self, symbol: str, timeframe: str = "1m", limit: int = 100) -> pd.DataFrame:
+        await asyncio.sleep(0)  # simulate I/O
+        try:
+            df = self._generate_mock_data(symbol, timeframe, num_candles=1000)
+            return df.tail(limit).reset_index(drop=True)
+        except Exception as e:
+            return self._handle_error(f"fetching mock OHLCV for {symbol}", e, pd.DataFrame())
+        return self.get_ohlcv(symbol, timeframe, limit)
+
+    async def place_order_async(self, symbol: str, side: str, qty: float,
+                                order_type: str = "market", price: Optional[float] = None) -> Dict[str, Any]:
+        await asyncio.sleep(0)
+        return self.place_order(symbol, side, qty, order_type, price)
+
+    async def get_balance_async(self) -> Dict[str, Any]:
+        await asyncio.sleep(0)
+        return self.get_balance()
+
+    async def get_positions_async(self, symbol: str) -> Dict[str, Any]:
+        await asyncio.sleep(0)
+        return self.get_positions(symbol)
+
+    async def get_order_status_async(self, order_id: str) -> Dict[str, Any]:
+        await asyncio.sleep(0)
+        return self.get_order_status(order_id)

@@ -1,36 +1,79 @@
+import asyncio
+import pandas as pd
+
+from API.bybit_api import BybitAPI
+from API.mock_api import MockAPI
 from BOTS.analbot import Analytic
 from STRATEGY.rsi import RSIonly_Strategy
-import os
-import pandas as pd
-from typing import Dict, Any
+from BOTS.loggerbot import Logger
+from BOTS.PLOTBOTS.plotbot import PlotBot
+
+UPDATE_INTERVAL = 60  # секунд
+SYMBOL = "BTC/USDT"
+TF = "1m"
 
 
-def main() -> Dict[str, Any]:
-    """
-    Main entry point for the trade analysis application.
+SYMBOL_NAME = SYMBOL.replace("/", "")
+CSV_PATH = f"DATA/{SYMBOL_NAME}_{TF}_anal.csv"
+logger = Logger(
+    name="MainBot", 
+    tag="[MAIN]", 
+    logfile="LOGS/mainbot.log", 
+    console=True).get_logger()
+stop_event = asyncio.Event()
 
-    Returns:
-        Dict[str, Any]: The results of the strategy analysis.
-    """
-    # Get the path to the current file
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+async def plot_loop():
+    logger.info("Запущен графический цикл")
+    def start_plotbot():
+        plotbot = PlotBot(csv_file=CSV_PATH, refresh_interval=UPDATE_INTERVAL)
+        plotbot.start()
 
-    # Path to the DATA folder
-    csv_path = os.path.join(current_dir, "DATA", "BTCUSDT_1h.csv")
-    csv_path = os.path.abspath(csv_path)  # absolute path (just in case)
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, start_plotbot)
 
-    # Load and preprocess data
-    df = pd.read_csv(csv_path)
-    if 'timestamp' in df.columns:
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
+async def trading_loop(botapi):
+    logger.info(f"Запущен торговый цикл {type(botapi).__name__}")
+    try:
+        while not stop_event.is_set():
+            df = await botapi.get_ohlcv_async(SYMBOL, timeframe=TF, limit=100)
+            analytic = Analytic(df, data_name=f"{SYMBOL_NAME}_{TF}")
+            signal = analytic.make_strategy(RSIonly_Strategy, rsi={"period": 14, "lower": 30, "upper": 70})
 
-    # Initialize analytic and run strategy
-    anal = Analytic(df, "BTCUSDT_1h")
-    result = anal.make_strategy(RSIonly_Strategy, rsi={"period": 20, "lower": 20})
+            if signal == 1:
+                logger.info("Сигнал: ПОКУПКА")
+                await botapi.place_order_async(SYMBOL, "buy", qty=0.001)
+            elif signal == -1:
+                logger.info("Сигнал: ПРОДАЖА")
+                await botapi.place_order_async(SYMBOL, "sell", qty=0.001)
+            # Save CSV for plotbot
+            df.to_csv(CSV_PATH, index=False)
+            await asyncio.sleep(UPDATE_INTERVAL)
+    except asyncio.CancelledError:
+        logger.info("Торговый цикл был отменён")
+        raise
+    finally:
+        if hasattr(botapi, "close_async"):
+            await botapi.close_async()
+        logger.info("Торговый цикл завершён")
 
-    print(result)
-    return result
-
+async def main():
+    botapi = MockAPI()
+    try:
+        await asyncio.gather(
+            trading_loop(botapi)
+        )
+    except KeyboardInterrupt:
+        logger.warning("Получен KeyboardInterrupt. Завершаем...")
+        stop_event.set()
+        # Дождёмся завершения тасков
+        await asyncio.sleep(1)
+    except Exception as e:
+        logger.error(f"Ошибка в главной функции: {e}", exc_info=True)
+        stop_event.set()
+        await asyncio.sleep(1)
 
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.warning("KeyboardInterrupt вне asyncio.run — выходим")

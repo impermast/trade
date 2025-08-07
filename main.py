@@ -8,13 +8,14 @@ from STRATEGY.rsi import RSIonly_Strategy
 from BOTS.loggerbot import Logger
 from BOTS.PLOTBOTS.plotbot import PlotBot
 
-botapi = MockAPI()
+botapi = BybitAPI()
 UPDATE_INTERVAL = 60  # секунд
 SYMBOL = "BTC/USDT"
 TF = "1m"
 
 
 SYMBOL_NAME = SYMBOL.replace("/", "")
+CSV_PATH1 = f"DATA/{SYMBOL_NAME}_{TF}.csv"
 CSV_PATH = f"DATA/{SYMBOL_NAME}_{TF}_anal.csv"
 logger = Logger(
     name="MainBot", 
@@ -37,6 +38,8 @@ async def trading_loop(botapi):
     try:
         while not stop_event.is_set():
             df = await botapi.get_ohlcv_async(SYMBOL, timeframe=TF, limit=100)
+            df.to_csv(CSV_PATH1, index=False)
+
             analytic = Analytic(df, data_name=f"{SYMBOL_NAME}_{TF}")
             signal = analytic.make_strategy(RSIonly_Strategy, rsi={"period": 14, "lower": 30, "upper": 70})
 

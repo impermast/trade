@@ -36,14 +36,16 @@ class BybitAPI(BirzaAPI):
         super().__init__(name="bybitAPI", log_tag="[API]", log_file="LOGS/bybitAPI.log", console=True)
 
         # Load API keys from secure storage if not provided directly
-        if (api_key is None or api_secret is None) and password is not None:
+        if (api_key is None or api_secret is None):
             try:
-                keys = Security.load_api_keys(password)
-                api_key = keys.get('api_key')
-                api_secret = keys.get('api_secret')
-                self.logger.info("Loaded API keys from secure storage")
+                from dotenv import load_dotenv
+                load_dotenv()
+
+                import os
+                api_key = os.getenv("BYBIT_TOKEN")
+                api_secret = os.getenv("BYBIT_SECRET")
             except Exception as e:
-                self.logger.error(f"Failed to load API keys from secure storage: {e}")
+                self.logger.error(f"Failed to load API keys from env: {e}")
 
         # Initialize the ccxt exchange object (synchronous)
         self.exchange = ccxt.bybit({

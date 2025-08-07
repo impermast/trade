@@ -94,22 +94,36 @@ function updateChart() {
   });
 }
 
-let selectedCsvFile = "BTCUSDT_1h_anal.csv";  // начальное значение
-
 function updatePlotImage() {
   const img = document.getElementById("priceChart");
   img.src = `/plot?file=${selectedCsvFile}&ts=${new Date().getTime()}`;
 }
 
+let selectedCsvFile = null;
 function loadCsvList() {
   $.get("/csv_list", function(files) {
     const select = $("#csvSelect");
     select.empty();
+
+    if (files.length === 0) {
+      console.warn("Нет CSV-файлов для отображения.");
+      return;
+    }
+
+    // Если selectedCsvFile не задан — берём первый из списка
+    if (!selectedCsvFile) {
+      selectedCsvFile = files[0];
+    }
+
+
     files.forEach(f => {
       const opt = $("<option>").val(f).text(f);
       if (f === selectedCsvFile) opt.attr("selected", true);
       select.append(opt);
     });
+
+
+    updatePlotImage();
   });
 }
 
@@ -186,13 +200,18 @@ function updateTrades() {
 }
 
 setInterval(() => {
-  updateChart();
   updateLog();
   updateTrades();
   updateLogList();
   updatePlotImage();
 }, 10000);
-updateChart(); updateLog(); updateTrades(); updateLogList(); loadCsvList(); updatePlotImage(); 
+
+setInterval(() => {
+  loadCsvList();
+}, 100000);
+
+
+updateLog(); updateTrades(); updateLogList(); loadCsvList(); updatePlotImage(); 
 </script>
 </body>
 </html>

@@ -8,6 +8,7 @@ from STRATEGY.rsi import RSIonly_Strategy
 from BOTS.loggerbot import Logger
 from BOTS.PLOTBOTS.plotbot import PlotBot
 
+botapi = MockAPI()
 UPDATE_INTERVAL = 60  # секунд
 SYMBOL = "BTC/USDT"
 TF = "1m"
@@ -45,6 +46,8 @@ async def trading_loop(botapi):
             elif signal == -1:
                 logger.info("Сигнал: ПРОДАЖА")
                 await botapi.place_order_async(SYMBOL, "sell", qty=0.001)
+            
+            
             # Save CSV for plotbot
             df.to_csv(CSV_PATH, index=False)
             await asyncio.sleep(UPDATE_INTERVAL)
@@ -57,7 +60,6 @@ async def trading_loop(botapi):
         logger.info("Торговый цикл завершён")
 
 async def main():
-    botapi = MockAPI()
     try:
         await asyncio.gather(
             trading_loop(botapi)

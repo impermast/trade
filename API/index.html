@@ -1,217 +1,590 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Мониторинг торгового бота</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+  <!-- Plotly -->
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <!-- jQuery + Bootstrap JS -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
   <style>
-    body { padding: 20px; }
-    .tab-content { margin-top: 20px; }
-    .panel { border: 1px solid #ccc; padding: 10px; border-radius: 5px; background: #f9f9f9; }
-    .log-box { height: 400px; overflow-y: scroll; white-space: pre-wrap; background: #1e1e1e; color: #dcdcdc; padding: 10px; font-family: monospace; }
+    :root {
+      --bg: #0f1115;
+      --panel: #151924;
+      --text: #e6e6e6;
+      --muted: #a9b1c3;
+      --accent: #5cc8ff;
+      --border: #23293a;
+      --success: #2ecc71;
+      --danger: #ff6b6b;
+      --warning: #f1c40f;
+    }
+    [data-theme="light"] {
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --text: #1b1f2a;
+      --muted: #697289;
+      --accent: #007bff;
+      --border: #e5e7ef;
+      --success: #198754;
+      --danger: #dc3545;
+      --warning: #d39e00;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      height: 100%;
+    }
+
+    .navbar {
+      background: var(--panel) !important;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand-dot {
+      height: 10px;
+      width: 10px;
+      display: inline-block;
+      border-radius: 50%;
+      background: var(--success);
+      margin-right: 8px;
+    }
+
+    .content {
+      padding: 18px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .nav-tabs .nav-link {
+      color: var(--muted);
+      border: none;
+    }
+    .nav-tabs .nav-link.active {
+      color: var(--text);
+      background: var(--panel);
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .log-box {
+      height: 420px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      background: #0b0e14;
+      color: #dcdcdc;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .form-control, .form-select, .btn {
+      border-radius: 8px;
+    }
+
+    .btn-accent {
+      background: var(--accent);
+      color: #0b0e14;
+      border: none;
+    }
+    .btn-accent:hover {
+      filter: brightness(0.95);
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .kpi-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+    }
+    .kpi-sub {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    #chart {
+      height: 560px;
+    }
+
+    .form-inline-gap > * {
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+
+    .switch {
+      cursor: pointer;
+    }
+
+    a, .link {
+      color: var(--accent);
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>
-<div class="container">
-  <h1 class="mb-4">📊 Мониторинг торгового бота</h1>
-  <ul class="nav nav-tabs" id="myTab" role="tablist">
-    <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="chart-tab" data-bs-toggle="tab" data-bs-target="#chart" type="button" role="tab">График цен</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="trades-tab" data-bs-toggle="tab" data-bs-target="#trades" type="button" role="tab">История сделок</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="state-tab" data-bs-toggle="tab" data-bs-target="#state" type="button" role="tab">Баланс и позиции</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab">Логи</button>
-    </li>
-  </ul>
-  <div class="tab-content">
-    <div class="tab-pane fade show active" id="chart" role="tabpanel">
-      <div class="mb-2">
-        <label for="csvSelect" class="form-label">Выберите файл данных:</label>
-        <select id="csvSelect" class="form-select" style="max-width: 300px;"></select>
+  <!-- Top navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark px-3">
+    <a class="navbar-brand d-flex align-items-center" href="#">
+      <span class="brand-dot"></span>
+      Мониторинг бота
+    </a>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <div class="form-check form-switch text-nowrap">
+        <input class="form-check-input" type="checkbox" id="themeToggle">
+        <label class="form-check-label" for="themeToggle"><i class="bi bi-moon-stars"></i> Тема</label>
       </div>
-      <img id="priceChart" src="" class="img-fluid border" style="width: 100%; max-height: 600px;">
-      <a href="/candles" class="btn btn-outline-secondary mt-2">Скачать CSV</a>
+      <button id="refreshAll" class="btn btn-sm btn-outline-light"><i class="bi bi-arrow-clockwise"></i> Обновить всё</button>
     </div>
-    <div class="tab-pane fade" id="trades" role="tabpanel">
-      <table class="table table-striped" id="tradeTable">
-        <thead><tr><th>Дата</th><th>Тип</th><th>Цена</th></tr></thead>
-        <tbody></tbody>
-      </table>
+  </nav>
+
+  <div class="content container-fluid">
+    <!-- KPI cards -->
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card p-3">
+          <div class="kpi-sub">Баланс</div>
+          <div class="kpi-value" id="kpi-balance">—</div>
+          <div class="muted" id="kpi-balance-cur">USDT</div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card p-3">
+          <div class="kpi-sub">Позиции</div>
+          <div class="kpi-value" id="kpi-positions">—</div>
+          <div class="muted">Открытые позиции</div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card p-3">
+          <div class="kpi-sub">Последнее обновление</div>
+          <div class="kpi-value" id="kpi-updated">—</div>
+          <div class="muted">state.json</div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card p-3">
+          <div class="kpi-sub">Файл данных</div>
+          <div class="kpi-value" id="kpi-file">—</div>
+          <div class="muted">источник графика</div>
+        </div>
+      </div>
     </div>
-    <div class="tab-pane fade" id="state" role="tabpanel">
-      <div class="panel" id="statePanel">Загрузка...</div>
-    </div>
-    <div class="tab-pane fade" id="logs" role="tabpanel">
-      <label for="logSelect" class="form-label mt-3">Выберите лог-файл:</label>
-      <select class="form-select mb-3" id="logSelect"></select>
-      <div class="log-box" id="logBox">Загрузка логов...</div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs" id="viewTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="chart-tab" data-bs-toggle="tab" data-bs-target="#chart-pane" type="button" role="tab">График цен</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-pane" type="button" role="tab">Логи</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="state-tab" data-bs-toggle="tab" data-bs-target="#state-pane" type="button" role="tab">Баланс и позиции</button>
+      </li>
+    </ul>
+
+    <div class="tab-content mt-3">
+      <!-- Chart tab -->
+      <div class="tab-pane fade show active" id="chart-pane" role="tabpanel" aria-labelledby="chart-tab">
+        <div class="card p-3 mb-3">
+          <div class="d-flex flex-wrap align-items-end form-inline-gap">
+            <div>
+              <label class="form-label">CSV-файл</label>
+              <select id="csvFile" class="form-select form-select-sm"></select>
+            </div>
+            <div>
+              <label class="form-label">Хвост (строк)</label>
+              <input id="tailRows" type="number" min="50" step="50" value="500" class="form-control form-control-sm" />
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="sma20" checked>
+              <label class="form-check-label" for="sma20">SMA 20</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="sma50" checked>
+              <label class="form-check-label" for="sma50">SMA 50</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="logScale">
+              <label class="form-check-label" for="logScale">Лог-масштаб</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="autoRefreshChart">
+              <label class="form-check-label" for="autoRefreshChart">Автообновление</label>
+            </div>
+            <div>
+              <label class="form-label">Интервал (с)</label>
+              <input id="chartInterval" type="number" min="5" step="5" value="30" class="form-control form-control-sm" />
+            </div>
+            <div class="ms-auto">
+              <button id="reloadChart" class="btn btn-accent btn-sm"><i class="bi bi-graph-up"></i> Перестроить график</button>
+            </div>
+          </div>
+        </div>
+        <div class="card p-2">
+          <div id="chart"></div>
+        </div>
+      </div>
+
+      <!-- Logs tab -->
+      <div class="tab-pane fade" id="logs-pane" role="tabpanel" aria-labelledby="logs-tab">
+        <div class="card p-3 mb-3">
+          <div class="d-flex flex-wrap align-items-end form-inline-gap">
+            <div>
+              <label class="form-label">Файл логов</label>
+              <select id="logFile" class="form-select form-select-sm"></select>
+            </div>
+            <div>
+              <label class="form-label">Хвост (строк)</label>
+              <input id="logTail" type="number" min="100" step="100" value="500" class="form-control form-control-sm" />
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="autoRefreshLogs">
+              <label class="form-check-label" for="autoRefreshLogs">Автообновление</label>
+            </div>
+            <div>
+              <label class="form-label">Интервал (с)</label>
+              <input id="logsInterval" type="number" min="5" step="5" value="15" class="form-control form-control-sm" />
+            </div>
+            <div class="ms-auto">
+              <button id="reloadLogs" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-repeat"></i> Обновить</button>
+            </div>
+          </div>
+        </div>
+        <div class="log-box" id="logBox">—</div>
+      </div>
+
+      <!-- State tab -->
+      <div class="tab-pane fade" id="state-pane" role="tabpanel" aria-labelledby="state-tab">
+        <div class="row g-3">
+          <div class="col-12 col-lg-6">
+            <div class="card p-3">
+              <h5 class="mb-3">Баланс</h5>
+              <div id="state-balance">—</div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="card p-3">
+              <h5 class="mb-3">Позиции</h5>
+              <div id="state-positions" class="small">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-// Функция для анимации точек у надписи "Загрузка"
-function animateLoadingDots(elementId, baseText = "Загрузка") {
-    const el = document.getElementById(elementId);
-    if (!el) return;
-    let count = 0;
-    setInterval(() => {
-        count = (count + 1) % 4; // 0..3
-        el.textContent = baseText + '.'.repeat(count);
-    }, 500);
-}
-
-// Запустить анимацию для разных элементов
-animateLoadingDots("statePanel", "Загрузка");
-</script>
 
 <script>
-function updateChart() {
-  $.get("/candles", function(data) {
-    const rows = data.trim().split("\n").slice(1);
-    const time = [], close = [], marker_color = [], text = [];
-    rows.forEach(r => {
-      const cols = r.split(",");
-      time.push(cols[0]);
-      close.push(parseFloat(cols[4]));
-      const order = parseInt(cols[6]);
-      marker_color.push(order > 0 ? "green" : order < 0 ? "red" : "blue");
-      text.push(order > 0 ? "Куплено" : order < 0 ? "Продано" : "");
+  // Тема
+  const themeKey = "ui-theme";
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    $("#themeToggle").prop("checked", theme === "dark");
+  }
+  function initTheme() {
+    const saved = localStorage.getItem(themeKey) || "dark";
+    applyTheme(saved);
+    $("#themeToggle").on("change", () => {
+      const next = $("#themeToggle").is(":checked") ? "dark" : "light";
+      applyTheme(next);
+      localStorage.setItem(themeKey, next);
+      // Перерисуем график (Plotly учитывает фон)
+      drawChart();
     });
-    Plotly.newPlot("priceChart", [{
-      x: time, y: close,
-      type: 'scatter', mode: 'lines+markers',
-      marker: { color: marker_color, size: 6 },
-      text: text
-    }], {title: 'Цена и ордера'});
-  });
-}
+  }
 
-function updatePlotImage() {
-  const img = document.getElementById("priceChart");
-  img.src = `/plot?file=${selectedCsvFile}&ts=${new Date().getTime()}`;
-}
+  // Форматирование
+  function fmtNumber(x, digits=2) {
+    if (x === null || x === undefined || isNaN(x)) return "—";
+    return Number(x).toLocaleString("ru-RU", { maximumFractionDigits: digits });
+  }
 
-let selectedCsvFile = null;
-function loadCsvList() {
-  $.get("/csv_list", function(files) {
-    const select = $("#csvSelect");
-    select.empty();
+  function sma(values, period) {
+    const res = Array(values.length).fill(null);
+    if (period <= 1) return values.slice();
+    let sum = 0;
+    for (let i = 0; i < values.length; i++) {
+      const v = +values[i];
+      if (!isNaN(v)) sum += v;
+      if (i >= period) {
+        const vOut = +values[i - period];
+        if (!isNaN(vOut)) sum -= vOut;
+      }
+      if (i >= period - 1) {
+        res[i] = sum / period;
+      }
+    }
+    return res;
+  }
 
-    if (files.length === 0) {
-      console.warn("Нет CSV-файлов для отображения.");
+  // Состояние
+  async function loadState() {
+    try {
+      const r = await fetch("/api/state");
+      const s = await r.json();
+      const total = s?.balance?.total;
+      const cur = s?.balance?.currency || "—";
+      $("#kpi-balance").text(total ? fmtNumber(total, 2) : "—");
+      $("#kpi-balance-cur").text(cur);
+      $("#kpi-positions").text(Array.isArray(s?.positions) ? s.positions.length : "—");
+      $("#kpi-updated").text(s?.updated || "—");
+
+      const balanceText = total ? `${fmtNumber(total, 2)} ${cur}` : "—";
+      $("#state-balance").text(balanceText);
+
+      if (Array.isArray(s?.positions) && s.positions.length) {
+        const list = s.positions.map((p, i) => {
+          const symbol = p.symbol || p.ticker || "—";
+          const qty = p.qty || p.size || p.amount || "—";
+          const price = p.entry_price || p.price || "—";
+          return `${i+1}. ${symbol}: ${qty} @ ${price}`;
+        }).join("\n");
+        $("#state-positions").text(list);
+      } else {
+        $("#state-positions").text("Открытых позиций нет");
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  // CSV список
+  async function loadCsvList() {
+    const sel = $("#csvFile");
+    sel.empty();
+    try {
+      const r = await fetch("/csv_list");
+      const files = await r.json();
+      files.forEach(f => sel.append(new Option(f, f)));
+      const stored = localStorage.getItem("csv-file");
+      if (stored && files.includes(stored)) sel.val(stored);
+      $("#kpi-file").text(sel.val() || "—");
+    } catch (e) {
+      sel.append(new Option("BTCUSDT_1h_anal.csv", "BTCUSDT_1h_anal.csv"));
+    }
+  }
+
+  // График
+  let chartTimer = null;
+
+  async function loadCandles() {
+    const file = $("#csvFile").val();
+    const tail = Math.max(50, +$("#tailRows").val() || 500);
+    const url = `/api/candles?file=${encodeURIComponent(file)}&tail=${tail}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("Ошибка загрузки свечей");
+    const data = await r.json();
+    return data;
+  }
+
+  async function drawChart() {
+    try {
+      const rows = await loadCandles();
+      if (!rows || !rows.length) {
+        Plotly.purge("chart");
+        return;
+      }
+      const ts = rows.map(r => r.ts);
+      const open = rows.map(r => r.open);
+      const high = rows.map(r => r.high);
+      const low = rows.map(r => r.low);
+      const close = rows.map(r => r.close);
+      const vol = rows.map(r => r.volume ?? null);
+
+      const traces = [];
+
+      traces.push({
+        type: "candlestick",
+        x: ts,
+        open, high, low, close,
+        name: "OHLC",
+        increasing: { line: { color: "#26a69a" } },
+        decreasing: { line: { color: "#ef5350" } },
+        yaxis: "y"
+      });
+
+      if ($("#sma20").is(":checked")) {
+        traces.push({
+          type: "scatter",
+          mode: "lines",
+          x: ts,
+          y: sma(close, 20),
+          line: { width: 1.8, color: "#ffd166" },
+          name: "SMA 20",
+          yaxis: "y"
+        });
+      }
+
+      if ($("#sma50").is(":checked")) {
+        traces.push({
+          type: "scatter",
+          mode: "lines",
+          x: ts,
+          y: sma(close, 50),
+          line: { width: 1.8, color: "#5cc8ff" },
+          name: "SMA 50",
+          yaxis: "y"
+        });
+      }
+
+      // Объём, если есть
+      if (vol.some(v => v !== null)) {
+        traces.push({
+          type: "bar",
+          x: ts,
+          y: vol,
+          name: "Объём",
+          marker: { color: "#9fa6b2" },
+          yaxis: "y2",
+          opacity: 0.35
+        });
+      }
+
+      const theme = document.documentElement.getAttribute("data-theme") || "dark";
+      const paper_bgcolor = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+      const plot_bgcolor = getComputedStyle(document.documentElement).getPropertyValue("--panel").trim();
+      const font_color = getComputedStyle(document.documentElement).getPropertyValue("--text").trim();
+
+      const layout = {
+        dragmode: "pan",
+        showlegend: true,
+        legend: { orientation: "h", y: 1.05 },
+        margin: { t: 20, r: 10, b: 40, l: 50 },
+        paper_bgcolor,
+        plot_bgcolor,
+        font: { color: font_color },
+        xaxis: { gridcolor: "rgba(255,255,255,0.06)" },
+        yaxis: {
+          title: "Цена",
+          type: $("#logScale").is(":checked") ? "log" : "linear",
+          gridcolor: "rgba(255,255,255,0.06)"
+        },
+        yaxis2: {
+          title: "Объём",
+          overlaying: "y",
+          side: "right",
+          showgrid: false
+        }
+      };
+
+      Plotly.react("chart", traces, layout, { responsive: true, displaylogo: false, modeBarButtonsToRemove: ["lasso2d"] });
+      $("#kpi-file").text($("#csvFile").val() || "—");
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function setupChartControls() {
+    $("#reloadChart").on("click", drawChart);
+    $("#csvFile, #tailRows, #sma20, #sma50, #logScale").on("change", () => {
+      localStorage.setItem("csv-file", $("#csvFile").val() || "");
+      drawChart();
+    });
+    $("#autoRefreshChart, #chartInterval").on("change", handleChartAutoRefresh);
+  }
+
+  function handleChartAutoRefresh() {
+    if (chartTimer) {
+      clearInterval(chartTimer);
+      chartTimer = null;
+    }
+    const enabled = $("#autoRefreshChart").is(":checked");
+    if (!enabled) return;
+    const interval = Math.max(5, +$("#chartInterval").val() || 30) * 1000;
+    chartTimer = setInterval(drawChart, interval);
+  }
+
+  // Логи
+  let logsTimer = null;
+
+  async function loadLogFiles() {
+    const sel = $("#logFile");
+    sel.empty();
+    try {
+      const r = await fetch("/logs");
+      const files = await r.json();
+      files.forEach(f => sel.append(new Option(f, f)));
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  async function loadLogTail() {
+    const file = $("#logFile").val();
+    const n = Math.max(100, +$("#logTail").val() || 500);
+    if (!file) {
+      $("#logBox").text("Нет выбранного файла");
       return;
     }
-
-    // Если selectedCsvFile не задан — берём первый из списка
-    if (!selectedCsvFile) {
-      selectedCsvFile = files[0];
+    try {
+      const url = `/api/log_tail?filename=${encodeURIComponent(file)}&n=${n}`;
+      const r = await fetch(url);
+      if (!r.ok) throw new Error("Ошибка загрузки логов");
+      const data = await r.json();
+      $("#logBox").text((data?.lines || []).join("\n") || "Лог пуст");
+      const box = document.getElementById("logBox");
+      box.scrollTop = box.scrollHeight;
+    } catch (e) {
+      $("#logBox").text("Ошибка чтения лога");
     }
-
-
-    files.forEach(f => {
-      const opt = $("<option>").val(f).text(f);
-      if (f === selectedCsvFile) opt.attr("selected", true);
-      select.append(opt);
-    });
-
-
-    updatePlotImage();
-  });
-}
-
-$("#csvSelect").on("change", function() {
-  selectedCsvFile = this.value;
-  updatePlotImage();
-});
-
-
-
-
-function updateState() {
-  $.getJSON("/state", function(data) {
-    const html = `
-      <p><b>Баланс:</b> ${data.balance}</p>
-      <p><b>Открытые позиции:</b> ${data.position}</p>
-      <p><b>Последний сигнал:</b> ${data.signal == 1 ? "Купить" : data.signal == -1 ? "Продать" : "Нет сигнала"}</p>
-      <p><b>Последняя сделка:</b> ${data.last_trade?.action || "-"}, Цена: ${data.last_trade?.price || "-"}, Дата: ${data.last_trade?.date || "-"}</p>
-    `;
-    $("#statePanel").html(html);
-  });
-}
-
-function updateLog() {
-  if (currentLog) {
-    loadLog(currentLog);
   }
-}
-let currentLog = null;
 
-function updateLogList() {
-  $.get("/logs", function(files) {
-    const select = $("#logSelect");
-    select.empty();
-    files.forEach(f => {
-      select.append(`<option value="${f}">${f}</option>`);
-    });
-    if (files.length > 0) {
-      currentLog = files[0];
-      select.val(currentLog);
-      loadLog(currentLog);
+  function setupLogsControls() {
+    $("#reloadLogs").on("click", loadLogTail);
+    $("#logFile, #logTail").on("change", loadLogTail);
+    $("#autoRefreshLogs, #logsInterval").on("change", handleLogsAutoRefresh);
+  }
+
+  function handleLogsAutoRefresh() {
+    if (logsTimer) {
+      clearInterval(logsTimer);
+      logsTimer = null;
     }
-  });
-}
+    const enabled = $("#autoRefreshLogs").is(":checked");
+    if (!enabled) return;
+    const interval = Math.max(5, +$("#logsInterval").val() || 15) * 1000;
+    logsTimer = setInterval(loadLogTail, interval);
+  }
 
-function loadLog(filename) {
-  $.get(`/log/${filename}`, function(data) {
-    $("#logBox").text(data);
-  });
-}
-
-$("#logSelect").on("change", function() {
-  currentLog = this.value;
-  loadLog(currentLog);
-});
-
-
-
-
-
-function updateTrades() {
-  $.get("/candles", function(data) {
-    const rows = data.trim().split("\n").slice(1);
-    const tbody = $("#tradeTable tbody");
-    tbody.empty();
-    rows.forEach(r => {
-      const cols = r.split(",");
-      const ord = parseInt(cols[6]);
-      if (ord !== 0) {
-        tbody.append(`<tr><td>${cols[0]}</td><td>${ord > 0 ? "Куплено" : "Продано"}</td><td>${cols[4]}</td></tr>`);
-      }
+  // Общая кнопка
+  function setupGlobalRefresh() {
+    $("#refreshAll").on("click", async () => {
+      await Promise.all([loadState(), drawChart(), loadLogTail()]);
     });
+  }
+
+  // Инициализация
+  $(async function() {
+    initTheme();
+    setupChartControls();
+    setupLogsControls();
+    setupGlobalRefresh();
+
+    await Promise.all([loadCsvList(), loadLogFiles(), loadState()]);
+    await drawChart();
+    await loadLogTail();
+
+    handleChartAutoRefresh();
+    handleLogsAutoRefresh();
+
+    // Перерисовка графика при переключении табов (чтобы он корректно вписывался)
+    document.getElementById("chart-tab").addEventListener("shown.bs.tab", drawChart);
   });
-}
-
-setInterval(() => {
-  updateLog();
-  updateTrades();
-  updateLogList();
-  updatePlotImage();
-}, 10000);
-
-setInterval(() => {
-  loadCsvList();
-}, 100000);
-
-
-updateLog(); updateTrades(); updateLogList(); loadCsvList(); updatePlotImage(); 
 </script>
 </body>
 </html>

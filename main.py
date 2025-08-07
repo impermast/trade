@@ -8,7 +8,7 @@ from STRATEGY.rsi import RSIonly_Strategy
 from BOTS.loggerbot import Logger
 from BOTS.PLOTBOTS.plotbot import PlotBot
 
-botapi = BybitAPI()
+botapi = MockAPI()
 UPDATE_INTERVAL = 60  # секунд
 SYMBOL = "BTC/USDT"
 TF = "1m"

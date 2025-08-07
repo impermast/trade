@@ -1,10 +1,19 @@
 .env
 .venv
 
-LOGS/
-PIC/
-FIG/
-DATA/
+.continue/
+.idea/
+.idea
+
+LOGS/*
+PIC/*
+FIG/*
+
+DATA/static/
+DATA/*.csv
+DATA/*.bd
+DATA/*.log
+DATA/cache/*
 
 __pycache__
 gpt_parcer.py

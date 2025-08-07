@@ -45,7 +45,7 @@ def list_csv_files():
 
 @app.route("/plot")
 def plot_image():
-    csv_file = request.args.get("file", "BTCUSDT_1m_anal.csv")
+    csv_file = request.args.get("file", "BTCUSDT_1h_anal.csv")
     csv_path = os.path.join("DATA", csv_file)
     bot = PlotBot(csv_file=csv_path)
     bot.render_to_file(out_path="DATA/static/plot.png", tail=100)

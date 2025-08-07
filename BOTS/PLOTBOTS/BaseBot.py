@@ -20,12 +20,12 @@ class BasePlotBot:
         self.canvas = None
         self.logger = Logger(name=self.__class__.__name__, tag="[PLOT]", logfile="logs/plotbot.log", console=True).get_logger()
 
-    def load_df(self):
+    def load_df(self, tail:int = 100):
         df = pd.read_csv(self.csv_file)
         if "timestamp" in df.columns:
             df.rename(columns={"timestamp": "time"}, inplace=True)
         df["time"] = pd.to_datetime(df["time"])
-        return df.tail(100)
+        return df.tail(tail)
 
     def setup_root(self, title="PlotBot"):
         self.root = tk.Tk()
@@ -45,6 +45,26 @@ class BasePlotBot:
                                          gridspec_kw={'height_ratios': height_ratios or [3, 1]})
         return axes
 
+    def render_to_file(self,out_path: str = "DATA/static/plot.png", tail: int = 100):
+        """Сохраняет график в PNG без GUI."""
+        try:
+            df = self.load_df(tail)
+            (ax1, ax2) = self.setup_canvas_local(n_axes=2, height_ratios=None)
+            ax1.plot(df["time"], df['close'])
+            if 'rsi' in df.columns: ax2.plot(df["time"], df['rsi'])
+
+            file_name = os.path.basename(self.csv_file)  
+            self.logger.info(file_name)        
+            title = os.path.splitext(file_name)[0]               # e.g. BTCUSDT_1m_anal
+            
+            ax1.set_title(f"График: {title}", fontsize=14, weight="bold")
+            
+            
+            plt.tight_layout()
+            plt.savefig(out_path)
+            self.logger.info(f"График сохранён в {out_path}")
+        except Exception as e:
+            self.logger.error(f"Ошибка сохранения графика: {e}") 
 
     def _on_close(self):
         self.logger.info("Окно PlotBot закрыто пользователем.")

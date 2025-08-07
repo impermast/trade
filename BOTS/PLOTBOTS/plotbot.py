@@ -88,7 +88,11 @@ class PlotBot(BasePlotBot):
 
         self.ax_indicators.legend(loc="lower right", fontsize=10)
 
-        
+    
+
+
+
+
     def _update_graph(self):
         try:
             df = pd.read_csv(self.csv_file)

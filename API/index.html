@@ -32,7 +32,11 @@
   </ul>
   <div class="tab-content">
     <div class="tab-pane fade show active" id="chart" role="tabpanel">
-      <div id="priceChart" style="height:500px;"></div>
+      <div class="mb-2">
+        <label for="csvSelect" class="form-label">Выберите файл данных:</label>
+        <select id="csvSelect" class="form-select" style="max-width: 300px;"></select>
+      </div>
+      <img id="priceChart" src="" class="img-fluid border" style="width: 100%; max-height: 600px;">
       <a href="/candles" class="btn btn-outline-secondary mt-2">Скачать CSV</a>
     </div>
     <div class="tab-pane fade" id="trades" role="tabpanel">
@@ -45,6 +49,8 @@
       <div class="panel" id="statePanel">Загрузка...</div>
     </div>
     <div class="tab-pane fade" id="logs" role="tabpanel">
+      <label for="logSelect" class="form-label mt-3">Выберите лог-файл:</label>
+      <select class="form-select mb-3" id="logSelect"></select>
       <div class="log-box" id="logBox">Загрузка логов...</div>
     </div>
   </div>
@@ -72,6 +78,33 @@ function updateChart() {
   });
 }
 
+let selectedCsvFile = "BTCUSDT_1m_anal.csv";  // начальное значение
+
+function updatePlotImage() {
+  const img = document.getElementById("priceChart");
+  img.src = `/plot?file=${selectedCsvFile}&ts=${new Date().getTime()}`;
+}
+
+function loadCsvList() {
+  $.get("/csv_list", function(files) {
+    const select = $("#csvSelect");
+    select.empty();
+    files.forEach(f => {
+      const opt = $("<option>").val(f).text(f);
+      if (f === selectedCsvFile) opt.attr("selected", true);
+      select.append(opt);
+    });
+  });
+}
+
+$("#csvSelect").on("change", function() {
+  selectedCsvFile = this.value;
+  updatePlotImage();
+});
+
+
+
+
 function updateState() {
   $.getJSON("/state", function(data) {
     const html = `
@@ -85,10 +118,41 @@ function updateState() {
 }
 
 function updateLog() {
-  $.get("/log", function(data) {
+  if (currentLog) {
+    loadLog(currentLog);
+  }
+}
+let currentLog = null;
+
+function updateLogList() {
+  $.get("/logs", function(files) {
+    const select = $("#logSelect");
+    select.empty();
+    files.forEach(f => {
+      select.append(`<option value="${f}">${f}</option>`);
+    });
+    if (files.length > 0) {
+      currentLog = files[0];
+      select.val(currentLog);
+      loadLog(currentLog);
+    }
+  });
+}
+
+function loadLog(filename) {
+  $.get(`/log/${filename}`, function(data) {
     $("#logBox").text(data);
   });
 }
+
+$("#logSelect").on("change", function() {
+  currentLog = this.value;
+  loadLog(currentLog);
+});
+
+
+
+
 
 function updateTrades() {
   $.get("/candles", function(data) {
@@ -107,11 +171,12 @@ function updateTrades() {
 
 setInterval(() => {
   updateChart();
-  updateState();
   updateLog();
   updateTrades();
+  updateLogList();
+  updatePlotImage();
 }, 10000);
-updateChart(); updateState(); updateLog(); updateTrades();
+updateChart(); updateLog(); updateTrades(); updateLogList(); loadCsvList(); updatePlotImage(); 
 </script>
 </body>
 </html>

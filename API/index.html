@@ -586,5 +586,194 @@
     document.getElementById("chart-tab").addEventListener("shown.bs.tab", drawChart);
   });
 </script>
+<script>
+(() => {
+  const ls = window.localStorage;
+  const q = (id) => document.getElementById(id);
+
+  const prefs = {
+    theme: ls.getItem("ui.theme") || (document.documentElement.dataset.theme || "dark"),
+    autoRefresh: ls.getItem("ui.autoRefresh") === "false" ? false : true,
+    refreshMs: Number(ls.getItem("ui.refreshMs") || 5000),
+    sma20: ls.getItem("ui.sma20") === "true",
+    sma50: ls.getItem("ui.sma50") === "true",
+    logScale: ls.getItem("ui.logScale") === "true",
+  };
+
+  // Применение темы
+  const applyTheme = (t) => {
+    document.documentElement.dataset.theme = t;
+    ls.setItem("ui.theme", t);
+    const toggle = q("themeToggle");
+    if (toggle) toggle.checked = (t === "dark");
+  };
+  applyTheme(prefs.theme);
+
+  // Офлайн‑индикатор
+  const offlineBadge = document.createElement("div");
+  offlineBadge.style.cssText = `
+    position: fixed; right: 12px; bottom: 12px; z-index: 9999;
+    background: #dc3545; color: #fff; padding: 6px 10px; border-radius: 6px;
+    font-size: 12px; display: none; box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  `;
+  offlineBadge.textContent = "Нет сети";
+  document.body.appendChild(offlineBadge);
+
+  const updateOnlineState = () => {
+    offlineBadge.style.display = navigator.onLine ? "none" : "block";
+  };
+  window.addEventListener("online", updateOnlineState);
+  window.addEventListener("offline", updateOnlineState);
+  updateOnlineState();
+
+  // Тосты/уведомления
+  const toastBox = document.createElement("div");
+  toastBox.style.cssText = "position: fixed; right: 12px; top: 12px; z-index: 9999;";
+  document.body.appendChild(toastBox);
+
+  const showToast = (msg, variant = "danger", timeout = 3000) => {
+    const el = document.createElement("div");
+    el.style.cssText = `
+      margin-bottom: 8px; padding: 8px 12px; border-radius: 6px; color: #fff;
+      background: ${variant === "success" ? "#198754" :
+                   variant === "warning" ? "#fd7e14" : "#dc3545"};
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+      max-width: 420px; font-size: 14px;
+    `;
+    el.textContent = msg;
+    toastBox.appendChild(el);
+    setTimeout(() => el.remove(), timeout);
+  };
+
+  // Сохранение/восстановление переключателей
+  const bindToggle = (id, key, defaultVal) => {
+    const el = q(id);
+    if (!el) return;
+    const saved = ls.getItem(key);
+    el.checked = saved != null ? saved === "true" : defaultVal;
+    el.addEventListener("change", () => {
+      ls.setItem(key, String(el.checked));
+      if (id === "themeToggle") {
+        applyTheme(el.checked ? "dark" : "light");
+      }
+      if (id === "autoRefreshToggle") {
+        prefs.autoRefresh = el.checked;
+        if (prefs.autoRefresh) scheduleRefresh(true);
+      }
+      if (id === "logScaleToggle") {
+        prefs.logScale = el.checked;
+        // TODO: применить к графику, если он поддерживает лог‑шкалу
+      }
+      // Аналогично для SMA
+      if (id === "sma20Toggle") prefs.sma20 = el.checked;
+      if (id === "sma50Toggle") prefs.sma50 = el.checked;
+    });
+  };
+
+  bindToggle("themeToggle", "ui.themeChecked", prefs.theme === "dark");
+  bindToggle("autoRefreshToggle", "ui.autoRefresh", prefs.autoRefresh);
+  bindToggle("sma20Toggle", "ui.sma20", prefs.sma20);
+  bindToggle("sma50Toggle", "ui.sma50", prefs.sma50);
+  bindToggle("logScaleToggle", "ui.logScale", prefs.logScale);
+
+  // Поле интервала автообновления (мс)
+  const refreshInput = q("refreshMsInput");
+  if (refreshInput) {
+    refreshInput.value = String(prefs.refreshMs);
+    refreshInput.addEventListener("change", () => {
+      const v = Number(refreshInput.value);
+      prefs.refreshMs = isFinite(v) && v >= 500 ? v : 5000;
+      ls.setItem("ui.refreshMs", String(prefs.refreshMs));
+      if (prefs.autoRefresh) scheduleRefresh(true);
+    });
+  }
+
+  // Безопасный fetch с отменой и бэкоффом
+  let inFlight = null;
+  let backoff = 0; // мс
+  const minBackoff = 1000;
+  const maxBackoff = 30000;
+
+  const fetchJson = async (url, opts = {}) => {
+    if (inFlight?.controller) {
+      // Отменяем предыдущий запрос, чтобы не плодить гонки
+      inFlight.controller.abort();
+    }
+    const controller = new AbortController();
+    inFlight = { controller };
+    const signal = controller.signal;
+
+    try {
+      const res = await fetch(url, { ...opts, signal });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status}: ${text || res.statusText}`);
+      }
+      backoff = 0; // успех — сбросить бэкофф
+      return await res.json();
+    } catch (err) {
+      if (err.name === "AbortError") {
+        // Нормально, нас попросили отмениться
+        return null;
+      }
+      // Ошибка сети/сервера — увеличиваем бэкофф
+      backoff = backoff ? Math.min(backoff * 2, maxBackoff) : minBackoff;
+      showToast(`Ошибка загрузки данных: ${err.message}`, "danger");
+      return null;
+    } finally {
+      if (inFlight?.controller === controller) {
+        inFlight = null;
+      }
+    }
+  };
+
+  // Обновление KPI/графика — примерные функции‑заглушки
+  const updateKpis = (data) => {
+    // TODO: заполнить реальные KPI, если есть нужные элементы
+    const ts = q("kpiLastUpdated");
+    if (ts) ts.textContent = new Date().toLocaleString();
+  };
+
+  const updateChart = (data) => {
+    // TODO: интегрировать с вашей библиотекой графиков;
+    // применить prefs.sma20, prefs.sma50, prefs.logScale
+  };
+
+  // Автообновление
+  let refreshTimer = null;
+  const scheduleRefresh = (immediate = false) => {
+    if (refreshTimer) {
+      clearTimeout(refreshTimer);
+      refreshTimer = null;
+    }
+    if (!prefs.autoRefresh) return;
+    const delay = immediate ? 0 : (backoff || prefs.refreshMs);
+    refreshTimer = setTimeout(async () => {
+      // Пример: обновление свечей и/или состояния бота
+      const data = await fetchJson("/api/candles");
+      if (data) {
+        updateKpis(data);
+        updateChart(data);
+      }
+      scheduleRefresh(false);
+    }, delay);
+  };
+
+  // Кнопка ручного обновления (если есть)
+  const btnRefresh = q("btnRefresh");
+  if (btnRefresh) {
+    btnRefresh.addEventListener("click", () => scheduleRefresh(true));
+  }
+
+  // Запуск автообновления при старте
+  if (prefs.autoRefresh) scheduleRefresh(true);
+
+  // Защита от утечек при навигации
+  window.addEventListener("beforeunload", () => {
+    if (inFlight?.controller) inFlight.controller.abort();
+    if (refreshTimer) clearTimeout(refreshTimer);
+  });
+})();
+</script>
 </body>
 </html>

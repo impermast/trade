@@ -7,10 +7,14 @@ import asyncio
 import json
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
+from dotenv import load_dotenv
+load_dotenv()
+
 
 import ccxt
 import ccxt.async_support as ccxt_async
 import ssl
+
 
 sys.path.append(os.path.abspath("."))
 
@@ -20,37 +24,24 @@ from CORE.security import Security
 class BybitAPI(BirzaAPI):
     """
     API client for the Bybit cryptocurrency exchange.
-
-    This class implements the BirzaAPI interface for the Bybit exchange
-    using the ccxt library.
     """
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, 
-              password: Optional[str] = None, testnet: bool = True):
-        """
-        Initialize the Bybit API client.
-
-        Args:
-            api_key: API key for authentication (None to load from secure storage)
-            api_secret: API secret for authentication (None to load from secure storage)
-            password: Password to decrypt API keys from secure storage
-            testnet: Whether to use the testnet (sandbox) environment
-        """
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
+        testnet: bool = True
+    ):
         super().__init__(name="bybitAPI", log_tag="[API]", log_file="LOGS/bybitAPI.log", console=True)
 
-        # Load API keys from secure storage if not provided directly
-        if (api_key is None or api_secret is None):
-            try:
-                from dotenv import load_dotenv
-                load_dotenv()
+        # если не передали явно — берём из окружения
+        api_key = api_key or os.getenv("BYBIT_TOKEN")
+        api_secret = api_secret or os.getenv("BYBIT_SECRET")
 
-                import os
-                api_key = os.getenv("BYBIT_TOKEN")
-                api_secret = os.getenv("BYBIT_SECRET")
-            except Exception as e:
-                self.logger.error(f"Failed to load API keys from env: {e}")
+        if not api_key or not api_secret:
+            raise ValueError("Bybit API key/secret not provided. Set BYBIT_TOKEN and BYBIT_SECRET in .env or pass them into constructor.")
 
-        # Initialize the ccxt exchange object (synchronous)
+        # синхронный клиент
         self.exchange = ccxt.bybit({
             'apiKey': api_key,
             'secret': api_secret,
@@ -58,13 +49,12 @@ class BybitAPI(BirzaAPI):
             'rateLimit': 500,
             'options': {
                 'verify': True,
-                'enableDemoTrading': False,
                 'timeout': 30000,
-                'defaultType': 'spot'  # <--- ключевая строка
+                'defaultType': 'spot'
             }
         })
 
-        # Initialize the ccxt async exchange object
+        # асинхронный клиент
         self.async_exchange = ccxt_async.bybit({
             'apiKey': api_key,
             'secret': api_secret,
@@ -72,24 +62,20 @@ class BybitAPI(BirzaAPI):
             'rateLimit': 500,
             'options': {
                 'verify': True,
-                'enableDemoTrading': False,
                 'timeout': 30000,
-                'defaultType': 'spot'  # <--- ключевая строка
+                'defaultType': 'spot'
             }
         })
-        
-        # Set sandbox mode if testnet is True
+
         if testnet:
             self.exchange.set_sandbox_mode(True)
             self.async_exchange.set_sandbox_mode(True)
 
-        try:
-            self.logger.info("Initializing connection to Bybit via ccxt...")
-            assets = self.get_balance()
-            self.logger.info(f"Connection established. Assets: {list(assets.keys())}")
-        except Exception as e:
-            self.logger.exception(f"Error initializing BybitAPI: {e}")
-            raise
+        # проверяем баланс сразу и падаем, если ключи невалидные
+        self.logger.info("Initializing connection to Bybit via ccxt...")
+        assets = self.get_balance()
+        self.logger.info(f"Connection established. Assets: {list(assets.keys())}")
+
 
     def get_ohlcv(self, symbol: str, timeframe: str = "1m", limit: int = 100) -> pd.DataFrame:
         """
@@ -475,5 +461,5 @@ class BybitAPI(BirzaAPI):
 
 if __name__ == "__main__":
     bot = BybitAPI()
-    # bot.download_candels_to_csv("BTC/USDT", start_date="2025-05-05T00:00:00Z", timeframe="1h")
+    bot.download_candels_to_csv("BTC/USDT", start_date="2025-05-05T00:00:00Z", timeframe="1h")
     # df = bot.get_ohlcv("BTC/USDT")

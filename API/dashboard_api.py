@@ -45,6 +45,16 @@ def stop_flask(flask_process):
         flask_process.terminate()
         flask_process.wait(timeout=5)
 
+def get_csv_list() -> list[str]:
+    """Все CSV в папке DATA."""
+    files = [f for f in os.listdir(DATA_DIR) if f.endswith(".csv")]
+    files.sort()
+    return files
+
+def get_anal_list() -> list[str]:
+    """Все CSV с суффиксом _anal.csv."""
+    return [f for f in get_csv_list() if f.endswith("_anal.csv")]
+
 def safe_path(base_dir: str, filename: str) -> str:
     # Защита от traversal и только внутри base_dir
     filename = os.path.basename(filename)
@@ -60,85 +70,93 @@ def index():
 # ОТДАЧА CSV-файла (как есть) — на случай, если нужно
 @app.route("/candles")
 def candles():
-    csv_file = request.args.get("file", "BTCUSDT_1h_anal.csv")
-    try:
-        safe_path(DATA_DIR, csv_file)
-    except Exception:
-        return "Некорректное имя файла", 400
-    return send_from_directory(DATA_DIR, csv_file)
+    anal = get_anal_list()
+    if not anal:
+        return "", 204
+    chosen = request.args.get("file")
+    if chosen not in anal:
+        chosen = anal[0]
+    return send_from_directory(DATA_DIR, chosen)
 
 # JSON-свечи для интерактивного графика Plotly
+
+    
 @app.route("/api/candles")
 def api_candles():
     """
     Параметры:
-      - file: имя CSV в DATA (по умолчанию BTCUSDT_1h_anal.csv)
+      - file: имя CSV из списка *_anal.csv (автоматически берётся первый, если параметр не задан или не найден)
       - tail: сколько последних строк вернуть (по умолчанию 500)
     Формат ответа: [{ts, open, high, low, close, volume}, ...]
     """
-    csv_file = request.args.get("file", "BTCUSDT_1h_anal.csv")
-    tail_rows = int(request.args.get("tail", "500"))
+    # 1. Собираем все анал-файлы
+    anal = get_anal_list()
+    if not anal:
+        # нет ни одного *_anal.csv — возвращаем пустой массив
+        return jsonify([])
+
+    # 2. Выбираем файл: если пришёл параметр и он валиден — берём его, иначе первый из списка
+    requested = request.args.get("file")
+    csv_file = requested if requested in anal else anal[0]
+
+    # 3. Проверяем путь
     try:
         csv_path = safe_path(DATA_DIR, csv_file)
-    except Exception:
+    except ValueError:
         return jsonify({"error": "Некорректное имя файла"}), 400
 
     if not os.path.exists(csv_path):
         return jsonify({"error": "Файл не найден"}), 404
 
+    # 4. Читаем параметр tail
+    tail_rows = int(request.args.get("tail", "500"))
+
+    # 5. Загружаем CSV и формируем JSON
     try:
-        # Читаем только нужный хвост быстро
         df = pd.read_csv(csv_path)
-        # Пытаемся найти колонки времени и OHLCV
+
+        # находим колонки времени и OHLCV
         time_cols = [c for c in df.columns if c.lower() in ("time", "timestamp", "date", "datetime")]
-        o = next((c for c in df.columns if c.lower() == "open"), None)
-        h = next((c for c in df.columns if c.lower() == "high"), None)
-        l = next((c for c in df.columns if c.lower() == "low"), None)
-        c = next((c for c in df.columns if c.lower() == "close"), None)
+        o = next((c for c in df.columns if c.lower()=="open"), None)
+        h = next((c for c in df.columns if c.lower()=="high"), None)
+        l = next((c for c in df.columns if c.lower()=="low"), None)
+        c = next((c for c in df.columns if c.lower()=="close"), None)
         v = next((c for c in df.columns if c.lower() in ("volume", "vol")), None)
 
         if not time_cols or not all([o, h, l, c]):
             return jsonify({"error": "Не найдены необходимые колонки для OHLC"}), 400
 
-        t = time_cols[0]
-        # Приводим время к ISO-строке, если это числовой timestamp — оставим как есть
-        # Попробуем конвертировать в datetime
-        try:
-            ts_series = pd.to_datetime(df[t], errors="coerce")
-            # Где удалось — форматируем, иначе берем исходное значение
-            ts_values = [
-                (ts.isoformat() if pd.notna(ts) else str(orig))
-                for ts, orig in zip(ts_series, df[t])
-            ]
-        except Exception:
-            ts_values = df[t].astype(str).tolist()
+        # приводим время к строкам ISO, где возможно
+        tcol = time_cols[0]
+        ts_series = pd.to_datetime(df[tcol], errors="coerce")
+        ts_values = [
+            (ts.isoformat() if pd.notna(ts) else str(orig))
+            for ts, orig in zip(ts_series, df[tcol])
+        ]
 
-        # Обрезаем хвост
+        # обрезаем хвост
         if tail_rows > 0:
             df = df.tail(tail_rows)
             ts_values = ts_values[-len(df):]
 
+        # строим итоговый список
         result = []
         for i, row in df.reset_index(drop=True).iterrows():
             item = {
-                "ts": ts_values[i],
-                "open": float(row[o]),
-                "high": float(row[h]),
-                "low": float(row[l]),
+                "ts":    ts_values[i],
+                "open":  float(row[o]),
+                "high":  float(row[h]),
+                "low":   float(row[l]),
                 "close": float(row[c]),
+                "volume": float(row[v]) if v in df.columns else None
             }
-            if v in df.columns:
-                try:
-                    item["volume"] = float(row[v])
-                except Exception:
-                    item["volume"] = None
-            else:
-                item["volume"] = None
             result.append(item)
 
         return jsonify(result)
+
     except Exception as e:
         return jsonify({"error": f"Ошибка обработки CSV: {e}"}), 500
+
 
 # Список лог-файлов
 @app.route("/logs")
@@ -182,25 +200,41 @@ def log_tail():
 # Список CSV в DATA
 @app.route("/csv_list")
 def list_csv_files():
-    files = [f for f in os.listdir(DATA_DIR) if f.endswith(".csv")]
-    files.sort()
-    return jsonify(files)
+    return jsonify(get_csv_list())
+
 
 # Простое состояние (если есть state.json в корне проекта)
 @app.route("/api/state")
 def state():
-    state_path = os.path.join(PROJECT_ROOT, "state.json")
+    from datetime import datetime, timezone
+    state_path = os.path.join(STATIC_DATA_DIR, "state.json")
     if os.path.exists(state_path):
         try:
             with open(state_path, "r", encoding="utf-8") as f:
-                return jsonify(json.load(f))
-        except Exception:
-            pass
-    # Значения по умолчанию
+                data = json.load(f)
+            # если есть поле updated — форматируем его
+            ts = data.get("updated")
+            if ts:
+                try:
+                    # Парсим ISO-строку (с учётом часового пояса)
+                    dt = datetime.fromisoformat(ts)
+                    # Переводим в локальную зону (если нужно)
+                    dt_local = dt.astimezone()  
+                    # Форматируем без микросекунд
+                    data["updated"] = dt_local.strftime("%d.%m.%Y %H:%M:%S")
+                except Exception as e:
+                    app.logger.error(f"Не удалось распарсить updated: {e}")
+            # Запрещаем кэширование этого ответа
+            resp = jsonify(data)
+            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            return resp
+        except Exception as e:
+            app.logger.error(f"Error reading state.json: {e}")
+    # fallback
     return jsonify({
-        "balance": {"total": None, "currency": "USDT"},
+        "balance":  {"total": None, "currency": "USDT"},
         "positions": [],
-        "updated": None
+        "updated":   None
     })
 
 # Статика: изображение графика, если нужно отрисовать через PlotBot

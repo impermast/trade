@@ -1,5 +1,5 @@
 from flask import Flask, request, send_from_directory, jsonify, send_file
-import os
+import os,sys
 import json
 from collections import deque
 import pandas as pd
@@ -15,6 +15,35 @@ STATIC_DATA_DIR = os.path.join(DATA_DIR, "static")
 os.makedirs(STATIC_DATA_DIR, exist_ok=True)
 
 app = Flask(__name__)
+
+def run_flask_in_new_terminal():
+    import webbrowser
+    import time, platform
+    import subprocess
+    """
+    Запускает Flask-приложение в новом терминале (Windows).
+    """
+    script_path = os.path.abspath(__file__)
+    if platform.system() == "Windows":
+       flask_process = subprocess.Popen(f'start cmd /k "{sys.executable} {script_path}"', shell=True)
+    elif platform.system() == "Linux":
+        for term in ["gnome-terminal", "x-terminal-emulator", "xterm", "konsole"]:
+            try:
+                flask_process = subprocess.Popen([term, "-e", f"{sys.executable} {script_path}"])
+                return
+            except FileNotFoundError:
+                continue
+    else:
+        raise ValueError("Платформа компьютера не определена")
+    time.sleep(3)
+    # Открыть браузер
+    webbrowser.open("http://127.0.0.1:5000")
+    return flask_process
+
+def stop_flask(flask_process):
+    if flask_process and flask_process.poll() is None:
+        flask_process.terminate()
+        flask_process.wait(timeout=5)
 
 def safe_path(base_dir: str, filename: str) -> str:
     # Защита от traversal и только внутри base_dir
@@ -194,4 +223,4 @@ def health():
     return jsonify({"status": "ok"})
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000, use_reloader=False)

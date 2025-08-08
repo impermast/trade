@@ -2,11 +2,14 @@
 
 import os
 import sys
+import pandas as pd
+import asyncio
+import json
+from typing import Dict, Any, Optional
+from datetime import datetime, timezone
+
 import ccxt
 import ccxt.async_support as ccxt_async
-import pandas as pd
-from typing import Dict, Any, Optional
-import asyncio
 import ssl
 
 sys.path.append(os.path.abspath("."))
@@ -52,11 +55,12 @@ class BybitAPI(BirzaAPI):
             'apiKey': api_key,
             'secret': api_secret,
             'enableRateLimit': True,
-            'rateLimit': 500,  # Enforce rate limiting (500ms between requests)
-            # Enable SSL/TLS for secure communication
+            'rateLimit': 500,
             'options': {
                 'verify': True,
+                'enableDemoTrading': False,
                 'timeout': 30000,
+                'defaultType': 'spot'  # <--- ключевая строка
             }
         })
 
@@ -65,14 +69,15 @@ class BybitAPI(BirzaAPI):
             'apiKey': api_key,
             'secret': api_secret,
             'enableRateLimit': True,
-            'rateLimit': 500,  # Enforce rate limiting (500ms between requests)
-            # Enable SSL/TLS for secure communication
+            'rateLimit': 500,
             'options': {
                 'verify': True,
+                'enableDemoTrading': False,
                 'timeout': 30000,
+                'defaultType': 'spot'  # <--- ключевая строка
             }
         })
-
+        
         # Set sandbox mode if testnet is True
         if testnet:
             self.exchange.set_sandbox_mode(True)
@@ -172,7 +177,7 @@ class BybitAPI(BirzaAPI):
             Account balance information for all assets
         """
         try:
-            balance = self.exchange.fetch_balance()
+            balance = self.exchange.fetch_balance(params={"type": "unified"})
             return balance['total']
         except Exception as e:
             return self._handle_error("fetching balance", e, {})
@@ -189,8 +194,8 @@ class BybitAPI(BirzaAPI):
         Returns:
             Position information (empty dict for now)
         """
-        self.logger.warning("The get_positions method is not supported by ccxt for Bybit. Returning empty dict.")
-        return {}
+        positions = exchange.fetchPositions(symbols = symbol, params = {})
+        return positions 
 
     def get_order_status(self, order_id: str) -> Dict[str, Any]:
         """
@@ -324,7 +329,7 @@ class BybitAPI(BirzaAPI):
             Account balance information for all assets
         """
         try:
-            balance = await self.async_exchange.fetch_balance()
+            balance = await self.async_exchange.fetch_balance(params={"type": "unified"})
             return balance['total']
         except Exception as e:
             return await self._handle_error_async("fetching balance", e, {})
@@ -343,6 +348,50 @@ class BybitAPI(BirzaAPI):
         """
         self.logger.warning("The get_positions_async method is not supported by ccxt for Bybit. Returning empty dict.")
         return {}
+
+
+
+    async def update_state(self, symbol="BTC/USDT", STATE_PATH= "DATA/static/state.json"):
+        """
+        Обновляет файл state.json с текущим балансом и символом.
+        """
+        try:
+            # Получаем баланс
+            balance = await self.get_balance_async()
+            self.logger.info(f"Баланс: {balance}")
+            quote_currency = symbol.split("/")[1]  # например USDT
+            total = balance.get(quote_currency, 0)
+
+            # Позиции на споте не поддерживаются, оставляем пустыми
+            positions = []
+
+            # Текущее время
+            updated = datetime.now(timezone.utc).isoformat()
+
+            # Формируем финальный объект
+            state_data = {
+                "balance": {
+                    "total": total,
+                    "currency": quote_currency
+                },
+                "positions": positions,
+                "updated": updated
+            }
+
+            # Сохраняем в файл
+            os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
+            with open(STATE_PATH, "w", encoding="utf-8") as f:
+                json.dump(state_data, f, indent=4)
+            self.logger.info(f"Обновлено: {state_data}")
+        except Exception as e:
+            self.logger.error(f"Ошибка при обновлении: {e}")
+
+
+
+
+
+
+
 
     async def get_order_status_async(self, order_id: str) -> Dict[str, Any]:
         """
@@ -425,6 +474,6 @@ class BybitAPI(BirzaAPI):
 
 
 if __name__ == "__main__":
-    bot = BybitAPI(api_key=None, api_secret=None)
-    bot.download_candels_to_csv("BTC/USDT", start_date="2025-05-05T00:00:00Z", timeframe="1h")
-    df = bot.get_ohlcv("BTC/USDT")
+    bot = BybitAPI()
+    # bot.download_candels_to_csv("BTC/USDT", start_date="2025-05-05T00:00:00Z", timeframe="1h")
+    # df = bot.get_ohlcv("BTC/USDT")

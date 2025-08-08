@@ -1,5 +1,7 @@
 import asyncio
+import os
 import pandas as pd
+from datetime import datetime
 
 from API.bybit_api import BybitAPI
 from API.mock_api import MockAPI
@@ -7,31 +9,44 @@ from BOTS.analbot import Analytic
 from STRATEGY.rsi import RSIonly_Strategy
 from BOTS.loggerbot import Logger
 from BOTS.PLOTBOTS.plotbot import PlotBot
+from API.dashboard_api import run_flask_in_new_terminal, stop_flask
 
-botapi = MockAPI()
+botapi = BybitAPI()
 UPDATE_INTERVAL = 60  # секунд
 SYMBOL = "BTC/USDT"
 TF = "1m"
-
+USE_FLASK = True
+USE_PLOT = False
 
 SYMBOL_NAME = SYMBOL.replace("/", "")
-CSV_PATH1 = f"DATA/{SYMBOL_NAME}_{TF}.csv"
-CSV_PATH = f"DATA/{SYMBOL_NAME}_{TF}_anal.csv"
+CSV_PATH1  = f"DATA/{SYMBOL_NAME}_{TF}.csv"
+CSV_PATH   = f"DATA/{SYMBOL_NAME}_{TF}_anal.csv"
+STATE_PATH = f"DATA/static/state.json"
 logger = Logger(
     name="MainBot", 
     tag="[MAIN]", 
     logfile="LOGS/mainbot.log", 
-    console=True).get_logger()
+    console=False).get_logger()
 stop_event = asyncio.Event()
 
-async def plot_loop():
-    logger.info("Запущен графический цикл")
-    def start_plotbot():
-        plotbot = PlotBot(csv_file=CSV_PATH, refresh_interval=UPDATE_INTERVAL)
-        plotbot.start()
 
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, start_plotbot)
+async def plot_loop(USE_PLOT):
+    if USE_PLOT:
+        logger.info("Запущен графический цикл")
+        def start_plotbot():
+            plotbot = PlotBot(csv_file=CSV_PATH, refresh_interval=UPDATE_INTERVAL)
+            plotbot.start()
+
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, start_plotbot)
+
+async def tradeornot(bot, signal, qty=0.001):
+    if signal == 1:
+        logger.info("Сигнал: ПОКУПКА")
+        await botapi.place_order_async(SYMBOL, "buy", qty=qty)
+    elif signal == -1:
+        logger.info("Сигнал: ПРОДАЖА")
+        await botapi.place_order_async(SYMBOL, "sell", qty=qty)
 
 async def trading_loop(botapi):
     logger.info(f"Запущен торговый цикл {type(botapi).__name__}")
@@ -43,14 +58,9 @@ async def trading_loop(botapi):
             analytic = Analytic(df, data_name=f"{SYMBOL_NAME}_{TF}")
             signal = analytic.make_strategy(RSIonly_Strategy, rsi={"period": 14, "lower": 30, "upper": 70})
 
-            if signal == 1:
-                logger.info("Сигнал: ПОКУПКА")
-                await botapi.place_order_async(SYMBOL, "buy", qty=0.001)
-            elif signal == -1:
-                logger.info("Сигнал: ПРОДАЖА")
-                await botapi.place_order_async(SYMBOL, "sell", qty=0.001)
-            
-            
+            await tradeornot(botapi,signal)
+            await botapi.update_state(SYMBOL, STATE_PATH)
+
             # Save CSV for plotbot
             df.to_csv(CSV_PATH, index=False)
             await asyncio.sleep(UPDATE_INTERVAL)
@@ -63,19 +73,27 @@ async def trading_loop(botapi):
         logger.info("Торговый цикл завершён")
 
 async def main():
+
+    if USE_FLASK:
+        flaskprocess = run_flask_in_new_terminal()
+        await asyncio.sleep(1)
+    
     try:
         await asyncio.gather(
-            trading_loop(botapi)
+            trading_loop(botapi), plot_loop(USE_PLOT)
         )
+
+    #завершение работы
     except KeyboardInterrupt:
         logger.warning("Получен KeyboardInterrupt. Завершаем...")
         stop_event.set()
-        # Дождёмся завершения тасков
-        await asyncio.sleep(1)
     except Exception as e:
         logger.error(f"Ошибка в главной функции: {e}", exc_info=True)
         stop_event.set()
+    finally:
         await asyncio.sleep(1)
+        if USE_FLASK:
+            stop_flask(flaskprocess)
 
 if __name__ == "__main__":
     try:

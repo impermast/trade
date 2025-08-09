@@ -1,14 +1,13 @@
 # === main.py ===
 import asyncio
 import os
-import sys
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 
 # Подключения твоего проекта
-from API.bybit_api import BybitAPI  # если вдруг захочется боли в реальном времени
+from API.bybit_api import BybitAPI  # оставляем на всякий случай
 from API.mock_api import MockAPI
 from API.dashboard_api import run_flask_in_new_terminal, stop_flask
 from BOTS.analbot import Analytic
@@ -18,7 +17,7 @@ from STRATEGY.rsi import RSIonly_Strategy
 from STRATEGY.XGBstrategy import XGBStrategy
 
 # ------------ Конфиг ------------
-UPDATE_INTERVAL = 60  # сек между тиками
+UPDATE_INTERVAL = 10   # сек между тиками для симуляции поживее
 SYMBOL = "BTC/USDT"
 TF = "1m"
 
@@ -77,7 +76,6 @@ async def _wait_port(host: str, port: int, timeout: float = 10.0) -> bool:
     return False
 
 async def write_state_fallback(state_path: str) -> None:
-    # Если настоящий API не пишет state.json
     try:
         data = {
             "balance": {"total": None, "currency": "USDT"},
@@ -91,7 +89,6 @@ async def write_state_fallback(state_path: str) -> None:
         logger.error(f"Не смог записать fallback state.json: {e}")
 
 def _resolve_rsi_column(df: pd.DataFrame, period: int) -> str:
-    # Имена согласованы с Indicators: 14 -> 'rsi', иначе -> f'rsi_{period}'
     col = "rsi" if period == 14 else f"rsi_{period}"
     if col not in df.columns:
         raise ValueError(f"Не найден столбец '{col}' с рассчитанным RSI(period={period}).")
@@ -111,7 +108,6 @@ def _apply_rsi_orders_series(df: pd.DataFrame, period: int, lower: float, upper:
     cross_sell = (prev < upper) & (rsi >= upper)
 
     orders = np.zeros(len(df), dtype=int)
-    # при одновременном «телепорте» через оба уровня отдаем приоритет SELL
     orders[cross_sell.fillna(False).to_numpy()] = -1
     only_buy = cross_buy.fillna(False) & ~cross_sell.fillna(False)
     orders[only_buy.to_numpy()] = 1
@@ -125,48 +121,69 @@ async def plot_loop(use_plot: bool) -> None:
         return
     logger.info("Запущен графический цикл PlotBot")
     def _start():
-        # Рисуем по RSI-файлу, как привык твой фронт
         plotbot = PlotBot(csv_file=CSV_ANAL_PATH_RSI, refresh_interval=UPDATE_INTERVAL)
         plotbot.start()
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, _start)
 
 
-# ------------ Торговый цикл RSI ------------
+# ------------ Торговый цикл RSI: позиционная логика ------------
 async def trading_loop_rsi(bot) -> None:
     logger.info(f"[RSI] Запущен торговый цикл {type(bot).__name__}")
     period = 14
     lower, upper = 30.0, 70.0
 
+    # внутреннее состояние цикла
+    last_action = 0  # -1/0/1 по последнему сработанному сигналу
+    position_size = 0.0
+
     try:
         while not stop_event.is_set():
             # 1) Забираем данные
-            df = await bot.get_ohlcv_async(SYMBOL, timeframe=TF, limit=100)
+            df = await bot.get_ohlcv_async(SYMBOL, timeframe=TF, limit=200)
             if "timestamp" in df.columns and "time" not in df.columns:
                 df = df.rename(columns={"timestamp": "time"})
-
-            # 2) Сохраняем сырые данные
             df.to_csv(CSV_RAW_PATH, index=False)
 
-            # 3) Аналитика: считаем индикаторы и ПОЛНУЮ серию сигналов
+            # 2) Аналитика
             analytic = Analytic(df.copy(), data_name=f"{SYMBOL_NAME}_{TF}")
-            # запускаем стратегию, чтобы гарантированно посчитался RSI
             _ = analytic.make_strategy(
                 RSIonly_Strategy,
                 inplace=False,
                 rsi={"period": period, "lower": lower, "upper": upper},
             )
-
-            # вектор сигналов на всей истории
             _apply_rsi_orders_series(analytic.df, period=period, lower=lower, upper=upper)
-            analytic._save_results_to_csv()  # да, приватный; переживём
+            analytic._save_results_to_csv()
 
-            # 4) Торгуем по последнему сигналу
+            # 3) Решение по последнему сигналу
             last_sig = int(analytic.df["orders_rsi"].iloc[-1])
-            if last_sig == 1:
-                await bot.place_order_async(SYMBOL, "buy", qty=0.001)
-            elif last_sig == -1:
-                await bot.place_order_async(SYMBOL, "sell", qty=0.001)
+
+            # 4) Позиционная торговля: покупаем/продаём долями, без шортов
+            price = float(df["close"].iloc[-1])
+            bal = await bot.get_balance_async()
+            usdt = float(bal.get("USDT", 0.0))
+
+            # целевой размер позиции как доля от портфеля (очень скромно)
+            target_frac = 0.25  # 25% портфеля в активе максимум
+            max_qty = (usdt * target_frac) / price if price > 0 else 0.0
+
+            if last_sig == 1 and last_action != 1:
+                # открываем/наращиваем, но не более max_qty за раз
+                qty = max(0.0, min(max_qty, 0.001 + max_qty * 0.5))
+                if qty > 0:
+                    await bot.place_order_async(SYMBOL, "buy", qty=qty)
+                    position_size += qty
+                    last_action = 1
+
+            elif last_sig == -1 and last_action != -1:
+                # сокращаем/закрываем — продаём всё, что есть
+                pos = await bot.get_positions_async(SYMBOL)
+                have = float(pos.get("size", 0.0)) if isinstance(pos, dict) else 0.0
+                qty = have
+                if qty > 0:
+                    await bot.place_order_async(SYMBOL, "sell", qty=qty)
+                    position_size = 0.0
+                    last_action = -1
 
             # 5) Обновляем состояние для дашборда
             if hasattr(bot, "update_state"):
@@ -191,17 +208,15 @@ async def trading_loop_rsi(bot) -> None:
         logger.info("[RSI] Торговый цикл завершён")
 
 
-# ------------ Торговый цикл XGB ------------
+# ------------ Торговый цикл XGB (оставлен, но без агрессии) ------------
 async def trading_loop_xgb(bot) -> None:
     logger.info(f"[XGB] Запущен торговый цикл {type(bot).__name__}")
     try:
         while not stop_event.is_set():
-            # 1) Забираем те же данные
-            df = await bot.get_ohlcv_async(SYMBOL, timeframe=TF, limit=100)
+            df = await bot.get_ohlcv_async(SYMBOL, timeframe=TF, limit=200)
             if "timestamp" in df.columns and "time" not in df.columns:
                 df = df.rename(columns={"timestamp": "time"})
 
-            # 2) Аналитика для XGB
             data_name = f"{SYMBOL_NAME}_{TF}"
             analytic = Analytic(df.copy(), data_name=data_name, output_file="xgb.csv")
 
@@ -212,7 +227,6 @@ async def trading_loop_xgb(bot) -> None:
                 parallel=True
             )
 
-            # оставляем «штамп» только для XGB, т. к. модель не даёт серию
             if "orders_xgb" not in analytic.df.columns:
                 analytic.df["orders_xgb"] = 0
             if len(analytic.df) > 0:
@@ -220,6 +234,7 @@ async def trading_loop_xgb(bot) -> None:
                 analytic.df.loc[last_idx, "orders_xgb"] = 1 if signal == 1 else (-1 if signal == -1 else 0)
 
             analytic._save_results_to_csv()
+
             await asyncio.sleep(UPDATE_INTERVAL)
     except asyncio.CancelledError:
         logger.info("[XGB] Торговый цикл отменён")

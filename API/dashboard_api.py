@@ -237,22 +237,68 @@ def list_csv_files():
 
 @app.route("/api/state")
 def state():
+    """
+    Нормализует форму state.json под фронт:
+    - Bybit: уже отдаёт balance.total/currency — пропускаем без изменений.
+    - Mock: пишет кошелёк по валютам и equity — считаем balance.total и currency.
+    """
     state_path = os.path.join(STATIC_DATA_DIR, "state.json")
     if os.path.exists(state_path):
         try:
-          with open(state_path, "r", encoding="utf-8") as f:
-              data = json.load(f)
-          ts = data.get("updated")
-          if ts:
-              ts_norm = ts.replace(",", ".")
-              dt = pd.to_datetime(ts_norm, errors="coerce")
-              if pd.notna(dt):
-                  data["updated"] = dt.tz_localize(None).strftime("%d.%m.%Y %H:%M:%S")
-          resp = jsonify(data)
-          resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-          return resp
+            with open(state_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            # нормализуем updated -> dd.mm.yyyy HH:MM:SS без TZ
+            ts = data.get("updated")
+            if ts:
+                ts_norm = str(ts).replace(",", ".")
+                dt = pd.to_datetime(ts_norm, errors="coerce")
+                if pd.notna(dt):
+                    data["updated"] = dt.tz_localize(None).strftime("%d.%m.%Y %H:%M:%S")
+
+            # --------- нормализация баланса ---------
+            bal = data.get("balance")
+            eq = data.get("equity")
+
+            # если это уже правильный объект {total, currency, ...} — оставляем
+            good_object = isinstance(bal, dict) and ("total" in bal and "currency" in bal)
+
+            if not good_object:
+                assets = bal if isinstance(bal, dict) else {}
+                # валюта из equity или дефолт USDT
+                cur = None
+                if isinstance(eq, dict) and isinstance(eq.get("currency"), str):
+                    cur = eq.get("currency")
+                if not cur:
+                    cur = "USDT"
+
+                # total: сначала из equity.total, иначе берем по валюте, иначе сумма всех чисел
+                total = None
+                if isinstance(eq, dict) and isinstance(eq.get("total"), (int, float)):
+                    total = float(eq["total"])
+                elif isinstance(assets.get(cur), (int, float)):
+                    total = float(assets[cur])
+                else:
+                    try:
+                        total = float(sum(v for v in assets.values() if isinstance(v, (int, float))))
+                    except Exception:
+                        total = None
+
+                data["balance"] = {
+                    "total": total,
+                    "currency": cur
+                }
+                # необязательное поле: отдаём активы, если есть (для будущих экранах)
+                if assets:
+                    data["assets"] = assets
+
+            resp = jsonify(data)
+            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            return resp
         except Exception as e:
-          app.logger.error(f"Error reading state.json: {e}")
+            app.logger.error(f"Error reading state.json: {e}")
+
+    # пустой ответ по контракту фронта
     return jsonify({"balance":{"total":None,"currency":"USDT"},"positions":[],"updated":None})
 
 @app.route("/api/health")

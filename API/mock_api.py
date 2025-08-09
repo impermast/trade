@@ -15,6 +15,12 @@ class MockAPI(BirzaAPI):
     """
     Живой мок-API: генерирует OHLCV по random-walk, дописывает новые свечи,
     слегка двигает текущую свечу между «клоузами», обновляет баланс/позиции.
+
+    ДОБАВЛЕНО:
+      • Полноценные сделки на споте с комиссиями и учётом среднего входа
+      • Реализованный/нереализованный PnL
+      • История ордеров в памяти и трейды в DATA/static/trades.csv
+      • Стоимость портфеля в state.json (equity)
     """
 
     def __init__(self, data_dir: str = "DATA", log_file: Optional[str] = "LOGS/mock_api.log", console: bool = True):
@@ -26,15 +32,29 @@ class MockAPI(BirzaAPI):
         # Кэш данных по ключу "SYMBOL_TIMEFRAME"
         self.mock_data: Dict[str, pd.DataFrame] = {}
 
-        # Простенький мок-баланс и состояние
+        # Денежка и активы
         self.mock_balance: Dict[str, float] = {
-            "BTC": 1.0,
+            "BTC": 0.0,
             "ETH": 0.0,
             "USDT": 10_000.0,
             "USD": 0.0,
         }
-        # Позиции в споте будем хранить минимально
+
+        # Позиции: только спот, без шортов
+        # { "BTC/USDT": {size, avg_price, realized_pnl, markPrice} }
         self.mock_positions: Dict[str, Dict[str, Any]] = {}
+
+        # История ордеров в памяти
+        self.mock_orders: List[Dict[str, Any]] = []
+
+        # Файл для трейдов
+        self.trades_path = os.path.join(self.data_dir, "static", "trades.csv")
+        os.makedirs(os.path.dirname(self.trades_path), exist_ok=True)
+        if not os.path.exists(self.trades_path):
+            pd.DataFrame(columns=[
+                "datetime", "symbol", "side", "qty", "price", "cost", "fee",
+                "realized_pnl", "balance_usdt"
+            ]).to_csv(self.trades_path, index=False)
 
         self.logger.info(f"Initialized MockAPI with data directory: {self.data_dir}")
 
@@ -180,7 +200,7 @@ class MockAPI(BirzaAPI):
         """Догенерировать данные до «текущего» времени и сохранить CSV."""
         df = self._load_or_generate(symbol, timeframe)
         tf_delta = self._tf_delta(timeframe)
-        price0, vol = self._default_start_price(symbol)
+        _price0, vol = self._default_start_price(symbol)
 
         # текущее целевое время
         now_aligned = self._align(datetime.now(), tf_delta)
@@ -206,6 +226,12 @@ class MockAPI(BirzaAPI):
 
         return df
 
+    # ---------- market data ----------
+
+    def _last_price(self, symbol: str) -> float:
+        df = self._ensure_fresh(symbol, "1m")
+        return float(df["close"].iloc[-1]) if not df.empty else 0.0
+
     # ---------- public: OHLCV ----------
 
     def get_ohlcv(self, symbol: str, timeframe: str = "1m", limit: int = 100) -> pd.DataFrame:
@@ -227,53 +253,126 @@ class MockAPI(BirzaAPI):
 
     def place_order(self, symbol: str, side: str, qty: float,
                     order_type: str = "market", price: Optional[float] = None) -> Dict[str, Any]:
+        """
+        Спот‑исполнение по последней цене. Никаких шортов.
+        Если пытаемся продать больше, чем есть, продаём сколько есть.
+        Комиссия 0.1% в валюте котировки. Средняя цена входа пересчитывается.
+        """
         try:
             self.logger.info(f"Creating mock order: {side.upper()} {qty} {symbol} ({order_type})")
-            # текущая цена из мок-данных
-            df = self._ensure_fresh(symbol, "1m")
-            current_price = float(df["close"].iloc[-1]) if not df.empty else (price or 10_000.0)
-            order_id = f"mock_{int(datetime.now().timestamp())}"
+            # текущая цена
+            current_price = self._last_price(symbol)
+            if order_type.lower() == "limit" and price is not None:
+                exec_price = float(price)
+            else:
+                exec_price = current_price
 
             base, quote = symbol.split("/") if "/" in symbol else (symbol, "USDT")
-            order = {
-                "id": order_id,
-                "symbol": symbol,
-                "side": side.lower(),
-                "type": order_type.lower(),
-                "price": float(price) if (order_type.lower() == "limit" and price) else current_price,
-                "amount": float(qty),
-                "cost": float(qty) * (float(price) if (order_type.lower() == "limit" and price) else current_price),
-                "timestamp": int(datetime.now().timestamp() * 1000),
-                "datetime": datetime.now(timezone.utc).isoformat(),
-                "status": "closed" if order_type.lower() == "market" else "open",
-                "filled": float(qty) if order_type.lower() == "market" else 0.0,
-                "remaining": 0.0 if order_type.lower() == "market" else float(qty),
-                "fee": {"cost": float(qty) * current_price * 0.001, "currency": quote},
-            }
+            qty = float(qty)
+            side = side.lower()
+            fee_rate = 0.001
 
-            # простое влияние на баланс
-            if side.lower() == "buy":
-                self.mock_balance[quote] = self.mock_balance.get(quote, 0.0) - order["cost"]
-                self.mock_balance[base] = self.mock_balance.get(base, 0.0) + float(qty)
-            else:
-                self.mock_balance[quote] = self.mock_balance.get(quote, 0.0) + order["cost"]
-                self.mock_balance[base] = self.mock_balance.get(base, 0.0) - float(qty)
+            # позиция
+            pos = self.mock_positions.get(symbol, {"size": 0.0, "avg_price": 0.0, "realized_pnl": 0.0})
+            size = float(pos["size"])
+            avg_price = float(pos["avg_price"])
+            realized_pnl = float(pos["realized_pnl"])
 
-            # комиссия
-            fee_cur = order["fee"]["currency"]
-            self.mock_balance[fee_cur] = self.mock_balance.get(fee_cur, 0.0) - order["fee"]["cost"]
+            # ограничение на продажу
+            if side == "sell" and qty > size:
+                qty = size  # продаём не больше, чем есть
 
-            # позиция в споте для красоты
+            if qty <= 0:
+                return {"error": "qty<=0", "status": "rejected"}
+
+            cost = exec_price * qty
+            fee = cost * fee_rate
+
+            if side == "buy":
+                # проверим баланс котировки
+                free_quote = self.mock_balance.get(quote, 0.0)
+                total_needed = cost + fee
+                if total_needed > free_quote:
+                    # уменьшаем размер до доступного баланса
+                    if exec_price <= 0:
+                        return {"error": "bad price", "status": "rejected"}
+                    qty = max(0.0, (free_quote / (1 + fee_rate)) / exec_price)
+                    cost = exec_price * qty
+                    fee = cost * fee_rate
+                # списываем
+                self.mock_balance[quote] = self.mock_balance.get(quote, 0.0) - (cost + fee)
+                self.mock_balance[base] = self.mock_balance.get(base, 0.0) + qty
+                # новая ср. цена
+                new_size = size + qty
+                if new_size > 0:
+                    avg_price = (size * avg_price + qty * exec_price) / new_size
+                size = new_size
+
+            else:  # sell
+                # списываем базовый, начисляем котировку
+                self.mock_balance[base] = self.mock_balance.get(base, 0.0) - qty
+                self.mock_balance[quote] = self.mock_balance.get(quote, 0.0) + (cost - fee)
+                # реализованный PnL по проданной части
+                realized_pnl += (exec_price - avg_price) * qty
+                size = size - qty
+                if size <= 1e-12:
+                    size = 0.0
+                    avg_price = 0.0  # позиция закрыта
+
+            # комиссия оплачивается из котировки
+            # уже учтена выше, но для явности занесём валюту
+            self.mock_balance[quote] = self.mock_balance.get(quote, 0.0)
+
+            # пересчёт позы и марк‑цены
+            mark_price = self._last_price(symbol)
             self.mock_positions[symbol] = {
                 "symbol": symbol,
-                "size": self.mock_balance.get(base, 0.0),
-                "side": "long" if self.mock_balance.get(base, 0.0) > 0 else "none",
-                "entryPrice": None,
-                "markPrice": current_price,
-                "unrealizedPnl": 0.0,
+                "size": size,
+                "side": "long" if size > 0 else "none",
+                "entryPrice": avg_price if size > 0 else None,
+                "avg_price": avg_price,
+                "markPrice": mark_price,
+                "unrealizedPnl": (mark_price - avg_price) * size if size > 0 else 0.0,
+                "realized_pnl": realized_pnl,
                 "timestamp": int(datetime.now().timestamp() * 1000),
                 "datetime": datetime.now(timezone.utc).isoformat()
             }
+
+            order_id = f"mock_{int(datetime.now().timestamp()*1000)}"
+            order = {
+                "id": order_id,
+                "symbol": symbol,
+                "side": side,
+                "type": order_type.lower(),
+                "price": exec_price,
+                "amount": qty,
+                "cost": cost,
+                "timestamp": int(datetime.now().timestamp() * 1000),
+                "datetime": datetime.now(timezone.utc).isoformat(),
+                "status": "closed" if order_type.lower() == "market" else "open",
+                "filled": qty,
+                "remaining": 0.0,
+                "fee": {"cost": fee, "currency": quote},
+            }
+            self.mock_orders.append(order)
+
+            # запись трейда в CSV
+            try:
+                bal_usdt = float(self.mock_balance.get("USDT", 0.0))
+                row = {
+                    "datetime": order["datetime"],
+                    "symbol": symbol,
+                    "side": side,
+                    "qty": qty,
+                    "price": exec_price,
+                    "cost": cost,
+                    "fee": fee,
+                    "realized_pnl": realized_pnl,
+                    "balance_usdt": bal_usdt,
+                }
+                pd.DataFrame([row]).to_csv(self.trades_path, mode="a", header=False, index=False)
+            except Exception as e:
+                self.logger.warning(f"Failed to append trade row: {e}")
 
             return order
         except Exception as e:
@@ -309,7 +408,10 @@ class MockAPI(BirzaAPI):
     def get_order_status(self, order_id: str) -> Dict[str, Any]:
         try:
             # Минимальная заглушка: в реале хранили бы заказы
-            return {"id": order_id, "status": "closed"}
+            for o in reversed(self.mock_orders):
+                if o["id"] == order_id:
+                    return {"id": order_id, "status": o["status"]}
+            return {"id": order_id, "status": "unknown"}
         except Exception as e:
             return self._handle_error(f"checking status of mock order {order_id}", e, {})
 
@@ -321,26 +423,37 @@ class MockAPI(BirzaAPI):
 
     async def update_state(self, symbol: str = "BTC/USDT", STATE_PATH: str = "DATA/static/state.json"):
         """
-        Пишет state.json для дашборда (баланс в валюте котировки, список позиций, штамп).
+        Пишет state.json для дашборда:
+          • balance: остатки по валютам
+          • positions: список поз
+          • equity: USDT + Σ(size*markPrice по символам с котировкой USDT)
         """
         try:
             bal = await self.get_balance_async()
             quote = symbol.split("/")[1] if "/" in symbol else "USDT"
-            total = float(bal.get(quote, 0.0))
 
-            # Приведём позиции к простому массиву
+            # оценка портфеля
+            equity = float(bal.get("USDT", 0.0))
             positions = []
             for sym, pos in self.mock_positions.items():
+                mark = float(pos.get("markPrice") or self._last_price(sym))
+                qty = float(pos.get("size", 0.0))
+                entry = float(pos.get("avg_price", 0.0))
+                unreal = (mark - entry) * qty if qty > 0 else 0.0
                 positions.append({
                     "symbol": sym,
-                    "qty": float(pos.get("size", 0.0)),
-                    "entry": float(pos.get("entryPrice") or 0.0),
-                    "price": float(pos.get("markPrice") or 0.0),
-                    "unrealized_pnl": float(pos.get("unrealizedPnl") or 0.0),
+                    "qty": qty,
+                    "entry": entry,
+                    "price": mark,
+                    "unrealized_pnl": unreal,
                 })
+                # учитываем только пары с котировкой USDT
+                if "/" in sym and sym.split("/")[1] == "USDT":
+                    equity += qty * mark
 
             state = {
-                "balance": {"total": total, "currency": quote},
+                "balance": bal,
+                "equity": {"total": equity, "currency": "USDT"},
                 "positions": positions,
                 "updated": datetime.now(timezone.utc).isoformat(),
             }

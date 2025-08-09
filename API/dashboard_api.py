@@ -54,11 +54,21 @@ def candles():
 @app.route("/api/candles")
 def api_candles():
     anal = get_anal_list()
-    if not anal:
+    all_csv = get_csv_list()
+
+    # выбираем пул допустимых файлов
+    allowed = anal if anal else all_csv
+    if not allowed:
         return jsonify([])
 
     requested = request.args.get("file")
-    csv_file = requested if requested in anal else anal[0]
+    if requested in allowed:
+        csv_file = requested
+    elif requested in all_csv:
+        # просили не-anal, но файл существует — позволяем
+        csv_file = requested
+    else:
+        csv_file = allowed[0]
 
     try:
         csv_path = safe_path(DATA_DIR, csv_file)

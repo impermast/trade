@@ -130,6 +130,8 @@
     }
     .chip .bi{ font-size:1rem; }
     .chip.selected{ background:rgba(124,77,255,.18); border-color:rgba(124,77,255,.36); }
+    .chip::after{ content:""; position:absolute; inset:auto; width:0; height:0; border-radius:50%; background:rgba(255,255,255,.15); transform:translate(-50%,-50%); transition:width .35s,height .35s; }
+    .chip:active::after{ left:var(--x); top:var(--y); width:220%; height:220%; }
 
     #tailSegments .btn,
     #logLevelButtons .btn{
@@ -181,7 +183,7 @@
     .plotly .legend{ max-width:100% !important; }
 
     @media (max-width: 1200px){ #chart{ height:520px; } }
-    @media (max-width: 992px){ #chart{ height:480px; } .toolbar .group{ min-width: 46%; } .toolbar .group.narrow{ min_width: 30%; } }
+    @media (max-width: 992px){ #chart{ height:480px; } .toolbar .group{ min-width: 46%; } .toolbar .group.narrow{ min-width: 30%; } }
     @media (max-width: 768px){ #chart{ height:420px; } .toolbar{ gap:.6rem .8rem; } .nav-tabs .nav-link{ padding:.5rem .6rem; } }
     @media (max-width: 576px){ #chart{ height:360px; } .kpi-value{ font-size:1.3rem; } .kpi-sub{ font-size:.9rem; } .toolbar .group{ min-width:100%; } .fab{ right:10px; bottom:10px; } }
   </style>
@@ -254,7 +256,7 @@
             </div>
             <div class="group">
               <label class="form-label">Быстрый хвост</label>
-              <div id="tailSegments" class="btn-group btn-group-sm" role="group">
+              <div id="tailSegments" class="btn-group btn-group-sm" role="group" title="Быстрый выбор размера хвоста" data-bs-toggle="tooltip">
                 <button class="btn btn-outline-light" data-tail="200">200</button>
                 <button class="btn btn-outline-light" data-tail="500">500</button>
                 <button class="btn btn-outline-light active" data-tail="1000">1000</button>
@@ -262,27 +264,27 @@
             </div>
             <div class="group narrow">
               <label class="form-label">Панель 2</label>
-              <select id="lowerPanel" class="form-select form-select-sm field-outlined">
+              <select id="lowerPanel" class="form-select form-select-sm field-outlined" title="Что показывать в нижней панели" data-bs-toggle="tooltip">
                 <option value="volume">Объём</option>
                 <option value="rsi">RSI</option>
               </select>
             </div>
             <div id="rsiControls" class="group narrow" style="display:none;">
               <label class="form-label">RSI период</label>
-              <input id="rsiPeriod" type="number" min="2" step="1" value="14" class="form-control form-control-sm field-outlined"/>
+              <input id="rsiPeriod" type="number" min="2" step="1" value="14" class="form-control form-control-sm field-outlined" title="Период RSI" data-bs-toggle="tooltip"/>
             </div>
             <div class="group" style="min-width:220px;">
               <label class="form-label">Показывать</label>
               <div class="chips">
-                <div class="chip selected" id="chipSMA20" data-bind="#sma20"><i class="bi bi-activity"></i> SMA 20</div>
-                <div class="chip selected" id="chipSMA50" data-bind="#sma50"><i class="bi bi-activity"></i> SMA 50</div>
-                <div class="chip" id="chipLog" data-bind="#logScale"><i class="bi bi-graph-down"></i> Лог‑масштаб</div>
+                <div class="chip selected" id="chipSMA20" data-bind="#sma20" title="Включить/выключить SMA 20" data-bs-toggle="tooltip"><i class="bi bi-activity"></i> SMA 20</div>
+                <div class="chip selected" id="chipSMA50" data-bind="#sma50" title="Включить/выключить SMA 50" data-bs-toggle="tooltip"><i class="bi bi-activity"></i> SMA 50</div>
+                <div class="chip" id="chipLog" data-bind="#logScale" title="Логарифмический масштаб цены" data-bs-toggle="tooltip"><i class="bi bi-graph-down"></i> Лог‑масштаб</div>
               </div>
             </div>
             <div class="ms-auto">
               <div class="d-flex gap-2">
-                <button id="resetZoom" class="btn btn-ghost btn-sm"><i class="bi bi-arrows-fullscreen"></i> Сброс масштаба</button>
-                <button class="btn btn-outline-light btn-sm" data-bs-toggle="offcanvas" data-bs-target="#advancedSheet">
+                <button id="resetZoom" class="btn btn-ghost btn-sm" title="Сбросить масштаб графика" data-bs-toggle="tooltip"><i class="bi bi-arrows-fullscreen"></i> Сброс масштаба</button>
+                <button class="btn btn-outline-light btn-sm" data-bs-toggle="offcanvas" data-bs-target="#advancedSheet" title="Доп. параметры" data-bs-toggle2="tooltip">
                   <i class="bi bi-sliders"></i> Параметры
                 </button>
               </div>
@@ -296,7 +298,7 @@
               <div class="spinner-border text-light" role="status"><span class="visually-hidden">Загрузка…</span></div>
             </div>
           </div>
-          <button id="reloadChart" class="fab"><i class="bi bi-arrow-repeat"></i> Перестроить</button>
+          <button id="reloadChart" class="fab" title="Перестроить график" data-bs-toggle="tooltip"><i class="bi bi-arrow-repeat"></i> Перестроить</button>
         </div>
       </div>
 
@@ -307,8 +309,8 @@
             <div class="group"><label class="form-label">Файл логов</label><select id="logFile" class="form-select form-select-sm field-outlined"></select></div>
             <div class="group narrow"><label class="form-label">Хвост (строк)</label><input id="logTail" type="number" min="100" step="100" value="500" class="form-control form-control-sm field-outlined"/></div>
             <div class="ms-auto">
-              <button class="btn btn-outline-light btn-sm" id="reloadLogs"><i class="bi bi-arrow-repeat"></i> Обновить</button>
-              <button class="btn btn-outline-light btn-sm" data-bs-toggle="offcanvas" data-bs-target="#logsSheet"><i class="bi bi-sliders"></i> Параметры</button>
+              <button class="btn btn-outline-light btn-sm" id="reloadLogs" title="Обновить лог" data-bs-toggle="tooltip"><i class="bi bi-arrow-repeat"></i> Обновить</button>
+              <button class="btn btn-outline-light btn-sm" data-bs-toggle="offcanvas" data-bs-target="#logsSheet" title="Доп. параметры" data-bs-toggle2="tooltip"><i class="bi bi-sliders"></i> Параметры</button>
             </div>
           </div>
         </div>
@@ -494,9 +496,11 @@
   async function loadCsvList(){
     const sel=$("#csvFile"); sel.empty();
     try{
-      const r=await withProgress(fetch("/csv_list")); const files=await r.json();
-      files.forEach(f=> sel.append(new Option(f,f)));
-      const stored=localStorage.getItem("csv-file"); if(stored && files.includes(stored)) sel.val(stored);
+      const r=await withProgress(fetch("/csv_list")); let files=await r.json();
+      const anal=files.filter(f=>f.endsWith("_anal.csv"));
+      const list=anal.length?anal:files; // приоритет *_anal.csv
+      list.forEach(f=> sel.append(new Option(f,f)));
+      const stored=localStorage.getItem("csv-file"); if(stored && list.includes(stored)) sel.val(stored);
       $("#kpi-file").text(sel.val()||"—");
     }catch{ sel.append(new Option("sample.csv","sample.csv")); }
   }
@@ -507,19 +511,22 @@
     const r=await withProgress(fetch(`/api/candles?file=${encodeURIComponent(file)}&tail=${tail}`));
     if(!r.ok) throw new Error("Ошибка загрузки свечей"); return await r.json();
   }
-  function themeVars(){ return {
-    paper_bgcolor:cssVar("--bg"), plot_bgcolor:cssVar("--surface"), font_color:cssVar("--on-surface"), grid:cssVar("--grid")
-  }}
+  function themeVars(){ return { paper_bgcolor:cssVar("--bg"), plot_bgcolor:cssVar("--surface"), font_color:cssVar("--on-surface"), grid:cssVar("--grid") } }
   function showRsiControls(){ $("#rsiControls").toggle($("#lowerPanel").val()==="rsi"); }
 
   async function drawChart(){
     $("#chartLoader").show();
     try{
-      const rows=await loadCandles(); if(!rows||!rows.length){ Plotly.purge("chart"); return; }
+      const rows=await loadCandles();
+      if(!rows || !rows.length){
+        Plotly.purge("chart");
+        document.getElementById("chart").innerHTML = `<div class="p-3 text-muted">Нет данных для отображения.</div>`;
+        return;
+      }
       const ts=rows.map(r=>r.ts), open=rows.map(r=>r.open), high=rows.map(r=>r.high), low=rows.map(r=>r.low), close=rows.map(r=>r.close), vol=rows.map(r=>r.volume??null), orders=rows.map(r=>r.orders??null);
 
       const traces=[];
-      const cPrimary=cssVar("--primary"), cSecondary=cssVar("--secondary"), cTertiary="#9C27B0"), cError=cssVar("--error");
+      const cPrimary=cssVar("--primary"), cSecondary=cssVar("--secondary"), cTertiary="#9C27B0", cError=cssVar("--error");
 
       traces.push({type:"candlestick", x:ts, open, high, low, close, name:"OHLC", yaxis:"y",
         increasing:{line:{color:cSecondary}}, decreasing:{line:{color:cError}}});
@@ -554,12 +561,14 @@
         yaxis2:{title:($("#lowerPanel").val()==="rsi"?"RSI":"Объём"), gridcolor:grid, domain:[0,0.28]}
       };
 
-      Plotly.react("chart", traces, layout, {
-        responsive:true, displaylogo:false
-      });
+      Plotly.react("chart", traces, layout, { responsive:true, displaylogo:false });
       $("#kpi-file").text($("#csvFile").val()||"—");
-    }catch(e){ console.error(e); }
-    finally{ $("#chartLoader").hide(); }
+    } catch(e) {
+      console.error(e);
+      document.getElementById("chart").innerHTML = `<div class="p-3 text-danger">Не удалось загрузить свечи. Проверь CSV и колонки (time/open/high/low/close). Детали в консоли.</div>`;
+    } finally {
+      $("#chartLoader").hide();
+    }
   }
 
   function setupChartControls(){
@@ -663,8 +672,8 @@
     setupPositionsControls();
     setupGlobalRefresh();
 
-    // при желании можно задать интервал тут:
-    // localStorage.setItem(STATE_INTERVAL_KEY, "10");
+    // при желании можно задать интервал опроса state.json:
+    // localStorage.setItem(STATE_INTERVAL_KEY, "10"); // каждые 10 секунд
 
     await Promise.all([loadCsvList(), loadLogFiles(), loadState()]);
     await drawChart(); await loadLogTail(); await loadLogsAll();

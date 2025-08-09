@@ -236,6 +236,7 @@
     <!-- Tabs -->
     <ul class="nav nav-tabs" id="viewTabs" role="tablist">
       <li class="nav-item"><button class="nav-link active" id="chart-tab" data-bs-toggle="tab" data-bs-target="#chart-pane" type="button"><i class="bi bi-graph-up"></i> График цен</button></li>
+      <li class="nav-item"><button class="nav-link" id="csv-tab" data-bs-toggle="tab" data-bs-target="#csv-pane" type="button"><i class="bi bi-table"></i> CSV данные</button></li>
       <li class="nav-item"><button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-pane" type="button"><i class="bi bi-journal-text"></i> Логи</button></li>
       <li class="nav-item"><button class="nav-link" id="logs-all-tab" data-bs-toggle="tab" data-bs-target="#logs-all-pane" type="button"><i class="bi bi-collection"></i> Все логи</button></li>
       <li class="nav-item"><button class="nav-link" id="state-tab" data-bs-toggle="tab" data-bs-target="#state-pane" type="button"><i class="bi bi-wallet2"></i> Баланс и позиции</button></li>
@@ -273,11 +274,13 @@
               <label class="form-label">RSI период</label>
               <input id="rsiPeriod" type="number" min="2" step="1" value="14" class="form-control form-control-sm field-outlined" title="Период RSI" data-bs-toggle="tooltip"/>
             </div>
-            <div class="group" style="min-width:220px;">
+            <div class="group" style="min-width:280px;">
               <label class="form-label">Показывать</label>
               <div class="chips">
                 <div class="chip selected" id="chipSMA20" data-bind="#sma20" title="Включить/выключить SMA 20" data-bs-toggle="tooltip"><i class="bi bi-activity"></i> SMA 20</div>
                 <div class="chip selected" id="chipSMA50" data-bind="#sma50" title="Включить/выключить SMA 50" data-bs-toggle="tooltip"><i class="bi bi-activity"></i> SMA 50</div>
+                <div class="chip" id="chipSigRSI" data-bind="#signals_rsi" title="Сигналы RSI" data-bs-toggle="tooltip"><i class="bi bi-lightning"></i> RSI сигналы</div>
+                <div class="chip" id="chipSigXGB" data-bind="#signals_xgb" title="Сигналы XGB" data-bs-toggle="tooltip"><i class="bi bi-robot"></i> XGB сигналы</div>
                 <div class="chip" id="chipLog" data-bind="#logScale" title="Логарифмический масштаб цены" data-bs-toggle="tooltip"><i class="bi bi-graph-down"></i> Лог‑масштаб</div>
               </div>
             </div>
@@ -299,6 +302,33 @@
             </div>
           </div>
           <button id="reloadChart" class="fab" title="Перестроить график" data-bs-toggle="tooltip"><i class="bi bi-arrow-repeat"></i> Перестроить</button>
+        </div>
+      </div>
+
+      <!-- CSV preview -->
+      <div class="tab-pane fade" id="csv-pane">
+        <div class="card p-3 mb-3">
+          <div class="toolbar">
+            <div class="group narrow">
+              <label class="form-label">Показать последние (строк)</label>
+              <input id="csvViewTail" type="number" min="50" step="50" value="300" class="form-control form-control-sm field-outlined"/>
+            </div>
+            <div class="ms-auto d-flex gap-2">
+              <button class="btn btn-outline-light btn-sm" id="csvReload"><i class="bi bi-arrow-repeat"></i> Обновить</button>
+              <button class="btn btn-outline-light btn-sm" id="csvDownload"><i class="bi bi-download"></i> Скачать как CSV</button>
+            </div>
+          </div>
+        </div>
+        <div class="card p-2 position-relative">
+          <div id="csvLoader" class="loading-overlay" style="display:none;">
+            <div class="spinner-border text-light" role="status"><span class="visually-hidden">Загрузка…</span></div>
+          </div>
+          <div style="max-height:520px; overflow:auto;">
+            <table class="table-md3" id="csvTable">
+              <thead id="csvThead"></thead>
+              <tbody id="csvTbody"><tr><td><span class="skeleton" style="height:24px;display:block"></span></td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -441,6 +471,8 @@
   const hiddenControls = $('<div style="display:none"></div>').appendTo(document.body);
   hiddenControls.append('<input type="checkbox" id="sma20" checked>');
   hiddenControls.append('<input type="checkbox" id="sma50" checked>');
+  hiddenControls.append('<input type="checkbox" id="signals_rsi">');
+  hiddenControls.append('<input type="checkbox" id="signals_xgb">');
   hiddenControls.append('<input type="checkbox" id="logScale">');
 
   // ==== Индикаторы ====
@@ -492,17 +524,39 @@
   }
   function setupPositionsControls(){ $("#posExport").on("click", exportPositionsCSV); $("#posRefresh").on("click", ()=>{ loadState(); showSnack("Позиции обновлены"); }); }
 
-  // ==== CSV ====
+  // ==== CSV list ====
   async function loadCsvList(){
-    const sel=$("#csvFile"); sel.empty();
+    const sel = $("#csvFile");
+    sel.empty();
     try{
-      const r=await withProgress(fetch("/csv_list")); let files=await r.json();
-      const anal=files.filter(f=>f.endsWith("_anal.csv"));
-      const list=anal.length?anal:files; // приоритет *_anal.csv
-      list.forEach(f=> sel.append(new Option(f,f)));
-      const stored=localStorage.getItem("csv-file"); if(stored && list.includes(stored)) sel.val(stored);
-      $("#kpi-file").text(sel.val()||"—");
-    }catch{ sel.append(new Option("sample.csv","sample.csv")); }
+      const r = await withProgress(fetch("/csv_list"));
+      let files = await r.json();
+
+      files = Array.isArray(files)
+        ? files.filter(f => typeof f === "string").filter(f => f.toLowerCase().endsWith(".csv"))
+        : [];
+
+      // *_anal.csv вверх списка, затем алфавит
+      files.sort((a, b) => {
+        const aAnal = /_anal\.csv$/i.test(a) ? 0 : 1;
+        const bAnal = /_anal\.csv$/i.test(b) ? 0 : 1;
+        if (aAnal !== bAnal) return aAnal - bAnal;
+        return a.localeCompare(b, "ru");
+      });
+
+      files.forEach(f => sel.append(new Option(f, f)));
+
+      const stored = localStorage.getItem("csv-file");
+      const def = (stored && files.includes(stored))
+        ? stored
+        : (files.find(f => /_anal\.csv$/i.test(f)) || files[0] || "");
+
+      if (def) sel.val(def);
+      $("#kpi-file").text(sel.val() || "—");
+    } catch {
+      sel.append(new Option("BTCUSDT_1m.csv","BTCUSDT_1m.csv"));
+      $("#kpi-file").text(sel.val() || "—");
+    }
   }
 
   // ==== Chart ====
@@ -523,10 +577,22 @@
         document.getElementById("chart").innerHTML = `<div class="p-3 text-muted">Нет данных для отображения.</div>`;
         return;
       }
-      const ts=rows.map(r=>r.ts), open=rows.map(r=>r.open), high=rows.map(r=>r.high), low=rows.map(r=>r.low), close=rows.map(r=>r.close), vol=rows.map(r=>r.volume??null), orders=rows.map(r=>r.orders??null);
+      const ts    = rows.map(r=>r.ts);
+      const open  = rows.map(r=>r.open);
+      const high  = rows.map(r=>r.high);
+      const low   = rows.map(r=>r.low);
+      const close = rows.map(r=>r.close);
+      const vol   = rows.map(r=>r.volume ?? null);
+
+      // Сигналы: отдельные колонки для RSI/XGB, совместимость со старым 'orders'
+      const ord_rsi = rows.map(r => (r.orders_rsi ?? r.orders ?? null));
+      const ord_xgb = rows.map(r => (r.orders_xgb ?? null));
 
       const traces=[];
-      const cPrimary=cssVar("--primary"), cSecondary=cssVar("--secondary"), cTertiary="#9C27B0", cError=cssVar("--error");
+      const cPrimary   = cssVar("--primary");
+      const cSecondary = cssVar("--secondary");
+      const cTertiary  = "#9C27B0";
+      const cError     = cssVar("--error");
 
       traces.push({type:"candlestick", x:ts, open, high, low, close, name:"OHLC", yaxis:"y",
         increasing:{line:{color:cSecondary}}, decreasing:{line:{color:cError}}});
@@ -543,12 +609,29 @@
         traces.push({type:"scatter",mode:"lines",x:[ts[0],ts.at(-1)],y:[30,30],line:{dash:"dot",width:1},showlegend:false,yaxis:"y2"});
       }
 
-      if(orders.some(o=>o!=null && o!==0)){
+      // Значки покупок/продаж
+      const showRSI = $("#signals_rsi").is(":checked");
+      const showXGB = $("#signals_xgb").is(":checked");
+
+      function addSignalMarkers(ordersArr, namePrefix, color) {
+        if (!ordersArr.some(o => o != null && o !== 0)) return;
         const bx=[],by=[], sx=[],sy=[];
-        for(let i=0;i<orders.length;i++){ if(orders[i]>0){bx.push(ts[i]);by.push(close[i]);} if(orders[i]<0){sx.push(ts[i]);sy.push(close[i]);} }
-        if(bx.length) traces.push({type:"scatter",mode:"markers",x:bx,y:by,name:"Buy",marker:{size:7,symbol:"triangle-up", line:{width:.5}, color:cSecondary},yaxis:"y"});
-        if(sx.length) traces.push({type:"scatter",mode:"markers",x:sx,y:sy,name:"Sell",marker:{size:7,symbol:"triangle-down", line:{width:.5}, color:cError},yaxis:"y"});
+        for (let i = 0; i < ordersArr.length; i++) {
+          if (ordersArr[i] > 0) { bx.push(ts[i]); by.push(close[i]); }
+          if (ordersArr[i] < 0) { sx.push(ts[i]); sy.push(close[i]); }
+        }
+        if (bx.length) traces.push({
+          type: "scatter", mode: "markers", x: bx, y: by, name: `${namePrefix} Buy`,
+          marker: { size: 8, symbol: "triangle-up", line: { width: .6 }, color }, yaxis: "y"
+        });
+        if (sx.length) traces.push({
+          type: "scatter", mode: "markers", x: sx, y: sy, name: `${namePrefix} Sell`,
+          marker: { size: 8, symbol: "triangle-down", line: { width: .6 }, color }, yaxis: "y"
+        });
       }
+
+      if (showRSI) addSignalMarkers(ord_rsi, "RSI", cSecondary);
+      if (showXGB) addSignalMarkers(ord_xgb, "XGB", cTertiary);
 
       const {paper_bgcolor,plot_bgcolor,font_color,grid}=themeVars();
       const layout={
@@ -584,6 +667,8 @@
 
     bindChip("#chipSMA20", "#sma20");
     bindChip("#chipSMA50", "#sma50");
+    bindChip("#chipSigRSI", "#signals_rsi");
+    bindChip("#chipSigXGB", "#signals_xgb");
     bindChip("#chipLog",  "#logScale");
 
     $("#tailSegments .btn").on("click", function(){
@@ -646,6 +731,74 @@
     });
   }
 
+  // ==== CSV preview ====
+  async function loadCsvPreview(){
+    $("#csvLoader").show();
+    try{
+      const file = $("#csvFile").val();
+      const tail = Math.max(50, +$("#csvViewTail").val() || 300);
+      const r = await withProgress(fetch(`/api/candles?file=${encodeURIComponent(file)}&tail=${tail}`));
+      if (!r.ok) throw new Error("Ошибка загрузки CSV");
+      const rows = await r.json();
+      renderCsvTable(rows);
+    } catch(e){
+      console.error(e);
+      $("#csvThead").html("");
+      $("#csvTbody").html(`<tr><td class="text-danger">Не удалось загрузить CSV</td></tr>`);
+    } finally{
+      $("#csvLoader").hide();
+    }
+  }
+  function renderCsvTable(rows){
+    const thead = $("#csvThead");
+    const tbody = $("#csvTbody");
+    thead.empty(); tbody.empty();
+
+    if (!Array.isArray(rows) || rows.length === 0){
+      tbody.html(`<tr><td class="text-muted">Нет данных</td></tr>`);
+      return;
+    }
+
+    const cols = Object.keys(rows[0]);
+    thead.append(`<tr>${cols.map(c => `<th>${c}</th>`).join("")}</tr>`);
+
+    const frag = document.createDocumentFragment();
+    rows.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = cols.map(c => `<td>${r[c] ?? ""}</td>`).join("");
+      frag.appendChild(tr);
+    });
+    tbody[0].innerHTML = "";
+    tbody[0].appendChild(frag);
+  }
+  function downloadCsvFromPreview(){
+    const rows = [];
+    const ths = Array.from(document.querySelectorAll("#csvThead th")).map(th => th.textContent || "");
+    if (!ths.length){
+      showSnack("Нет данных для экспорта");
+      return;
+    }
+    rows.push(ths);
+    $("#csvTbody tr").each(function(){
+      const tds = $(this).find("td");
+      if (!tds.length) return;
+      rows.push(tds.map((_,td)=>$(td).text()).get());
+    });
+    const csv = rows.map(r => r.map(x => `"${(x??"").toString().replace(/"/g,'""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = ($("#csvFile").val() || "data") + ".preview.csv";
+    a.click(); URL.revokeObjectURL(url);
+  }
+  function setupCsvPreviewControls(){
+    $("#csvReload").on("click", ()=>{ loadCsvPreview(); showSnack("CSV обновлен"); });
+    $("#csvDownload").on("click", downloadCsvFromPreview);
+    $("#csvViewTail").on("change", loadCsvPreview);
+    $("#csvFile").on("change", loadCsvPreview);
+    document.getElementById("csv-tab").addEventListener("shown.bs.tab", loadCsvPreview);
+  }
+
   // ==== State auto-refresh ====
   let stateTimer=null;
   const STATE_INTERVAL_KEY="state-interval-seconds";
@@ -661,7 +814,7 @@
   });
 
   // ==== Refresh all ====
-  function setupGlobalRefresh(){ $("#refreshAll").on("click", async ()=>{ await Promise.all([loadState(), drawChart(), loadLogTail(), loadLogsAll()]); showSnack("Данные обновлены"); }); }
+  function setupGlobalRefresh(){ $("#refreshAll").on("click", async ()=>{ await Promise.all([loadState(), drawChart(), loadLogTail(), loadLogsAll(), loadCsvPreview()]); showSnack("Данные обновлены"); }); }
 
   // ==== Init ====
   $(async function(){
@@ -670,15 +823,12 @@
     setupLogsControls();
     setupLogsAllControls();
     setupPositionsControls();
+    setupCsvPreviewControls();
     setupGlobalRefresh();
-
-    // при желании можно задать интервал опроса state.json:
-    // localStorage.setItem(STATE_INTERVAL_KEY, "10"); // каждые 10 секунд
 
     await Promise.all([loadCsvList(), loadLogFiles(), loadState()]);
     await drawChart(); await loadLogTail(); await loadLogsAll();
 
-    // автопуллинг state.json
     startStateTimer();
 
     document.getElementById("chart-tab").addEventListener("shown.bs.tab", drawChart);

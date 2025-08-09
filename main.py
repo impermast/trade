@@ -145,15 +145,30 @@ async def trading_loop_rsi(bot) -> None:
                 df = df.rename(columns={"timestamp": "time"})
             df.to_csv(CSV_RAW_PATH, index=False)
 
-            # 2) Аналитика
-            analytic = Analytic(df.copy(), data_name=f"{SYMBOL_NAME}_{TF}")
+            # 2) Аналитика — как в XGB: задаём output_file для автосоздания CSV
+            data_name = f"{SYMBOL_NAME}_{TF}"
+            analytic = Analytic(df.copy(), data_name=data_name, output_file="rsi.csv")
+
+            # Стратегия сама обеспечит нужные индикаторы (как XGB)
             _ = analytic.make_strategy(
                 RSIonly_Strategy,
                 inplace=False,
                 rsi={"period": period, "lower": lower, "upper": upper},
             )
-            _apply_rsi_orders_series(analytic.df, period=period, lower=lower, upper=upper)
-            analytic._save_results_to_csv()
+
+            # Векторная разметка сигналов (если RSI не посчитался — посчитаем и повторим)
+            try:
+                _apply_rsi_orders_series(analytic.df, period=period, lower=lower, upper=upper)
+            except Exception as e:
+                logger.warning(f"[RSI] Повторный расчёт RSI через Analytic.make_calc после ошибки: {e}")
+                try:
+                    analytic.make_calc(indicators=["rsi"], stratparams={"rsi": {"period": period}}, parallel=False)
+                    _apply_rsi_orders_series(analytic.df, period=period, lower=lower, upper=upper)
+                except Exception as e2:
+                    logger.error(f"[RSI] Не удалось обеспечить RSI: {e2}")
+                    # гарантируем колонку orders_rsi хотя бы нулями, чтобы CSV и UI не падали
+                    if "orders_rsi" not in analytic.df.columns:
+                        analytic.df["orders_rsi"] = 0
 
             # 3) Решение по последнему сигналу
             last_sig = int(analytic.df["orders_rsi"].iloc[-1])
@@ -185,7 +200,10 @@ async def trading_loop_rsi(bot) -> None:
                     position_size = 0.0
                     last_action = -1
 
-            # 5) Обновляем состояние для дашборда
+            # 5) Сохранение аналитики — файл создаётся сам: DATA/<SYMBOL_NAME>_<TF>_rsi.csv
+            analytic._save_results_to_csv()
+
+            # 6) Обновляем состояние для дашборда
             if hasattr(bot, "update_state"):
                 try:
                     await bot.update_state(SYMBOL, STATE_PATH)
@@ -206,6 +224,7 @@ async def trading_loop_rsi(bot) -> None:
             except Exception:
                 pass
         logger.info("[RSI] Торговый цикл завершён")
+
 
 
 # ------------ Торговый цикл XGB (оставлен, но без агрессии) ------------

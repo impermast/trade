@@ -1,400 +1,354 @@
 # API/mock_api.py
 
-import pandas as pd
-import json
 import os
-from typing import Dict, Any, Optional, List
-import datetime
+import json
 import random
 import asyncio
+import pandas as pd
+from typing import Dict, Any, Optional, List, Tuple
+from datetime import datetime, timedelta, timezone
 
 from API.birza_api import BirzaAPI
 
+
 class MockAPI(BirzaAPI):
     """
-    Mock API client for testing purposes.
-    
-    This class implements the BirzaAPI interface with simulated responses,
-    allowing for testing without connecting to real exchanges.
-    
-    Attributes:
-        data_dir: Directory containing mock data files
-        mock_data: Dictionary containing preloaded mock data
-        mock_balance: Dictionary containing mock balance data
-        mock_orders: Dictionary containing mock order data
-        mock_positions: Dictionary containing mock position data
+    Живой мок-API: генерирует OHLCV по random-walk, дописывает новые свечи,
+    слегка двигает текущую свечу между «клоузами», обновляет баланс/позиции.
     """
-    
-    def __init__(self, data_dir: str = "DATA/", 
-                log_file: Optional[str] = "LOGS/mock_api.log", 
-                console: bool = True):
-        """
-        Initialize the Mock API client.
-        
-        Args:
-            data_dir: Directory containing mock data files
-            log_file: Path to log file
-            console: Whether to log to console
-        """
+
+    def __init__(self, data_dir: str = "DATA", log_file: Optional[str] = "LOGS/mock_api.log", console: bool = True):
         super().__init__(name="MockAPI", log_tag="[MOCK_API]", log_file=log_file, console=console)
-        
+
         self.data_dir = data_dir
-        self.mock_data = {}
-        self.mock_balance = {
+        os.makedirs(self.data_dir, exist_ok=True)
+
+        # Кэш данных по ключу "SYMBOL_TIMEFRAME"
+        self.mock_data: Dict[str, pd.DataFrame] = {}
+
+        # Простенький мок-баланс и состояние
+        self.mock_balance: Dict[str, float] = {
             "BTC": 1.0,
-            "ETH": 0,
-            "USDT": 10000.0,
-            "USD": 0
+            "ETH": 0.0,
+            "USDT": 10_000.0,
+            "USD": 0.0,
         }
-        self.mock_orders = {}
-        self.mock_positions = {}
-        
-        # Create data directory if it doesn't exist
-        os.makedirs(data_dir, exist_ok=True)
-        
-        self.logger.info(f"Initialized MockAPI with data directory: {data_dir}")
-    
-    def _load_mock_data(self, symbol: str, timeframe: str = "1h") -> pd.DataFrame:
-        """
-        Load mock data for a symbol and timeframe.
-        
-        Args:
-            symbol: Trading pair symbol (e.g., "BTC/USDT")
-            timeframe: Candlestick timeframe (e.g., "1m", "5m", "1h", "1d")
-            
-        Returns:
-            DataFrame containing mock OHLCV data
-        """
-        key = f"{symbol}_{timeframe}"
-        
-        # Return cached data if available
+        # Позиции в споте будем хранить минимально
+        self.mock_positions: Dict[str, Dict[str, Any]] = {}
+
+        self.logger.info(f"Initialized MockAPI with data directory: {self.data_dir}")
+
+    # ---------- helpers ----------
+
+    @staticmethod
+    def _key(symbol: str, timeframe: str) -> str:
+        return f"{symbol}_{timeframe}"
+
+    @staticmethod
+    def _tf_delta(timeframe: str) -> timedelta:
+        tf = timeframe.lower()
+        if tf.endswith("m"):
+            return timedelta(minutes=int(tf[:-1]))
+        if tf.endswith("h"):
+            return timedelta(hours=int(tf[:-1]))
+        if tf.endswith("d"):
+            return timedelta(days=int(tf[:-1]))
+        return timedelta(hours=1)
+
+    @staticmethod
+    def _align(dt: datetime, tf_delta: timedelta) -> datetime:
+        # Выравнивание к началу «свечной» сетки
+        if tf_delta >= timedelta(days=1):
+            base = datetime(dt.year, dt.month, dt.day)
+            return base
+        if tf_delta >= timedelta(hours=1):
+            step = tf_delta.seconds // 3600
+            return datetime(dt.year, dt.month, dt.day, (dt.hour // step) * step)
+        # минуты
+        step = tf_delta.seconds // 60
+        return datetime(dt.year, dt.month, dt.day, dt.hour, (dt.minute // step) * step)
+
+    def _default_start_price(self, symbol: str) -> Tuple[float, float]:
+        if symbol.upper().startswith("BTC"):
+            return 30000.0, 0.02
+        if symbol.upper().startswith("ETH"):
+            return 2000.0, 0.03
+        return 100.0, 0.05
+
+    def _csv_path(self, symbol: str, timeframe: str) -> str:
+        return os.path.join(self.data_dir, f"{symbol.replace('/', '')}_{timeframe}.csv")
+
+    def _load_or_generate(self, symbol: str, timeframe: str, num_candles: int = 500) -> pd.DataFrame:
+        key = self._key(symbol, timeframe)
         if key in self.mock_data:
-            return self.mock_data[key].copy()
-        
-        # Try to load data from file
-        file_path = os.path.join(self.data_dir, f"{symbol.replace('/', '')}_{timeframe}.csv")
-        if os.path.exists(file_path):
-            self.logger.info(f"Loading mock data from file: {file_path}")
-            df = pd.read_csv(file_path)
-            if 'time' in df.columns:
-                df['time'] = pd.to_datetime(df['time'])
-            self.mock_data[key] = df
-            return df.copy()
-        
-        # Generate mock data if file doesn't exist
-        self.logger.info(f"Generating mock data for {symbol}, timeframe={timeframe}")
-        df = self._generate_mock_data(symbol, timeframe)
-        self.mock_data[key] = df
-        return df.copy()
-    
-    def _generate_mock_data(self, symbol: str, timeframe: str = "1h", 
-                           num_candles: int = 1000) -> pd.DataFrame:
-        """
-        Generate mock OHLCV data.
-        
-        Args:
-            symbol: Trading pair symbol (e.g., "BTC/USDT")
-            timeframe: Candlestick timeframe (e.g., "1m", "5m", "1h", "1d")
-            num_candles: Number of candles to generate
-            
-        Returns:
-            DataFrame containing generated mock OHLCV data
-        """
-        # Determine time delta based on timeframe
-        if timeframe.endswith('m'):
-            delta = datetime.timedelta(minutes=int(timeframe[:-1]))
-        elif timeframe.endswith('h'):
-            delta = datetime.timedelta(hours=int(timeframe[:-1]))
-        elif timeframe.endswith('d'):
-            delta = datetime.timedelta(days=int(timeframe[:-1]))
-        else:
-            delta = datetime.timedelta(hours=1)  # Default to 1h
-        
-        # Generate timestamps
-        end_time = datetime.datetime.now()
-        timestamps = [end_time - delta * i for i in range(num_candles)]
-        timestamps.reverse()  # Oldest first
-        
-        # Determine starting price based on symbol
-        if symbol.startswith("BTC"):
-            base_price = 30000.0
-            volatility = 0.02
-        elif symbol.startswith("ETH"):
-            base_price = 2000.0
-            volatility = 0.03
-        else:
-            base_price = 100.0
-            volatility = 0.05
-        
-        # Generate price data with random walk
-        prices = [base_price]
-        for i in range(1, num_candles):
-            change = prices[-1] * random.uniform(-volatility, volatility)
+            return self.mock_data[key]
+
+        path = self._csv_path(symbol, timeframe)
+        if os.path.exists(path):
+            try:
+                df = pd.read_csv(path)
+                if "time" in df.columns:
+                    df["time"] = pd.to_datetime(df["time"])
+                else:
+                    # редкий случай: старый формат с timestamp
+                    if "timestamp" in df.columns:
+                        df["time"] = pd.to_datetime(df["timestamp"])
+                # нормализуем набор столбцов
+                cols = ["time", "open", "high", "low", "close", "volume"]
+                for c in cols:
+                    if c not in df.columns:
+                        df[c] = pd.NA
+                df = df[cols].dropna(subset=["time"]).reset_index(drop=True)
+                self.mock_data[key] = df
+                return df
+            except Exception as e:
+                self.logger.warning(f"Failed to load existing CSV '{path}': {e}")
+
+        # Сгенерируем историю
+        price0, vol = self._default_start_price(symbol)
+        tf_delta = self._tf_delta(timeframe)
+
+        end = self._align(datetime.now(), tf_delta)
+        times = [end - tf_delta * i for i in range(num_candles)][::-1]
+
+        prices = [price0]
+        for _ in range(1, num_candles):
+            change = prices[-1] * random.uniform(-vol, vol)
             prices.append(max(0.01, prices[-1] + change))
-        
-        # Generate OHLCV data
-        data = []
-        for i, timestamp in enumerate(timestamps):
-            price = prices[i]
-            high = price * (1 + random.uniform(0, volatility/2))
-            low = price * (1 - random.uniform(0, volatility/2))
-            open_price = price * (1 + random.uniform(-volatility/4, volatility/4))
-            close = price * (1 + random.uniform(-volatility/4, volatility/4))
-            volume = price * random.uniform(10, 100)
-            
-            data.append({
-                'time': timestamp,
-                'open': open_price,
-                'high': high,
-                'low': low,
-                'close': close,
-                'volume': volume
-            })
-        
-        df = pd.DataFrame(data)
-        
-        # Save to file
-        file_path = os.path.join(self.data_dir, f"{symbol.replace('/', '')}_{timeframe}.csv")
-        df.to_csv(file_path, index=False)
-        self.logger.info(f"Saved generated mock data to: {file_path}")
-        
+
+        rows = []
+        for i, t in enumerate(times):
+            p = prices[i]
+            h = p * (1 + random.uniform(0, vol * 0.5))
+            l = p * (1 - random.uniform(0, vol * 0.5))
+            o = p * (1 + random.uniform(-vol * 0.25, vol * 0.25))
+            c = p * (1 + random.uniform(-vol * 0.25, vol * 0.25))
+            v = p * random.uniform(10, 100)
+            rows.append({"time": t, "open": o, "high": h, "low": l, "close": c, "volume": v})
+
+        df = pd.DataFrame(rows)
+        self.mock_data[key] = df
+        # сразу сохраним на диск
+        df.to_csv(self._csv_path(symbol, timeframe), index=False)
         return df
-    
-    def get_ohlcv(self, symbol: str, timeframe: str = "1m", limit: int = 100) -> pd.DataFrame:
-        """
-        Fetch OHLCV candlestick data from mock data.
-        
-        Args:
-            symbol: Trading pair symbol (e.g., "BTC/USDT")
-            timeframe: Candlestick timeframe (e.g., "1m", "5m", "1h", "1d")
-            limit: Maximum number of candles to fetch
-            
-        Returns:
-            DataFrame containing OHLCV data
-        """
+
+    def _append_next_bar(self, df: pd.DataFrame, tf_delta: timedelta, vol: float) -> None:
+        """Синтез следующего бара на основе последнего close."""
+        if df.empty:
+            return
+        last = df.iloc[-1]
+        base = float(last["close"])
+        t_next = pd.to_datetime(last["time"]) + tf_delta
+
+        # ограничим волатильность разумно
+        change = base * random.uniform(-vol, vol)
+        p = max(0.01, base + change)
+        high = max(p, base) * (1 + random.uniform(0, vol * 0.3))
+        low = min(p, base) * (1 - random.uniform(0, vol * 0.3))
+        open_price = base * (1 + random.uniform(-vol * 0.2, vol * 0.2))
+        close = p * (1 + random.uniform(-vol * 0.15, vol * 0.15))
+        volume = p * random.uniform(10, 100)
+
+        df.loc[len(df)] = {
+            "time": t_next,
+            "open": open_price,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": volume,
+        }
+
+    def _jitter_current_bar(self, df: pd.DataFrame, vol: float) -> None:
+        """Небольшое движение внутри текущего бара."""
+        if df.empty:
+            return
+        i = len(df) - 1
+        row = df.iloc[i]
+        close = float(row["close"])
+        new_close = max(0.01, close * (1 + random.uniform(-vol * 0.02, vol * 0.02)))
+
+        new_high = max(float(row["high"]), new_close)
+        new_low = min(float(row["low"]), new_close)
+        new_vol = float(row["volume"]) * (1 + random.uniform(-0.02, 0.08))
+
+        df.at[i, "close"] = new_close
+        df.at[i, "high"] = new_high
+        df.at[i, "low"] = new_low
+        df.at[i, "volume"] = new_vol
+
+    def _ensure_fresh(self, symbol: str, timeframe: str) -> pd.DataFrame:
+        """Догенерировать данные до «текущего» времени и сохранить CSV."""
+        df = self._load_or_generate(symbol, timeframe)
+        tf_delta = self._tf_delta(timeframe)
+        price0, vol = self._default_start_price(symbol)
+
+        # текущее целевое время
+        now_aligned = self._align(datetime.now(), tf_delta)
+
+        # последняя точка в данных
+        last_time = pd.to_datetime(df["time"].iloc[-1])
+
+        # если мы отстаем на несколько интервалов — догоняем барами
+        while last_time + tf_delta <= now_aligned:
+            self._append_next_bar(df, tf_delta, vol)
+            last_time = pd.to_datetime(df["time"].iloc[-1])
+
+        # если новый бар «ещё не настал», шевельнём текущую свечу
+        if last_time == now_aligned:
+            self._jitter_current_bar(df, vol)
+
+        # сохраняем файл каждый раз, чтобы фронт видел обновления
+        path = self._csv_path(symbol, timeframe)
         try:
-            self.logger.info(f"Fetching mock OHLCV: symbol={symbol}, timeframe={timeframe}, limit={limit}")
-            df = self._load_mock_data(symbol, timeframe)
-            return df.tail(limit).reset_index(drop=True)
+            df.to_csv(path, index=False)
+        except Exception as e:
+            self.logger.error(f"Failed to write CSV '{path}': {e}")
+
+        return df
+
+    # ---------- public: OHLCV ----------
+
+    def get_ohlcv(self, symbol: str, timeframe: str = "1m", limit: int = 100) -> pd.DataFrame:
+        try:
+            self.logger.info(f"Fetching mock OHLCV: {symbol} {timeframe} limit={limit}")
+            df = self._ensure_fresh(symbol, timeframe)
+            out = df.tail(max(1, int(limit))).reset_index(drop=True).copy()
+            # убедимся, что time будет сериализуемым
+            out["time"] = pd.to_datetime(out["time"])
+            return out
         except Exception as e:
             return self._handle_error(f"fetching mock OHLCV for {symbol}", e, pd.DataFrame())
-    
+
+    async def get_ohlcv_async(self, symbol: str, timeframe: str = "1m", limit: int = 100) -> pd.DataFrame:
+        await asyncio.sleep(0)  # имитация I/O
+        return self.get_ohlcv(symbol, timeframe, limit)
+
+    # ---------- public: orders/balance/positions ----------
+
     def place_order(self, symbol: str, side: str, qty: float,
-                   order_type: str = "market", price: Optional[float] = None) -> Dict[str, Any]:
-        """
-        Place a mock trading order.
-        
-        Args:
-            symbol: Trading pair symbol (e.g., "BTC/USDT")
-            side: Order side ("buy" or "sell")
-            qty: Order quantity
-            order_type: Order type ("market", "limit", etc.)
-            price: Order price (required for limit orders)
-            
-        Returns:
-            Mock order information
-        """
+                    order_type: str = "market", price: Optional[float] = None) -> Dict[str, Any]:
         try:
-            self.logger.info(f"Creating mock order: {side.upper()} {qty} {symbol}, type={order_type.upper()}, price={price}")
-            
-            # Generate a random order ID
-            order_id = f"mock_order_{len(self.mock_orders) + 1}_{int(datetime.datetime.now().timestamp())}"
-            
-            # Get current price from mock data
-            df = self._load_mock_data(symbol, "1m")
-            current_price = df.iloc[-1]['close'] if not df.empty else (price or 10000.0)
-            
-            # Create order object
+            self.logger.info(f"Creating mock order: {side.upper()} {qty} {symbol} ({order_type})")
+            # текущая цена из мок-данных
+            df = self._ensure_fresh(symbol, "1m")
+            current_price = float(df["close"].iloc[-1]) if not df.empty else (price or 10_000.0)
+            order_id = f"mock_{int(datetime.now().timestamp())}"
+
+            base, quote = symbol.split("/") if "/" in symbol else (symbol, "USDT")
             order = {
                 "id": order_id,
                 "symbol": symbol,
                 "side": side.lower(),
                 "type": order_type.lower(),
-                "price": price if order_type.lower() == "limit" else current_price,
-                "amount": qty,
-                "cost": qty * (price if order_type.lower() == "limit" else current_price),
-                "timestamp": datetime.datetime.now().timestamp() * 1000,
-                "datetime": datetime.datetime.now().isoformat(),
+                "price": float(price) if (order_type.lower() == "limit" and price) else current_price,
+                "amount": float(qty),
+                "cost": float(qty) * (float(price) if (order_type.lower() == "limit" and price) else current_price),
+                "timestamp": int(datetime.now().timestamp() * 1000),
+                "datetime": datetime.now(timezone.utc).isoformat(),
                 "status": "closed" if order_type.lower() == "market" else "open",
-                "filled": qty if order_type.lower() == "market" else 0.0,
-                "remaining": 0.0 if order_type.lower() == "market" else qty,
-                "fee": {
-                    "cost": qty * current_price * 0.001,
-                    "currency": symbol.split('/')[1] if '/' in symbol else "USDT"
-                }
+                "filled": float(qty) if order_type.lower() == "market" else 0.0,
+                "remaining": 0.0 if order_type.lower() == "market" else float(qty),
+                "fee": {"cost": float(qty) * current_price * 0.001, "currency": quote},
             }
-            
-            # Store the order
-            self.mock_orders[order_id] = order
-            
-            # Update balance for market orders
-            if order_type.lower() == "market":
-                self._update_balance_after_order(order)
-            
+
+            # простое влияние на баланс
+            if side.lower() == "buy":
+                self.mock_balance[quote] = self.mock_balance.get(quote, 0.0) - order["cost"]
+                self.mock_balance[base] = self.mock_balance.get(base, 0.0) + float(qty)
+            else:
+                self.mock_balance[quote] = self.mock_balance.get(quote, 0.0) + order["cost"]
+                self.mock_balance[base] = self.mock_balance.get(base, 0.0) - float(qty)
+
+            # комиссия
+            fee_cur = order["fee"]["currency"]
+            self.mock_balance[fee_cur] = self.mock_balance.get(fee_cur, 0.0) - order["fee"]["cost"]
+
+            # позиция в споте для красоты
+            self.mock_positions[symbol] = {
+                "symbol": symbol,
+                "size": self.mock_balance.get(base, 0.0),
+                "side": "long" if self.mock_balance.get(base, 0.0) > 0 else "none",
+                "entryPrice": None,
+                "markPrice": current_price,
+                "unrealizedPnl": 0.0,
+                "timestamp": int(datetime.now().timestamp() * 1000),
+                "datetime": datetime.now(timezone.utc).isoformat()
+            }
+
             return order
         except Exception as e:
             return self._handle_error(f"placing mock {order_type} order for {symbol}", e, {})
-    
-    def _update_balance_after_order(self, order: Dict[str, Any]) -> None:
-        """
-        Update mock balance after an order is executed.
-        
-        Args:
-            order: Order information
-        """
-        if '/' not in order['symbol']:
-            self.logger.warning(f"Invalid symbol format: {order['symbol']}, expected format like 'BTC/USDT'")
-            return
-            
-        base, quote = order['symbol'].split('/')
-        
-        if order['side'] == 'buy':
-            # Deduct quote currency (e.g., USDT)
-            self.mock_balance[quote] = self.mock_balance.get(quote, 0) - order['cost']
-            # Add base currency (e.g., BTC)
-            self.mock_balance[base] = self.mock_balance.get(base, 0) + order['amount']
-        else:  # sell
-            # Add quote currency (e.g., USDT)
-            self.mock_balance[quote] = self.mock_balance.get(quote, 0) + order['cost']
-            # Deduct base currency (e.g., BTC)
-            self.mock_balance[base] = self.mock_balance.get(base, 0) - order['amount']
-        
-        # Deduct fee
-        fee_currency = order['fee']['currency']
-        self.mock_balance[fee_currency] = self.mock_balance.get(fee_currency, 0) - order['fee']['cost']
-    
-    def get_balance(self) -> Dict[str, Any]:
-        """
-        Fetch mock account balance information.
-        
-        Returns:
-            Mock account balance information
-        """
-        try:
-            self.logger.info("Fetching mock balance")
-            return self.mock_balance.copy()
-        except Exception as e:
-            return self._handle_error("fetching mock balance", e, {})
-    
-    def get_positions(self, symbol: str) -> Dict[str, Any]:
-        """
-        Fetch mock positions for a specific symbol.
-        
-        Args:
-            symbol: Trading pair symbol (e.g., "BTC/USDT")
-            
-        Returns:
-            Mock position information
-        """
-        try:
-            self.logger.info(f"Fetching mock positions for {symbol}")
-            
-            # Return existing position if available
-            if symbol in self.mock_positions:
-                return self.mock_positions[symbol].copy()
-            
-            # Create a mock position
-            position = {
-                "symbol": symbol,
-                "size": 0.0,
-                "side": "none",
-                "entryPrice": 0.0,
-                "markPrice": 0.0,
-                "unrealizedPnl": 0.0,
-                "leverage": 1.0,
-                "marginType": "isolated",
-                "liquidationPrice": 0.0,
-                "timestamp": datetime.datetime.now().timestamp() * 1000,
-                "datetime": datetime.datetime.now().isoformat()
-            }
-            
-            self.mock_positions[symbol] = position
-            return position.copy()
-        except Exception as e:
-            return self._handle_error(f"fetching mock positions for {symbol}", e, {})
-    
-    def get_order_status(self, order_id: str) -> Dict[str, Any]:
-        """
-        Fetch the status of a specific mock order.
-        
-        Args:
-            order_id: Order ID to query
-            
-        Returns:
-            Mock order status information
-        """
-        try:
-            self.logger.info(f"Fetching status for mock order {order_id}")
-            
-            if order_id in self.mock_orders:
-                return self.mock_orders[order_id].copy()
-            
-            raise ValueError(f"Order {order_id} not found")
-        except Exception as e:
-            return self._handle_error(f"checking status of mock order {order_id}", e, {})
-    
-    def download_candels_to_csv(self, symbol: str, start_date: str = "2023-01-01T00:00:00Z", 
-                               timeframe: str = "1h", save_folder: str = "DATA") -> pd.DataFrame:
-        """
-        Download mock historical candle data and save to CSV.
-        
-        Args:
-            symbol: Trading pair symbol (e.g., "BTC/USDT")
-            start_date: Start date for historical data in ISO format
-            timeframe: Candlestick timeframe (e.g., "1m", "5m", "1h", "1d")
-            save_folder: Folder to save CSV file (None to not save)
-            
-        Returns:
-            DataFrame containing the mock data
-        """
-        try:
-            self.logger.info(f"Downloading mock historical data for {symbol} from {start_date}")
-            
-            # Generate or load mock data
-            df = self._load_mock_data(symbol, timeframe)
-            
-            # Filter by start date if provided
-            if start_date:
-                start_datetime = pd.to_datetime(start_date)
-                df = df[df['time'] >= start_datetime].reset_index(drop=True)
-            
-            # Save to the specified folder if requested
-            if save_folder is not None and save_folder != self.data_dir:
-                os.makedirs(save_folder, exist_ok=True)
-                file_name = f'{symbol.replace("/", "")}_{timeframe}.csv'
-                save_path = os.path.join(save_folder, file_name)
-                df.to_csv(save_path, index=False)
-                self.logger.info(f"Saved mock data to: {save_path}")
-            
-            return df
-        except Exception as e:
-            return self._handle_error(f"downloading mock data for {symbol}", e, pd.DataFrame())
-
-
-    # 🔹 Async versions for interface compatibility
-
-    async def get_ohlcv_async(self, symbol: str, timeframe: str = "1m", limit: int = 100) -> pd.DataFrame:
-        await asyncio.sleep(0)  # simulate I/O
-        try:
-            df = self._load_mock_data(symbol, timeframe)
-            return df.tail(limit).reset_index(drop=True)
-        except Exception as e:
-            return self._handle_error(f"fetching mock OHLCV for {symbol}", e, pd.DataFrame())
-        return self.get_ohlcv(symbol, timeframe, limit)
 
     async def place_order_async(self, symbol: str, side: str, qty: float,
                                 order_type: str = "market", price: Optional[float] = None) -> Dict[str, Any]:
         await asyncio.sleep(0)
         return self.place_order(symbol, side, qty, order_type, price)
 
+    def get_balance(self) -> Dict[str, Any]:
+        try:
+            self.logger.info("Fetching mock balance")
+            return dict(self.mock_balance)
+        except Exception as e:
+            return self._handle_error("fetching mock balance", e, {})
+
     async def get_balance_async(self) -> Dict[str, Any]:
         await asyncio.sleep(0)
         return self.get_balance()
+
+    def get_positions(self, symbol: str) -> Dict[str, Any]:
+        try:
+            self.logger.info(f"Fetching mock positions for {symbol}")
+            return self.mock_positions.get(symbol, {})
+        except Exception as e:
+            return self._handle_error(f"fetching mock positions for {symbol}", e, {})
 
     async def get_positions_async(self, symbol: str) -> Dict[str, Any]:
         await asyncio.sleep(0)
         return self.get_positions(symbol)
 
+    def get_order_status(self, order_id: str) -> Dict[str, Any]:
+        try:
+            # Минимальная заглушка: в реале хранили бы заказы
+            return {"id": order_id, "status": "closed"}
+        except Exception as e:
+            return self._handle_error(f"checking status of mock order {order_id}", e, {})
+
     async def get_order_status_async(self, order_id: str) -> Dict[str, Any]:
         await asyncio.sleep(0)
         return self.get_order_status(order_id)
+
+    # ---------- state.json ----------
+
+    async def update_state(self, symbol: str = "BTC/USDT", STATE_PATH: str = "DATA/static/state.json"):
+        """
+        Пишет state.json для дашборда (баланс в валюте котировки, список позиций, штамп).
+        """
+        try:
+            bal = await self.get_balance_async()
+            quote = symbol.split("/")[1] if "/" in symbol else "USDT"
+            total = float(bal.get(quote, 0.0))
+
+            # Приведём позиции к простому массиву
+            positions = []
+            for sym, pos in self.mock_positions.items():
+                positions.append({
+                    "symbol": sym,
+                    "qty": float(pos.get("size", 0.0)),
+                    "entry": float(pos.get("entryPrice") or 0.0),
+                    "price": float(pos.get("markPrice") or 0.0),
+                    "unrealized_pnl": float(pos.get("unrealizedPnl") or 0.0),
+                })
+
+            state = {
+                "balance": {"total": total, "currency": quote},
+                "positions": positions,
+                "updated": datetime.now(timezone.utc).isoformat(),
+            }
+
+            os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
+            with open(STATE_PATH, "w", encoding="utf-8") as f:
+                json.dump(state, f, indent=2, ensure_ascii=False)
+
+            self.logger.info(f"state.json updated: {STATE_PATH}")
+        except Exception as e:
+            self.logger.error(f"Failed to update state.json: {e}")

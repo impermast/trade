@@ -413,8 +413,16 @@
   <div class="offcanvas offcanvas-bottom text-bg-dark" tabindex="-1" id="advancedSheet" style="height:auto;">
     <div class="offcanvas-header"><h5 class="offcanvas-title"><i class="bi bi-sliders"></i> Параметры графика</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button></div>
     <div class="offcanvas-body small d-flex flex-wrap gap-3">
-      <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="autoRefreshChart"><label class="form-check-label" for="autoRefreshChart">Автообновление</label></div>
-      <div><label class="form-label">Интервал (с)</label><input id="chartInterval" type="number" min="5" step="5" value="30" class="form-control form-control-sm field-outlined"/></div>
+      <!-- ВКЛЮЧЕНО ПО УМОЛЧАНИЮ -->
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="autoRefreshChart" checked>
+        <label class="form-check-label" for="autoRefreshChart">Автообновление</label>
+      </div>
+      <div>
+        <label class="form-label">Интервал (с)</label>
+        <!-- 10 секунд по умолчанию -->
+        <input id="chartInterval" type="number" min="5" step="5" value="10" class="form-control form-control-sm field-outlined"/>
+      </div>
     </div>
   </div>
 
@@ -584,7 +592,7 @@
       const close = rows.map(r=>r.close);
       const vol   = rows.map(r=>r.volume ?? null);
 
-      // Сигналы: отдельные колонки для RSI/XGB, совместимость со старым 'orders'
+      // Сигналы
       const ord_rsi = rows.map(r => (r.orders_rsi ?? r.orders ?? null));
       const ord_xgb = rows.map(r => (r.orders_xgb ?? null));
 
@@ -613,7 +621,7 @@
       const showRSI = $("#signals_rsi").is(":checked");
       const showXGB = $("#signals_xgb").is(":checked");
 
-      function addSignalMarkers(ordersArr, namePrefix, color) {
+      function addSignalMarkers(ordersArr, namePrefix, buyColor, sellColor) {
         if (!ordersArr.some(o => o != null && o !== 0)) return;
         const bx=[],by=[], sx=[],sy=[];
         for (let i = 0; i < ordersArr.length; i++) {
@@ -622,16 +630,18 @@
         }
         if (bx.length) traces.push({
           type: "scatter", mode: "markers", x: bx, y: by, name: `${namePrefix} Buy`,
-          marker: { size: 8, symbol: "triangle-up", line: { width: .6 }, color }, yaxis: "y"
+          marker: { size: 12, symbol: "triangle-up", color: buyColor, line: { width: 1.2, color: "#fff" } },
+          yaxis: "y"
         });
         if (sx.length) traces.push({
           type: "scatter", mode: "markers", x: sx, y: sy, name: `${namePrefix} Sell`,
-          marker: { size: 8, symbol: "triangle-down", line: { width: .6 }, color }, yaxis: "y"
+          marker: { size: 12, symbol: "triangle-down", color: sellColor, line: { width: 1.2, color: "#fff" } },
+          yaxis: "y"
         });
       }
 
-      if (showRSI) addSignalMarkers(ord_rsi, "RSI", cSecondary);
-      if (showXGB) addSignalMarkers(ord_xgb, "XGB", cTertiary);
+      if (showRSI) addSignalMarkers(ord_rsi, "RSI", "#00ff7f", "#ff4500");
+      if (showXGB) addSignalMarkers(ord_xgb, "XGB", "#1e90ff", "#ff1493");
 
       const {paper_bgcolor,plot_bgcolor,font_color,grid}=themeVars();
       const layout={
@@ -652,6 +662,68 @@
     } finally {
       $("#chartLoader").hide();
     }
+  }
+
+  // ==== Chart auto-refresh (НОВОЕ) ====
+  let chartTimer=null;
+  const CHART_INTERVAL_KEY="chart-interval-seconds";
+  const CHART_AUTO_KEY="chart-auto";
+
+  function getChartInterval(){
+    const v = +($("#chartInterval").val() || localStorage.getItem(CHART_INTERVAL_KEY) || 10);
+    return Math.max(5, v|0);
+  }
+  function isChartAutoOn(){
+    // при первом запуске по умолчанию true
+    const saved = localStorage.getItem(CHART_AUTO_KEY);
+    if (saved === null) return true;
+    return saved === "1";
+  }
+  function applyAutoControlsFromStorage(){
+    $("#autoRefreshChart").prop("checked", isChartAutoOn());
+    const iv = +localStorage.getItem(CHART_INTERVAL_KEY) || 10;
+    $("#chartInterval").val(iv);
+  }
+  function startChartTimer(){
+    if(chartTimer){ clearInterval(chartTimer); chartTimer=null; }
+    if(!$("#autoRefreshChart").is(":checked")) return;
+    const iv = getChartInterval()*1000;
+    chartTimer = setInterval(()=>{
+      if(document.visibilityState==="visible" && $("#chart-pane").hasClass("active")){
+        drawChart();
+      }
+    }, iv);
+  }
+
+  function setupChartAutoControls(){
+    // синхронизируем UI с localStorage
+    applyAutoControlsFromStorage();
+
+    // изменения чекбокса и интервала
+    $("#autoRefreshChart").on("change", ()=>{
+      localStorage.setItem(CHART_AUTO_KEY, $("#autoRefreshChart").is(":checked") ? "1" : "0");
+      startChartTimer();
+    });
+    $("#chartInterval").on("change", ()=>{
+      const iv = getChartInterval();
+      $("#chartInterval").val(iv);
+      localStorage.setItem(CHART_INTERVAL_KEY, iv.toString());
+      startChartTimer();
+    });
+
+    // перезапуск при показе вкладки «График»
+    document.getElementById("chart-tab").addEventListener("shown.bs.tab", ()=>{
+      startChartTimer();
+      drawChart();
+    });
+
+    // перезапуск при смене видимости
+    document.addEventListener("visibilitychange", ()=>{
+      if(document.visibilityState==="visible"){ startChartTimer(); }
+    });
+
+    // запускаем сразу при старте страницы
+    startChartTimer();
   }
 
   function setupChartControls(){
@@ -820,6 +892,7 @@
   $(async function(){
     initTheme();
     setupChartControls();
+    setupChartAutoControls();   // <-- НОВОЕ: автообновление графика
     setupLogsControls();
     setupLogsAllControls();
     setupPositionsControls();

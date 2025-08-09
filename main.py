@@ -4,10 +4,11 @@ import os
 import sys
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 
 # Подключения твоего проекта
-from API.bybit_api import BybitAPI  # если захотелось боли в реальном времени
+from API.bybit_api import BybitAPI  # если вдруг захочется боли в реальном времени
 from API.mock_api import MockAPI
 from API.dashboard_api import run_flask_in_new_terminal, stop_flask
 from BOTS.analbot import Analytic
@@ -89,13 +90,33 @@ async def write_state_fallback(state_path: str) -> None:
     except Exception as e:
         logger.error(f"Не смог записать fallback state.json: {e}")
 
-def _stamp_orders_column(df: pd.DataFrame, signal: int, col: str) -> pd.DataFrame:
+def _resolve_rsi_column(df: pd.DataFrame, period: int) -> str:
+    # Имена согласованы с Indicators: 14 -> 'rsi', иначе -> f'rsi_{period}'
+    col = "rsi" if period == 14 else f"rsi_{period}"
     if col not in df.columns:
-        df[col] = 0
-    if len(df) > 0:
-        last_idx = df.index[-1]
-        df.loc[last_idx, col] = 1 if signal == 1 else (-1 if signal == -1 else 0)
-    return df
+        raise ValueError(f"Не найден столбец '{col}' с рассчитанным RSI(period={period}).")
+    return col
+
+def _apply_rsi_orders_series(df: pd.DataFrame, period: int, lower: float, upper: float, out_col: str = "orders_rsi") -> None:
+    """
+    Векторно проставляет сигналы по всей истории:
+      +1 BUY  при пересечении уровня lower (30) снизу вверх
+      -1 SELL при пересечении уровня upper (70) снизу вверх
+    """
+    col = _resolve_rsi_column(df, period)
+    rsi = pd.to_numeric(df[col], errors="coerce")
+
+    prev = rsi.shift(1)
+    cross_buy  = (prev < lower) & (rsi >= lower)
+    cross_sell = (prev < upper) & (rsi >= upper)
+
+    orders = np.zeros(len(df), dtype=int)
+    # при одновременном «телепорте» через оба уровня отдаем приоритет SELL
+    orders[cross_sell.fillna(False).to_numpy()] = -1
+    only_buy = cross_buy.fillna(False) & ~cross_sell.fillna(False)
+    orders[only_buy.to_numpy()] = 1
+
+    df[out_col] = orders
 
 
 # ------------ Plot (опционально) ------------
@@ -114,6 +135,9 @@ async def plot_loop(use_plot: bool) -> None:
 # ------------ Торговый цикл RSI ------------
 async def trading_loop_rsi(bot) -> None:
     logger.info(f"[RSI] Запущен торговый цикл {type(bot).__name__}")
+    period = 14
+    lower, upper = 30.0, 70.0
+
     try:
         while not stop_event.is_set():
             # 1) Забираем данные
@@ -121,23 +145,27 @@ async def trading_loop_rsi(bot) -> None:
             if "timestamp" in df.columns and "time" not in df.columns:
                 df = df.rename(columns={"timestamp": "time"})
 
-            # 2) Сохраняем сырые данные для спокойствия души
+            # 2) Сохраняем сырые данные
             df.to_csv(CSV_RAW_PATH, index=False)
 
-            # 3) Считаем RSI-аналитику и сохраняем _anal.csv
+            # 3) Аналитика: считаем индикаторы и ПОЛНУЮ серию сигналов
             analytic = Analytic(df.copy(), data_name=f"{SYMBOL_NAME}_{TF}")
-            signal = analytic.make_strategy(
+            # запускаем стратегию, чтобы гарантированно посчитался RSI
+            _ = analytic.make_strategy(
                 RSIonly_Strategy,
-                rsi={"period": 14, "lower": 30, "upper": 70},
+                inplace=False,
+                rsi={"period": period, "lower": lower, "upper": upper},
             )
 
-            df = _stamp_orders_column(df, signal, col="orders_rsi")
-            df.to_csv(CSV_ANAL_PATH_RSI, index=False)
+            # вектор сигналов на всей истории
+            _apply_rsi_orders_series(analytic.df, period=period, lower=lower, upper=upper)
+            analytic._save_results_to_csv()  # да, приватный; переживём
 
-            # 4) Торгуем
-            if signal == 1:
+            # 4) Торгуем по последнему сигналу
+            last_sig = int(analytic.df["orders_rsi"].iloc[-1])
+            if last_sig == 1:
                 await bot.place_order_async(SYMBOL, "buy", qty=0.001)
-            elif signal == -1:
+            elif last_sig == -1:
                 await bot.place_order_async(SYMBOL, "sell", qty=0.001)
 
             # 5) Обновляем состояние для дашборда
@@ -173,29 +201,25 @@ async def trading_loop_xgb(bot) -> None:
             if "timestamp" in df.columns and "time" not in df.columns:
                 df = df.rename(columns={"timestamp": "time"})
 
-            # 2) Аналитика для XGB. ВАЖНО: НЕ передавать DataFrame в params!
+            # 2) Аналитика для XGB
             data_name = f"{SYMBOL_NAME}_{TF}"
             analytic = Analytic(df.copy(), data_name=data_name, output_file="xgb.csv")
 
-            # Никаких df=..., data_name=... в params.
-            # Только простые типы, если надо (batch_size, quantization и т.д.)
             signal = analytic.make_strategy(
                 XGBStrategy,
+                inplace=False,
                 use_cache=True,
                 parallel=True
             )
 
-            # 3) Отметим действие в своем CSV и сохраним отдельно
-            df = _stamp_orders_column(df, signal, col="orders_xgb")
-            df.to_csv(CSV_ANAL_PATH_XGB, index=False)
+            # оставляем «штамп» только для XGB, т. к. модель не даёт серию
+            if "orders_xgb" not in analytic.df.columns:
+                analytic.df["orders_xgb"] = 0
+            if len(analytic.df) > 0:
+                last_idx = analytic.df.index[-1]
+                analytic.df.loc[last_idx, "orders_xgb"] = 1 if signal == 1 else (-1 if signal == -1 else 0)
 
-            # 4) Торгуем поменьше размером, чтобы две стратегии не жрали депозит в обе стороны
-            if signal == 1:
-                await bot.place_order_async(SYMBOL, "buy", qty=0.0005)
-            elif signal == -1:
-                await bot.place_order_async(SYMBOL, "sell", qty=0.0005)
-
-            # state.json трогает только RSI-цикл
+            analytic._save_results_to_csv()
             await asyncio.sleep(UPDATE_INTERVAL)
     except asyncio.CancelledError:
         logger.info("[XGB] Торговый цикл отменён")

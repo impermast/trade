@@ -1,92 +1,76 @@
-# strategies/rsi_only.py
+# STRATEGY/rsi.py
 import sys
 import os
 sys.path.append(os.path.abspath("."))
 
 import pandas as pd
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from STRATEGY.base import BaseStrategy
 
 
 class RSIonly_Strategy(BaseStrategy):
     """
-    A trading strategy based on the Relative Strength Index (RSI) indicator.
+    Требует заранее рассчитанную колонку RSI из пайплайна Indicators/Analytic.
 
-    This strategy generates buy signals when RSI falls below a lower threshold
-    and sell signals when RSI rises above an upper threshold.
+    Сигналы только на ПЕРВОМ пересечении уровней:
+      +1 BUY  когда RSI пересекает lower (30) снизу вверх: prev < 30 и cur >= 30
+      -1 SELL когда RSI пересекает upper (70) снизу вверх: prev < 70 и cur >= 70
+
+    То есть продаём при входе в зону перекупленности, а не при выходе из неё.
+    Это как раз тот случай, когда у тебя в таблице rsi > 70, а ордера не было.
     """
 
     def __init__(self, **params: Any) -> None:
-        """
-        Initialize the RSI strategy with the given parameters.
-
-        Args:
-            **params: Strategy parameters including RSI settings
-        """
-        # Initialize with RSI indicator
         super().__init__(name="RSIOnly", indicators=["rsi"], **params)
 
     def default_params(self) -> Dict[str, Dict[str, Any]]:
-        """
-        Define default parameters for the RSI strategy.
-
-        Returns:
-            Dictionary containing default RSI parameters:
-            - period: The period for RSI calculation (default: 14)
-            - lower: The lower threshold for buy signals (default: 30)
-            - upper: The upper threshold for sell signals (default: 70)
-        """
         return {
             "rsi": {
                 "period": 14,
-                "lower": 30,
-                "upper": 70
+                "lower": 30.0,
+                "upper": 70.0,
             }
         }
 
+    def _resolve_rsi_column(self, period: int, df: pd.DataFrame) -> str:
+        # Имена согласованы с BOTS/indicators.py:
+        # 14 -> 'rsi', иначе -> f'rsi_{period}'
+        col = "rsi" if period == 14 else f"rsi_{period}"
+        if col not in df.columns:
+            raise ValueError(
+                f"Не найден столбец '{col}'. "
+                f"RSI должен быть заранее рассчитан Indicators.rsi(period={period})."
+            )
+        return col
+
     def get_signals(self, df: pd.DataFrame) -> int:
-        """
-        Generate trading signals based on RSI values.
+        cfg = self.params.get("rsi", {})
+        period = int(cfg.get("period", 14))
+        lower = float(cfg.get("lower", 30.0))
+        upper = float(cfg.get("upper", 70.0))
 
-        Args:
-            df: DataFrame containing price data and RSI indicator values
-                Must include a column named 'rsi' for default period (14)
-                or 'rsi_X' for custom period X
-
-        Returns:
-            1 for buy signal (RSI below lower threshold)
-            -1 for sell signal (RSI above upper threshold)
-            0 for no action (RSI between thresholds or insufficient data)
-
-        Raises:
-            ValueError: If the required RSI column is not found in the DataFrame
-        """
-        rsi_cfg = self.params["rsi"]
-        period = rsi_cfg["period"]
-        lower = rsi_cfg["lower"]
-        upper = rsi_cfg["upper"]
-
-        if len(df) < period:
+        # Нужно минимум два последних значения RSI, плюс период на прогрев
+        if len(df) < max(2, period + 1):
             return 0
 
-        col = "rsi" if period == 14 else f"rsi_{period}"
+        col = self._resolve_rsi_column(period, df)
+        prev = df[col].iloc[-2]
+        cur  = df[col].iloc[-1]
 
-        if col not in df.columns:
-            raise ValueError(f"Column {col} not found in dataframe.")
+        if pd.isna(prev) or pd.isna(cur):
+            return 0
 
-        rsi = df[col].iloc[-1]
-
-        # Check if RSI is None or NaN before comparison
-        if pd.isna(rsi) or rsi is None:
-            return 0  # No action if RSI is None or NaN
-
-        if rsi < lower:
+        # BUY: пересечение 30 снизу вверх
+        if prev > lower and cur <= lower:
             return 1
-        elif rsi > upper:
+
+        # SELL: пересечение 70 снизу вверх (исправлено)
+        if prev < upper and cur >= upper:
             return -1
+
         return 0
 
 
 if __name__ == "__main__":
-    strat = RSIonly_Strategy(rsi={"period": 10, "lower": 25})
+    strat = RSIonly_Strategy(rsi={"period": 14, "lower": 30, "upper": 70})
     print(strat)

@@ -1,5 +1,6 @@
+# dashboard_api.py
 from flask import Flask, request, send_from_directory, jsonify, send_file
-import os, re, json, subprocess, sys, signal, socket
+import os, re, json, subprocess, sys, signal
 from collections import deque
 from datetime import datetime
 from typing import Optional
@@ -56,7 +57,7 @@ def api_candles():
     anal = get_anal_list()
     all_csv = get_csv_list()
 
-    # выбираем пул допустимых файлов
+    # пул допустимых файлов
     allowed = anal if anal else all_csv
     if not allowed:
         return jsonify([])
@@ -65,7 +66,6 @@ def api_candles():
     if requested in allowed:
         csv_file = requested
     elif requested in all_csv:
-        # просили не-anal, но файл существует — позволяем
         csv_file = requested
     else:
         csv_file = allowed[0]
@@ -82,38 +82,64 @@ def api_candles():
     try:
         df = pd.read_csv(csv_path)
 
-        time_cols = [c for c in df.columns if c.lower() in ("time","timestamp","date","datetime")]
-        o = next((c for c in df.columns if c.lower()=="open"), None)
-        h = next((c for c in df.columns if c.lower()=="high"), None)
-        l = next((c for c in df.columns if c.lower()=="low"), None)
-        c = next((c for c in df.columns if c.lower()=="close"), None)
-        v = next((c for c in df.columns if c.lower() in ("volume","vol")), None)
-        orders = next((c for c in df.columns if c.lower()=="orders"), None)
+        # маппинг колонок без учёта регистра
+        lower_map = {c.lower(): c for c in df.columns}
 
-        if not time_cols or not all([o,h,l,c]):
-            return jsonify({"error":"Не найдены необходимые колонки для OHLC"}), 400
+        time_col = next((lower_map[k] for k in ("time","timestamp","date","datetime") if k in lower_map), None)
+        o = lower_map.get("open")
+        h = lower_map.get("high")
+        l = lower_map.get("low")
+        c = lower_map.get("close")
+        v = next((lower_map[k] for k in ("volume","vol") if k in lower_map), None)
 
-        tcol = time_cols[0]
-        df["_ts"] = pd.to_datetime(df[tcol], errors="coerce", utc=False)
+        # варианты колонок ордеров
+        orders_col      = lower_map.get("orders")
+        orders_rsi_col  = lower_map.get("orders_rsi")
+        # поддержим старые/кривые названия модели
+        orders_xgb_col  = lower_map.get("orders_xgb") or lower_map.get("xgb_signal")
+
+        if not time_col or not all([o, h, l, c]):
+            return jsonify({"error": "Не найдены необходимые колонки для OHLC"}), 400
+
+        # время
+        df["_ts"] = pd.to_datetime(df[time_col], errors="coerce", utc=False)
         if tail_rows > 0:
             df = df.tail(tail_rows).copy()
 
-        for col in [o,h,l,c,v,orders]:
+        # числовые поля
+        for col in [o, h, l, c, v, orders_col, orders_rsi_col, orders_xgb_col]:
             if col and col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
+
+        # ордера делаем явными нулями, чтобы фронту не присылать пустоты
+        for col in [orders_col, orders_rsi_col, orders_xgb_col]:
+            if col and col in df.columns:
+                df[col] = df[col].fillna(0).astype(float)
 
         out = []
         for _, row in df.iterrows():
             ts = row["_ts"]
-            out.append({
-                "ts": ts.isoformat() if pd.notna(ts) else str(row[tcol]),
-                "open": float(row[o]) if pd.notna(row[o]) else None,
-                "high": float(row[h]) if pd.notna(row[h]) else None,
-                "low":  float(row[l]) if pd.notna(row[l]) else None,
-                "close":float(row[c]) if pd.notna(row[c]) else None,
-                "volume": float(row[v]) if (v and pd.notna(row.get(v))) else None,
-                "orders": float(row[orders]) if (orders and pd.notna(row.get(orders))) else None,
-            })
+            item = {
+                "ts": ts.isoformat() if pd.notna(ts) else str(row[time_col]),
+                "open":  float(row[o]) if pd.notna(row[o]) else None,
+                "high":  float(row[h]) if pd.notna(row[h]) else None,
+                "low":   float(row[l]) if pd.notna(row[l]) else None,
+                "close": float(row[c]) if pd.notna(row[c]) else None,
+                "volume": float(row[v]) if (v and pd.notna(row[v])) else None,
+            }
+            # добавим все варианты колонок ордеров, если есть
+            if orders_col:
+                val = row[orders_col]
+                item["orders"] = float(val) if pd.notna(val) else 0.0
+            if orders_rsi_col:
+                val = row[orders_rsi_col]
+                item["orders_rsi"] = float(val) if pd.notna(val) else 0.0
+            if orders_xgb_col:
+                val = row[orders_xgb_col]
+                item["orders_xgb"] = float(val) if pd.notna(val) else 0.0
+
+            out.append(item)
+
         resp = jsonify(out)
         resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         return resp
@@ -214,19 +240,19 @@ def state():
     state_path = os.path.join(STATIC_DATA_DIR, "state.json")
     if os.path.exists(state_path):
         try:
-            with open(state_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            ts = data.get("updated")
-            if ts:
-                ts_norm = ts.replace(",", ".")
-                dt = pd.to_datetime(ts_norm, errors="coerce")
-                if pd.notna(dt):
-                    data["updated"] = dt.tz_localize(None).strftime("%d.%m.%Y %H:%M:%S")
-            resp = jsonify(data)
-            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-            return resp
+          with open(state_path, "r", encoding="utf-8") as f:
+              data = json.load(f)
+          ts = data.get("updated")
+          if ts:
+              ts_norm = ts.replace(",", ".")
+              dt = pd.to_datetime(ts_norm, errors="coerce")
+              if pd.notna(dt):
+                  data["updated"] = dt.tz_localize(None).strftime("%d.%m.%Y %H:%M:%S")
+          resp = jsonify(data)
+          resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+          return resp
         except Exception as e:
-            app.logger.error(f"Error reading state.json: {e}")
+          app.logger.error(f"Error reading state.json: {e}")
     return jsonify({"balance":{"total":None,"currency":"USDT"},"positions":[],"updated":None})
 
 @app.route("/api/health")
@@ -238,16 +264,10 @@ def health():
 def run():
     port = int(os.getenv("DASHBOARD_PORT", "5000"))
     host = os.getenv("DASHBOARD_HOST", "127.0.0.1")
-    # reloader выключен, иначе два процесса
     app.run(debug=True, port=port, host=host, use_reloader=False)
-
 
 # ---------- Утилиты запуска/остановки из main.py ----------
 def run_flask_in_new_terminal(host: str = "127.0.0.1", port: int = 5000, log_path: Optional[str] = None) -> subprocess.Popen:
-    """
-    Поднимает этот модуль как `python -m API.dashboard_api` в отдельном окне (Windows)
-    или как отделённый процесс/группу (*nix). Возвращает Popen.
-    """
     env = os.environ.copy()
     env["DASHBOARD_HOST"] = str(host)
     env["DASHBOARD_PORT"] = str(port)
@@ -262,18 +282,13 @@ def run_flask_in_new_terminal(host: str = "127.0.0.1", port: int = 5000, log_pat
 
     if os.name == "nt":
         CREATE_NEW_CONSOLE = 0x00000010
-        # отдельное консольное окно
         proc = subprocess.Popen([py, "-m", "API.dashboard_api"], creationflags=CREATE_NEW_CONSOLE, close_fds=False, **kwargs)
     else:
-        # отдельная группа процессов
         proc = subprocess.Popen([py, "-m", "API.dashboard_api"], preexec_fn=os.setsid, close_fds=True, **kwargs)
 
     return proc
 
 def stop_flask(proc: Optional[subprocess.Popen]) -> None:
-    """
-    Корректно завершает процесс дашборда.
-    """
     if not proc:
         return
     try:
@@ -292,7 +307,6 @@ def stop_flask(proc: Optional[subprocess.Popen]) -> None:
                     os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
     except Exception:
         pass
-
 
 if __name__ == "__main__":
     run()

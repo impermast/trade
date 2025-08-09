@@ -1,4 +1,4 @@
-# strategy/xgb_strategy.py
+# STRATEGY/XGBstrategy.py
 
 import os
 import sys
@@ -8,56 +8,45 @@ import joblib
 import time
 from functools import lru_cache
 from xgboost import XGBRegressor
-from typing import Dict, Any, List, Tuple, Optional, Union, cast
+from typing import Dict, Any, List, Tuple, Optional
 
 sys.path.append(os.path.abspath("."))
 from STRATEGY.base import BaseStrategy
+from BOTS.analbot import Analytic  # type: ignore
+
 
 class XGBStrategy(BaseStrategy):
     """
-    Trading strategy based on XGBoost machine learning model.
+    Стратегия на XGBoost, предсказывает (signal, amount).
 
-    This strategy uses a pre-trained XGBoost model to predict trading signals
-    based on various technical indicators. The model is expected to output
-    both a signal value and a position size amount.
-
-    Attributes:
-        model: Trained XGBoost model loaded from file
-        features: List of feature names the model expects
-        slippage (float): Slippage factor to account for execution costs
-        batch_size (int): Number of rows to process in a batch for prediction
-        prediction_cache_size (int): Size of the LRU cache for model predictions
-        use_quantization (bool): Whether to use quantized model for faster inference
+    Важно: если при инициализации передать df и data_name, то стратегия СРАЗУ
+    запросит у аналитики расчет недостающих индикаторов и сохранит результат
+    в DATA/<data_name>_<output_file>.
     """
 
-    # Class-level cache for model loading to avoid loading the same model multiple times
-    _model_cache = {}
-    _features_cache = {}
+    _model_cache: Dict[str, Any] = {}
+    _features_cache: Dict[str, List[str]] = {}
 
-    def __init__(self, model_path: str = "STRATEGY/predicter/xgb_model_multi.joblib",
-                 features_path: str = "STRATEGY/predicter/xgb_model_features.joblib",
-                 slippage: float = 0.0005,
-                 batch_size: int = 100,
-                 prediction_cache_size: int = 1024,
-                 use_quantization: bool = False,
-                 **params):
-        """
-        Initialize the XGBoost strategy with model and parameters.
-
-        Args:
-            model_path (str): Path to the saved XGBoost model file
-            features_path (str): Path to the saved features list file
-            slippage (float): Slippage factor to account for execution costs
-            batch_size (int): Number of rows to process in a batch for prediction
-            prediction_cache_size (int): Size of the LRU cache for model predictions
-            use_quantization (bool): Whether to use quantized model for faster inference
-            **params: Additional parameters for indicators
-        """
+    def __init__(
+        self,
+        model_path: str = "STRATEGY/predicter/xgb_model_multi.joblib",
+        features_path: str = "STRATEGY/predicter/xgb_model_features.joblib",
+        slippage: float = 0.0005,
+        batch_size: int = 100,
+        prediction_cache_size: int = 1024,
+        use_quantization: bool = False,
+        # новенькое:
+        df: Optional[pd.DataFrame] = None,          # если передан — сразу считаем индикаторы
+        data_name: Optional[str] = None,            # имя для файла аналитики
+        output_file: str = "anal.csv",              # суффикс файла аналитики
+        save_after_init: bool = True,               # сохранять CSV после досчета
+        **params: Dict[str, Any],
+    ):
+        # Индикаторы синхронизированы с BOTS/indicators.py
         super().__init__(
-            name="XGBStrategy", 
-            indicators=['rsi', 'ema', 'macd', 'boll_upper', 'boll_lower', 
-                       'atr', 'ovb', 'return_1', 'return_3', 'return_6'], 
-            **params
+            name="XGBStrategy",
+            indicators=["sma", "ema", "rsi", "macd", "bollinger_bands"],
+            **params,
         )
 
         self.batch_size = batch_size
@@ -65,204 +54,175 @@ class XGBStrategy(BaseStrategy):
         self.use_quantization = use_quantization
         self.slippage = slippage
 
-        # Load model and features from cache if available, otherwise load from file
+        # где сохранять аналитику, если нас попросили это делать в __init__
+        self._init_df: Optional[pd.DataFrame] = df
+        self._init_data_name: Optional[str] = data_name
+        self._init_output_file: str = output_file
+        self._save_after_init: bool = save_after_init
+
+        # Модель с кешем
         if model_path in self._model_cache:
             self.model = self._model_cache[model_path]
         else:
-            start_time = time.time()
+            start = time.time()
             self.model = joblib.load(model_path)
-
-            # Apply quantization if requested (reduces model size and speeds up inference)
             if use_quantization:
                 try:
-                    # Convert to JSON and back to apply quantization
                     model_json = self.model.get_booster().save_config()
                     self.model = XGBRegressor()
                     self.model.get_booster().load_config(model_json)
-                    print(f"Model quantized in {time.time() - start_time:.2f} seconds")
+                    print(f"Model quantized in {time.time() - start:.2f}s")
                 except Exception as e:
-                    print(f"Error quantizing model: {e}")
-
+                    print(f"Quantization error: {e}")
             self._model_cache[model_path] = self.model
-            print(f"Model loaded in {time.time() - start_time:.2f} seconds")
+            print(f"Model loaded in {time.time() - start:.2f}s")
 
+        # Список фич модели с кешем
         if features_path in self._features_cache:
             self.features = self._features_cache[features_path]
         else:
             self.features = joblib.load(features_path)
             self._features_cache[features_path] = self.features
 
-        # Create a cached version of the predict method
+        # Кеш предсказаний
         self._cached_predict = lru_cache(maxsize=prediction_cache_size)(self._predict)
 
-    def default_params(self) -> Dict[str, Any]:
-        """
-        Define default parameters for the strategy.
+        # Главное: если нам дали df на входе — сразу считаем и обновляем CSV аналитики
+        if self._init_df is not None:
+            self._ensure_indicators_and_save(self._init_df)
 
-        Returns:
-            Dict[str, Any]: Dictionary of parameter names and their default values
-        """
+    def default_params(self) -> Dict[str, Any]:
+        # дефолты под имена без суффиксов, которые обычно ждёт модель
         return {
             "rsi": {"period": 14},
-            'ema': {"period": 10}
+            "ema": {"period": 10},
+            "sma": {"period": 10},
+            "macd": {"window_fast": 12, "window_slow": 26, "window_sign": 9},
+            "bollinger_bands": {"period": 20, "window_dev": 2},
         }
 
+    # ------------------------ Внутреннее ------------------------
+
+    def _resolve_data_name(self, df: pd.DataFrame) -> str:
+        if self._init_data_name:
+            return self._init_data_name
+        for col in ("symbol", "asset", "ticker"):
+            if col in df.columns and isinstance(df[col].iloc[0], str):
+                raw = str(df[col].iloc[0])
+                token = raw.split("/")[0].split("-")[0]
+                return token.upper()
+        return "XGB"
+
+    def _ensure_indicators_and_save(self, df: pd.DataFrame) -> None:
+        """
+        Досчитывает недостающие индикаторы через Analytic и при необходимости сохраняет CSV.
+        """
+        indicators, stratparams = self.check_indicators()
+        data_name = self._resolve_data_name(df)
+
+        anal = Analytic(df=df, data_name=data_name, output_file=self._init_output_file)
+        # Считаем всё нужное; Indicators сам проверит, чего не хватает
+        anal.make_calc(indicators, stratparams, parallel=True)
+
+        if self._save_after_init:
+            # приватный метод, да. переживем.
+            anal._save_results_to_csv()  # noqa: SLF001
+
     def _predict(self, feature_tuple: Tuple[float, ...]) -> Tuple[int, float]:
-        """
-        Make a prediction using the XGBoost model.
-
-        This method is wrapped with lru_cache for efficient caching of predictions.
-
-        Args:
-            feature_tuple: Tuple of feature values
-
-        Returns:
-            Tuple of (signal, amount)
-        """
-        # Convert tuple to numpy array and reshape for prediction
         X = np.array(feature_tuple).reshape(1, -1)
-
-        # Make prediction - model outputs [signal, amount]
-        y_pred = self.model.predict(X)[0]
-        signal = int(round(y_pred[0]))
-        amount = float(y_pred[1])
-
+        y = self.model.predict(X)[0]
+        if hasattr(y, "__len__") and len(y) >= 2:
+            signal_raw, amount = float(y[0]), float(y[1])
+        else:
+            signal_raw, amount = float(y), 0.0
+        signal = int(round(signal_raw))
         return signal, amount
 
     def _batch_predict(self, X: np.ndarray) -> List[Tuple[int, float]]:
-        """
-        Make predictions for a batch of data points.
+        y = self.model.predict(X)
+        out: List[Tuple[int, float]] = []
+        for row in np.atleast_2d(y):
+            if hasattr(row, "__len__") and len(row) >= 2:
+                out.append((int(round(float(row[0]))), float(row[1])))
+            else:
+                out.append((int(round(float(row))), 0.0))
+        return out
 
-        Args:
-            X: 2D array of feature values
-
-        Returns:
-            List of (signal, amount) tuples
-        """
-        # Make predictions for the batch
-        y_pred = self.model.predict(X)
-
-        # Convert predictions to signal and amount tuples
-        results = []
-        for pred in y_pred:
-            signal = int(round(pred[0]))
-            amount = float(pred[1])
-            results.append((signal, amount))
-
-        return results
+    # ------------------------ Публичное ------------------------
 
     def get_signals(self, df: pd.DataFrame) -> int:
         """
-        Generate trading signals using the XGBoost model.
-
-        The model predicts both a signal value and a position size amount.
-        The signal is stored in the DataFrame for later analysis.
-
-        Args:
-            df (pd.DataFrame): DataFrame containing price and indicator data
-
-        Returns:
-            int: Signal value (1 for buy, -1 for sell, 0 for no action)
+        Прогноз по последней свече. Здесь НИЧЕГО не считаем и не сохраняем:
+        индикаторы должны быть уже посчитаны либо в __init__ (если передан df),
+        либо раньше по твоему пайплайну.
         """
-        # Need at least 2 rows to make a prediction
         if df.shape[0] < 2:
             return 0
 
-        # Measure performance
-        start_time = time.time()
-
-        # Determine if we should use batch prediction
+        start = time.time()
         use_batch = df.shape[0] > self.batch_size
 
         if use_batch:
-            # Process in batches for large datasets
-            print(f"Using batch prediction for {df.shape[0]} rows")
-
-            # Create a new column for signals if it doesn't exist
             if "xgb_signal" not in df.columns:
                 df["xgb_signal"] = None
 
-            # Process in batches
-            batch_size = self.batch_size
-            for i in range(0, df.shape[0] - 1, batch_size):
-                end_idx = min(i + batch_size, df.shape[0] - 1)
+            for i in range(0, df.shape[0] - 1, self.batch_size):
+                end = min(i + self.batch_size, df.shape[0] - 1)
+                batch = df.iloc[i:end]
 
-                # Get rows for this batch
-                batch_rows = df.iloc[i:end_idx]
-
-                # Skip rows with missing features
                 valid_rows = []
-                valid_indices = []
-                for j, (idx, row) in enumerate(batch_rows.iterrows()):
-                    if all(f in row and not pd.isna(row[f]) for f in self.features):
-                        # Convert row to feature tuple for prediction
-                        feature_values = tuple(row[f] for f in self.features)
-                        valid_rows.append(feature_values)
-                        valid_indices.append(idx)
-
+                valid_idx = []
+                for idx, row in batch.iterrows():
+                    if all((f in row) and pd.notna(row[f]) for f in self.features):
+                        valid_rows.append(tuple(float(row[f]) for f in self.features))
+                        valid_idx.append(idx)
                 if not valid_rows:
                     continue
 
-                # Convert to numpy array for batch prediction
-                X = np.array(valid_rows)
-
-                # Make predictions for the batch
-                predictions = self._batch_predict(X)
-
-                # Store predictions in the DataFrame
-                for idx, pred in zip(valid_indices, predictions):
+                X = np.array(valid_rows, dtype=float)
+                preds = self._batch_predict(X)
+                for idx, pred in zip(valid_idx, preds):
                     next_idx = idx + 1
                     if next_idx < len(df):
                         df.at[next_idx, "xgb_signal"] = pred
 
-            # Return the latest signal
             if df.iloc[-1]["xgb_signal"] is not None:
-                signal, _ = df.iloc[-1]["xgb_signal"]
-                print(f"Batch prediction completed in {time.time() - start_time:.2f} seconds")
-                return signal
-            else:
-                print(f"No valid prediction for the latest row")
-                return 0
-        else:
-            # For smaller datasets or single predictions, use cached prediction
+                sig, _ = df.iloc[-1]["xgb_signal"]
+                print(f"Batch prediction in {time.time() - start:.2f}s")
+                return int(sig)
+            print("No valid latest prediction")
+            return 0
 
-            # Get the previous row for features and current open price
-            row = df.iloc[-2] 
-            next_open = df.iloc[-1]['open'] 
+        # одиночный режим
+        prev = df.iloc[-2]
+        next_open = df.iloc[-1].get("open", np.nan)
 
-            # Check if all features are available
-            if not all(f in row and not pd.isna(row[f]) for f in self.features):
-                print(f"Missing features in row: {[f for f in self.features if f not in row or pd.isna(row[f])]}")
-                return 0
+        if not all((f in prev) and pd.notna(prev[f]) for f in self.features):
+            missing = [f for f in self.features if (f not in prev) or pd.isna(prev[f])]
+            print(f"Missing features for XGB: {missing}")
+            return 0
 
-            # Convert row to feature tuple for cached prediction
-            feature_values = tuple(row[f] for f in self.features)
+        feature_tuple = tuple(float(prev[f]) for f in self.features)
+        signal, amount = self._cached_predict(feature_tuple)
 
-            # Make prediction using cached method
-            signal, amount = self._cached_predict(feature_values)
+        _exec_price = (float(next_open) if pd.notna(next_open) else np.nan) * (1 + self.slippage)
+        df.at[df.index[-1], "xgb_signal"] = (signal, amount)
 
-            # Calculate execution price (accounting for slippage)
-            # This is currently unused but kept for future implementation
-            # of position sizing and risk management
-            _ = next_open * (1 + self.slippage)
+        print(f"Single prediction in {time.time() - start:.2f}s")
+        return int(signal)
 
-            # Store the signal and amount in the DataFrame for analysis
-            df.at[df.index[-1], "xgb_signal"] = (signal, amount)
-
-            print(f"Single prediction completed in {time.time() - start_time:.2f} seconds")
-            return signal
 
 if __name__ == "__main__":
-    """
-    Example usage of the XGBStrategy class.
-
-    This demonstrates how to create an instance of the strategy with custom parameters
-    and print its string representation.
-    """
-    # Create a strategy instance with custom RSI period
-    strat = XGBStrategy(ema={"period": 10}, sma={"period": 14}, rsi={"period": 10}, macd ,
-                        bb_h={"period": 10}, bb_m={"period": 10}, bb_l={"period": 10},
-                        bb_h={"period": 1}, bb_h={"period": 3}, bb_h={"period": 6} )
-
-    # Print the strategy name and parameters
+    # Никаких расчетов индикаторов здесь. Только сухая инициализация для проверки.
+    strat = XGBStrategy(
+        ema={"period": 10},
+        sma={"period": 10},
+        rsi={"period": 14},
+        macd={"window_fast": 12, "window_slow": 26, "window_sign": 9},
+        bollinger_bands={"period": 20, "window_dev": 2},
+    )
     print(strat)
+
+    df = pd.read_csv("DATA/BTCUSDT_1h.csv")
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    xgb = XGBStrategy(df=df, data_name="BTCUSDT_1h", output_file="anal.csv")

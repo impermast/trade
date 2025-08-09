@@ -1,7 +1,8 @@
 from flask import Flask, request, send_from_directory, jsonify, send_file
-import os, sys, re, json
+import os, re, json, subprocess, sys, signal, socket
 from collections import deque
 from datetime import datetime
+from typing import Optional
 import pandas as pd
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -10,9 +11,11 @@ DATA_DIR = os.path.join(PROJECT_ROOT, "DATA")
 LOGS_DIR = os.path.join(PROJECT_ROOT, "LOGS")
 STATIC_DATA_DIR = os.path.join(DATA_DIR, "static")
 os.makedirs(STATIC_DATA_DIR, exist_ok=True)
+os.makedirs(LOGS_DIR, exist_ok=True)
 
 app = Flask(__name__)
 
+# ---------- Веб ----------
 def get_csv_list() -> list[str]:
     files = [f for f in os.listdir(DATA_DIR) if f.endswith(".csv")]
     files.sort()
@@ -30,7 +33,6 @@ def safe_path(base_dir: str, filename: str) -> str:
 
 @app.after_request
 def add_cache_headers(resp):
-    # Не кэшируем API, чтобы UI всегда видел свежие данные
     if request.path.startswith("/api/"):
         resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     return resp
@@ -47,7 +49,6 @@ def candles():
     chosen = request.args.get("file")
     if chosen not in anal:
         chosen = anal[0]
-    # Раздаём сырой CSV (если нужно)
     return send_from_directory(DATA_DIR, chosen)
 
 @app.route("/api/candles")
@@ -87,7 +88,6 @@ def api_candles():
         if tail_rows > 0:
             df = df.tail(tail_rows).copy()
 
-        # Безопасное преобразование чисел
         for col in [o,h,l,c,v,orders]:
             if col and col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
@@ -135,7 +135,6 @@ def log_tail():
             dq.append(line.rstrip("\n"))
     return jsonify({"lines": list(dq)})
 
-# ---- агрегированный лог ----
 _TS_RE = re.compile(r"\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{3,6})?")
 _LEVELS = ("INFO","WARN","WARNING","ERROR","DEBUG","CRITICAL")
 
@@ -224,5 +223,66 @@ def state():
 def health():
     return jsonify({"status":"ok"})
 
+
+# ---------- Локальный запуск ----------
+def run():
+    port = int(os.getenv("DASHBOARD_PORT", "5000"))
+    host = os.getenv("DASHBOARD_HOST", "127.0.0.1")
+    # reloader выключен, иначе два процесса
+    app.run(debug=True, port=port, host=host, use_reloader=False)
+
+
+# ---------- Утилиты запуска/остановки из main.py ----------
+def run_flask_in_new_terminal(host: str = "127.0.0.1", port: int = 5000, log_path: Optional[str] = None) -> subprocess.Popen:
+    """
+    Поднимает этот модуль как `python -m API.dashboard_api` в отдельном окне (Windows)
+    или как отделённый процесс/группу (*nix). Возвращает Popen.
+    """
+    env = os.environ.copy()
+    env["DASHBOARD_HOST"] = str(host)
+    env["DASHBOARD_PORT"] = str(port)
+
+    py = sys.executable
+    if log_path is None:
+        log_path = os.path.join(LOGS_DIR, "dashboard.out.log")
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    log_file = open(log_path, "a", buffering=1, encoding="utf-8")
+
+    kwargs = dict(env=env, stdin=subprocess.DEVNULL, stdout=log_file, stderr=log_file)
+
+    if os.name == "nt":
+        CREATE_NEW_CONSOLE = 0x00000010
+        # отдельное консольное окно
+        proc = subprocess.Popen([py, "-m", "API.dashboard_api"], creationflags=CREATE_NEW_CONSOLE, close_fds=False, **kwargs)
+    else:
+        # отдельная группа процессов
+        proc = subprocess.Popen([py, "-m", "API.dashboard_api"], preexec_fn=os.setsid, close_fds=True, **kwargs)
+
+    return proc
+
+def stop_flask(proc: Optional[subprocess.Popen]) -> None:
+    """
+    Корректно завершает процесс дашборда.
+    """
+    if not proc:
+        return
+    try:
+        if proc.poll() is None:
+            if os.name == "nt":
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except Exception:
+                    proc.kill()
+            else:
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+                try:
+                    proc.wait(timeout=5)
+                except Exception:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except Exception:
+        pass
+
+
 if __name__ == "__main__":
-    app.run(debug=True, port=5000, use_reloader=False)
+    run()

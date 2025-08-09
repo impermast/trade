@@ -18,7 +18,6 @@
   <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
   <style>
-    /* ---- Палитры и MD3 токены ---- */
     :root{
       --primary:#7C4DFF;
       --primary-variant:#5E35B1;
@@ -27,13 +26,12 @@
       --bg:#121212;
       --surface:#181A1F;
       --on-surface:rgba(255,255,255,0.92);
-      --on-surface-variant:rgba(255,255,255,0.74); /* ↑ контраст в тёмной теме */
+      --on-surface-variant:rgba(255,255,255,0.74);
       --muted:var(--on-surface-variant);
       --border:#262B36;
       --error:#F06272;
       --grid:rgba(255,255,255,.06);
 
-      /* поля ввода (тёмная тема) */
       --field-bg:#14171d;
       --field-bg-focus:#1d2129;
 
@@ -57,7 +55,6 @@
       --error:#E44D61;
       --grid:rgba(0,0,0,.06);
 
-      /* поля ввода (светлая тема) */
       --field-bg:#ffffff;
       --field-bg-focus:#f3f4f8;
 
@@ -68,7 +65,6 @@
     html, body { height:100%; background:var(--bg); color:var(--on-surface); overflow-x:hidden; }
     body { font-family:"Roboto Flex", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif; }
 
-    /* --- Карточки / навбар --- */
     .navbar{ background:var(--surface)!important; border-bottom:1px solid var(--border); box-shadow:var(--elev-1); }
     .brand-dot{ width:10px; height:10px; border-radius:50%; background:var(--secondary); margin-right:8px; }
     .content{ padding:18px; }
@@ -79,14 +75,12 @@
     .card.kpi{ box-shadow:var(--elev-2); }
     .card:hover{ transform:translateY(-1px); box-shadow:var(--elev-2); }
 
-    /* --- Текстовые роли / типографика --- */
     .form-label, .kpi-sub, .text-muted { color:var(--on-surface-variant)!important; }
     .kpi-value, .card h5, .card h6, .card p, .file-name, .nav-link { color:var(--on-surface)!important; }
     #kpi-file { color:var(--on-surface)!important; font-weight:600; }
     .kpi-sub{ font:500 .95rem/1.25 "Roboto Flex", sans-serif; letter-spacing:.015em; }
     .kpi-value{ font:700 1.5rem/1.2 "Roboto Flex", sans-serif; }
 
-    /* --- Поля/селекты/плейсхолдеры + ФИКС белого фона при вводе --- */
     .form-control, .form-select {
       color:var(--on-surface)!important;
       background-color:var(--field-bg) !important;
@@ -104,7 +98,6 @@
     .form-select option { color:var(--on-surface); background:var(--surface); }
     .field-outlined{ border:1px solid var(--border); }
 
-    /* --- Tabs с индикатором --- */
     .nav-tabs{ border-color:transparent; position:relative; }
     .nav-tabs .nav-link{
       border:none; display:flex; align-items:center; gap:.5rem;
@@ -119,7 +112,6 @@
       border-radius:2px;
     }
 
-    /* --- Кнопки --- */
     .btn-accent{ background:var(--primary); color:#fff; border:none; box-shadow:var(--elev-1); }
     .btn-accent:hover{ filter:brightness(.95); }
     .btn-outline-light{ color:var(--on-surface)!important; border-color:var(--border)!important; }
@@ -130,7 +122,6 @@
     }
     .btn-ghost:hover{ background:rgba(255,255,255,.06); }
 
-    /* --- Chips --- */
     .chips{ display:flex; flex-wrap:wrap; gap:.5rem; }
     .chip{
       display:inline-flex; align-items:center; gap:.35rem; padding:.38rem .75rem;
@@ -139,11 +130,9 @@
     }
     .chip .bi{ font-size:1rem; }
     .chip.selected{ background:rgba(124,77,255,.18); border-color:rgba(124,77,255,.36); }
-    .chip::after{ content:""; position:absolute; inset:auto; width:0; height:0; border-radius:50%; background:rgba(255,255,255,.15); transform:translate(-50%,-50%); transition:width .35s,height .35s; }
-    .chip:active::after{ left:var(--x); top:var(--y); width:220%; height:220%; }
 
-    /* Быстрый хвост — MD3-чипы */
-    #tailSegments .btn{
+    #tailSegments .btn,
+    #logLevelButtons .btn{
       border-radius:999px; border:1px solid var(--border) !important;
       background:transparent !important; color:var(--on-surface) !important;
       padding:.35rem .8rem; line-height:1;
@@ -151,18 +140,7 @@
     #tailSegments .btn.active,
     #tailSegments .btn:active,
     #tailSegments .btn:focus,
-    #tailSegments .btn.show{
-      background:rgba(124,77,255,.18) !important; border-color:rgba(124,77,255,.36) !important;
-      color:var(--on-surface) !important; box-shadow:none !important;
-    }
-    #tailSegments .btn:hover{ background:rgba(255,255,255,.06) !important; }
-
-    /* Кнопки фильтров логов — MD3-чипы */
-    #logLevelButtons .btn{
-      border-radius:999px; border:1px solid var(--border) !important;
-      background:transparent !important; color:var(--on-surface) !important;
-      padding:.35rem .8rem; line-height:1;
-    }
+    #tailSegments .btn.show,
     #logLevelButtons .btn.active,
     #logLevelButtons .btn:active,
     #logLevelButtons .btn:focus,
@@ -170,9 +148,8 @@
       background:rgba(124,77,255,.18) !important; border-color:rgba(124,77,255,.36) !important;
       color:var(--on-surface) !important; box-shadow:none !important;
     }
-    #logLevelButtons .btn:hover{ background:rgba(255,255,255,.06) !important; }
+    #tailSegments .btn:hover, #logLevelButtons .btn:hover{ background:rgba(255,255,255,.06) !important; }
 
-    /* --- Разное --- */
     #chart{ height:560px; position:relative; }
     .loading-overlay{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.18); border-radius:10px; z-index:5; }
     .log-box{ height:420px; overflow-y:auto; white-space:pre-wrap; background:#0b0e14; color:#dcdcdc; padding:10px; border:1px solid var(--border); border-radius:10px; }
@@ -196,36 +173,17 @@
     .toolbar .group{ display:flex; flex-direction:column; gap:.25rem; min-width:140px; }
     .toolbar .group.narrow{ min-width:110px; }
 
-    /* Таблица позиций */
     .table-md3{ width:100%; border-collapse:separate; border-spacing:0; }
     .table-md3 th, .table-md3 td{ padding:.55rem .75rem; border-bottom:1px solid var(--border); }
     .table-md3 thead th{ color:var(--on-surface-variant); font-weight:600; }
     .table-md3 td.num, .table-md3 th.num{ text-align:right; }
 
-    /* Plotly легенда */
     .plotly .legend{ max-width:100% !important; }
 
-    /* --- Адаптив --- */
-    @media (max-width: 1200px){
-      #chart{ height:520px; }
-    }
-    @media (max-width: 992px){
-      #chart{ height:480px; }
-      .toolbar .group{ min-width: 46%; }
-      .toolbar .group.narrow{ min-width: 30%; }
-    }
-    @media (max-width: 768px){
-      #chart{ height:420px; }
-      .toolbar{ gap:.6rem .8rem; }
-      .nav-tabs .nav-link{ padding:.5rem .6rem; }
-    }
-    @media (max-width: 576px){
-      #chart{ height:360px; }
-      .kpi-value{ font-size:1.3rem; }
-      .kpi-sub{ font-size:.9rem; }
-      .toolbar .group{ min-width:100%; }
-      .fab{ right:10px; bottom:10px; }
-    }
+    @media (max-width: 1200px){ #chart{ height:520px; } }
+    @media (max-width: 992px){ #chart{ height:480px; } .toolbar .group{ min-width: 46%; } .toolbar .group.narrow{ min_width: 30%; } }
+    @media (max-width: 768px){ #chart{ height:420px; } .toolbar{ gap:.6rem .8rem; } .nav-tabs .nav-link{ padding:.5rem .6rem; } }
+    @media (max-width: 576px){ #chart{ height:360px; } .kpi-value{ font-size:1.3rem; } .kpi-sub{ font-size:.9rem; } .toolbar .group{ min-width:100%; } .fab{ right:10px; bottom:10px; } }
   </style>
 </head>
 <body>
@@ -240,10 +198,8 @@
     </div>
   </nav>
 
-  <!-- Top progress -->
   <div id="topProgress"></div>
 
-  <!-- Snackbar -->
   <div id="snackbar" style="position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:2000;display:none;max-width:90%;">
     <div class="card p-2" style="background:var(--surface);box-shadow:var(--elev-2);">
       <span id="snackbarMsg"></span>
@@ -275,7 +231,7 @@
       </div></div>
     </div>
 
-    <!-- Tabs with icons -->
+    <!-- Tabs -->
     <ul class="nav nav-tabs" id="viewTabs" role="tablist">
       <li class="nav-item"><button class="nav-link active" id="chart-tab" data-bs-toggle="tab" data-bs-target="#chart-pane" type="button"><i class="bi bi-graph-up"></i> График цен</button></li>
       <li class="nav-item"><button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-pane" type="button"><i class="bi bi-journal-text"></i> Логи</button></li>
@@ -298,7 +254,7 @@
             </div>
             <div class="group">
               <label class="form-label">Быстрый хвост</label>
-              <div id="tailSegments" class="btn-group btn-group-sm" role="group" title="Быстрый выбор размера хвоста" data-bs-toggle="tooltip">
+              <div id="tailSegments" class="btn-group btn-group-sm" role="group">
                 <button class="btn btn-outline-light" data-tail="200">200</button>
                 <button class="btn btn-outline-light" data-tail="500">500</button>
                 <button class="btn btn-outline-light active" data-tail="1000">1000</button>
@@ -306,27 +262,27 @@
             </div>
             <div class="group narrow">
               <label class="form-label">Панель 2</label>
-              <select id="lowerPanel" class="form-select form-select-sm field-outlined" title="Что показывать в нижней панели" data-bs-toggle="tooltip">
+              <select id="lowerPanel" class="form-select form-select-sm field-outlined">
                 <option value="volume">Объём</option>
                 <option value="rsi">RSI</option>
               </select>
             </div>
             <div id="rsiControls" class="group narrow" style="display:none;">
               <label class="form-label">RSI период</label>
-              <input id="rsiPeriod" type="number" min="2" step="1" value="14" class="form-control form-control-sm field-outlined" title="Период RSI" data-bs-toggle="tooltip"/>
+              <input id="rsiPeriod" type="number" min="2" step="1" value="14" class="form-control form-control-sm field-outlined"/>
             </div>
             <div class="group" style="min-width:220px;">
               <label class="form-label">Показывать</label>
               <div class="chips">
-                <div class="chip selected" id="chipSMA20" data-bind="#sma20" title="Включить/выключить SMA 20" data-bs-toggle="tooltip"><i class="bi bi-activity"></i> SMA 20</div>
-                <div class="chip selected" id="chipSMA50" data-bind="#sma50" title="Включить/выключить SMA 50" data-bs-toggle="tooltip"><i class="bi bi-activity"></i> SMA 50</div>
-                <div class="chip" id="chipLog" data-bind="#logScale" title="Логарифмический масштаб цены" data-bs-toggle="tooltip"><i class="bi bi-graph-down"></i> Лог‑масштаб</div>
+                <div class="chip selected" id="chipSMA20" data-bind="#sma20"><i class="bi bi-activity"></i> SMA 20</div>
+                <div class="chip selected" id="chipSMA50" data-bind="#sma50"><i class="bi bi-activity"></i> SMA 50</div>
+                <div class="chip" id="chipLog" data-bind="#logScale"><i class="bi bi-graph-down"></i> Лог‑масштаб</div>
               </div>
             </div>
             <div class="ms-auto">
               <div class="d-flex gap-2">
-                <button id="resetZoom" class="btn btn-ghost btn-sm" title="Сбросить масштаб графика" data-bs-toggle="tooltip"><i class="bi bi-arrows-fullscreen"></i> Сброс масштаба</button>
-                <button class="btn btn-outline-light btn-sm" data-bs-toggle="offcanvas" data-bs-target="#advancedSheet" title="Доп. параметры" data-bs-toggle2="tooltip">
+                <button id="resetZoom" class="btn btn-ghost btn-sm"><i class="bi bi-arrows-fullscreen"></i> Сброс масштаба</button>
+                <button class="btn btn-outline-light btn-sm" data-bs-toggle="offcanvas" data-bs-target="#advancedSheet">
                   <i class="bi bi-sliders"></i> Параметры
                 </button>
               </div>
@@ -340,7 +296,7 @@
               <div class="spinner-border text-light" role="status"><span class="visually-hidden">Загрузка…</span></div>
             </div>
           </div>
-          <button id="reloadChart" class="fab" title="Перестроить график" data-bs-toggle="tooltip"><i class="bi bi-arrow-repeat"></i> Перестроить</button>
+          <button id="reloadChart" class="fab"><i class="bi bi-arrow-repeat"></i> Перестроить</button>
         </div>
       </div>
 
@@ -351,8 +307,8 @@
             <div class="group"><label class="form-label">Файл логов</label><select id="logFile" class="form-select form-select-sm field-outlined"></select></div>
             <div class="group narrow"><label class="form-label">Хвост (строк)</label><input id="logTail" type="number" min="100" step="100" value="500" class="form-control form-control-sm field-outlined"/></div>
             <div class="ms-auto">
-              <button class="btn btn-outline-light btn-sm" id="reloadLogs" title="Обновить лог" data-bs-toggle="tooltip"><i class="bi bi-arrow-repeat"></i> Обновить</button>
-              <button class="btn btn-outline-light btn-sm" data-bs-toggle="offcanvas" data-bs-target="#logsSheet" title="Доп. параметры" data-bs-toggle2="tooltip"><i class="bi bi-sliders"></i> Параметры</button>
+              <button class="btn btn-outline-light btn-sm" id="reloadLogs"><i class="bi bi-arrow-repeat"></i> Обновить</button>
+              <button class="btn btn-outline-light btn-sm" data-bs-toggle="offcanvas" data-bs-target="#logsSheet"><i class="bi bi-sliders"></i> Параметры</button>
             </div>
           </div>
         </div>
@@ -563,7 +519,7 @@
       const ts=rows.map(r=>r.ts), open=rows.map(r=>r.open), high=rows.map(r=>r.high), low=rows.map(r=>r.low), close=rows.map(r=>r.close), vol=rows.map(r=>r.volume??null), orders=rows.map(r=>r.orders??null);
 
       const traces=[];
-      const cPrimary=cssVar("--primary"), cSecondary=cssVar("--secondary"), cTertiary="#9C27B0", cError=cssVar("--error");
+      const cPrimary=cssVar("--primary"), cSecondary=cssVar("--secondary"), cTertiary="#9C27B0"), cError=cssVar("--error");
 
       traces.push({type:"candlestick", x:ts, open, high, low, close, name:"OHLC", yaxis:"y",
         increasing:{line:{color:cSecondary}}, decreasing:{line:{color:cError}}});
@@ -681,6 +637,20 @@
     });
   }
 
+  // ==== State auto-refresh ====
+  let stateTimer=null;
+  const STATE_INTERVAL_KEY="state-interval-seconds";
+  function startStateTimer(){
+    const seconds=Math.max(5, +(localStorage.getItem(STATE_INTERVAL_KEY)||15));
+    if(stateTimer) clearInterval(stateTimer);
+    stateTimer=setInterval(()=>{
+      if(document.visibilityState==="visible") loadState();
+    }, seconds*1000);
+  }
+  document.addEventListener("visibilitychange", ()=>{
+    if(document.visibilityState==="visible") loadState();
+  });
+
   // ==== Refresh all ====
   function setupGlobalRefresh(){ $("#refreshAll").on("click", async ()=>{ await Promise.all([loadState(), drawChart(), loadLogTail(), loadLogsAll()]); showSnack("Данные обновлены"); }); }
 
@@ -693,8 +663,14 @@
     setupPositionsControls();
     setupGlobalRefresh();
 
+    // при желании можно задать интервал тут:
+    // localStorage.setItem(STATE_INTERVAL_KEY, "10");
+
     await Promise.all([loadCsvList(), loadLogFiles(), loadState()]);
     await drawChart(); await loadLogTail(); await loadLogsAll();
+
+    // автопуллинг state.json
+    startStateTimer();
 
     document.getElementById("chart-tab").addEventListener("shown.bs.tab", drawChart);
   });

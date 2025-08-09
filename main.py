@@ -11,7 +11,7 @@ from BOTS.loggerbot import Logger
 from BOTS.PLOTBOTS.plotbot import PlotBot
 from API.dashboard_api import run_flask_in_new_terminal, stop_flask
 
-botapi = BybitAPI()
+botapi = MockAPI()
 UPDATE_INTERVAL = 60  # секунд
 SYMBOL = "BTC/USDT"
 TF = "1m"
@@ -37,16 +37,16 @@ async def plot_loop(USE_PLOT):
             plotbot = PlotBot(csv_file=CSV_PATH, refresh_interval=UPDATE_INTERVAL)
             plotbot.start()
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, start_plotbot)
 
 async def tradeornot(bot, signal, qty=0.001):
     if signal == 1:
         logger.info("Сигнал: ПОКУПКА")
-        await botapi.place_order_async(SYMBOL, "buy", qty=qty)
+        await bot.place_order_async(SYMBOL, "buy", qty=qty)
     elif signal == -1:
         logger.info("Сигнал: ПРОДАЖА")
-        await botapi.place_order_async(SYMBOL, "sell", qty=qty)
+        await bot.place_order_async(SYMBOL, "sell", qty=qty)
 
 async def trading_loop(botapi):
     logger.info(f"Запущен торговый цикл {type(botapi).__name__}")
@@ -59,7 +59,8 @@ async def trading_loop(botapi):
             signal = analytic.make_strategy(RSIonly_Strategy, rsi={"period": 14, "lower": 30, "upper": 70})
 
             await tradeornot(botapi,signal)
-            await botapi.update_state(SYMBOL, STATE_PATH)
+            if hasattr(botapi, "update_state"):
+                await botapi.update_state(SYMBOL, STATE_PATH)
 
             # Save CSV for plotbot
             df.to_csv(CSV_PATH, index=False)

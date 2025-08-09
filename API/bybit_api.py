@@ -180,8 +180,12 @@ class BybitAPI(BirzaAPI):
         Returns:
             Position information (empty dict for now)
         """
-        positions = exchange.fetchPositions(symbols = symbol, params = {})
-        return positions 
+        if self.exchange.has.get('fetchPositions'):
+            positions = self.exchange.fetch_positions([symbol])
+            return {p['symbol']: p for p in positions}
+        else:
+            self.logger.warning("fetch_positions не поддерживается для данного типа аккаунта.")
+            return {}
 
     def get_order_status(self, order_id: str) -> Dict[str, Any]:
         """

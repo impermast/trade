@@ -27,14 +27,14 @@ def run_flask_in_new_terminal():
     if platform.system() == "Windows":
        flask_process = subprocess.Popen(f'start cmd /k "{sys.executable} {script_path}"', shell=True)
     elif platform.system() == "Linux":
-        for term in ["gnome-terminal", "x-terminal-emulator", "xterm", "konsole"]:
-            try:
-                flask_process = subprocess.Popen([term, "-e", f"{sys.executable} {script_path}"])
-                return
-            except FileNotFoundError:
-                continue
+       for term in ["gnome-terminal", "x-terminal-emulator", "xterm", "konsole"]:
+           try:
+               flask_process = subprocess.Popen([term, "-e", f"{sys.executable} {script_path}"])
+               break
+           except FileNotFoundError:
+               continue
     else:
-        raise ValueError("Платформа компьютера не определена")
+        flask_process = subprocess.Popen([sys.executable, script_path])
     time.sleep(3)
     # Открыть браузер
     webbrowser.open("http://127.0.0.1:5000")

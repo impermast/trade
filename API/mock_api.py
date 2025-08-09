@@ -376,7 +376,7 @@ class MockAPI(BirzaAPI):
     async def get_ohlcv_async(self, symbol: str, timeframe: str = "1m", limit: int = 100) -> pd.DataFrame:
         await asyncio.sleep(0)  # simulate I/O
         try:
-            df = self._generate_mock_data(symbol, timeframe, num_candles=1000)
+            df = self._load_mock_data(symbol, timeframe)
             return df.tail(limit).reset_index(drop=True)
         except Exception as e:
             return self._handle_error(f"fetching mock OHLCV for {symbol}", e, pd.DataFrame())

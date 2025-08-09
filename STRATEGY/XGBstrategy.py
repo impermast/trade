@@ -128,6 +128,16 @@ class XGBStrategy(BaseStrategy):
             # приватный метод, да. переживем.
             anal._save_results_to_csv()  # noqa: SLF001
 
+    def _ensure_signal_columns(self, df: pd.DataFrame) -> None:
+        """
+        Создаёт столбцы для вывода предсказаний, если их нет.
+        Никаких кортежей, только отдельные колонки.
+        """
+        if "xgb_signal" not in df.columns:
+            df.insert(len(df.columns), "xgb_signal", pd.Series(index=df.index, dtype="float64"))
+        if "xgb_amount" not in df.columns:
+            df.insert(len(df.columns), "xgb_amount", pd.Series(index=df.index, dtype="float64"))
+
     def _predict(self, feature_tuple: Tuple[float, ...]) -> Tuple[int, float]:
         X = np.array(feature_tuple).reshape(1, -1)
         y = self.model.predict(X)[0]
@@ -159,13 +169,12 @@ class XGBStrategy(BaseStrategy):
         if df.shape[0] < 2:
             return 0
 
+        self._ensure_signal_columns(df)
+
         start = time.time()
         use_batch = df.shape[0] > self.batch_size
 
         if use_batch:
-            if "xgb_signal" not in df.columns:
-                df["xgb_signal"] = None
-
             for i in range(0, df.shape[0] - 1, self.batch_size):
                 end = min(i + self.batch_size, df.shape[0] - 1)
                 batch = df.iloc[i:end]
@@ -181,15 +190,16 @@ class XGBStrategy(BaseStrategy):
 
                 X = np.array(valid_rows, dtype=float)
                 preds = self._batch_predict(X)
-                for idx, pred in zip(valid_idx, preds):
+                for idx, (sig, amt) in zip(valid_idx, preds):
                     next_idx = idx + 1
                     if next_idx < len(df):
-                        df.at[next_idx, "xgb_signal"] = pred
+                        df.at[next_idx, "xgb_signal"] = int(sig)
+                        df.at[next_idx, "xgb_amount"] = float(amt)
 
-            if df.iloc[-1]["xgb_signal"] is not None:
-                sig, _ = df.iloc[-1]["xgb_signal"]
+            last_sig = df.iloc[-1]["xgb_signal"]
+            if pd.notna(last_sig):
                 print(f"Batch prediction in {time.time() - start:.2f}s")
-                return int(sig)
+                return int(last_sig)
             print("No valid latest prediction")
             return 0
 
@@ -206,7 +216,10 @@ class XGBStrategy(BaseStrategy):
         signal, amount = self._cached_predict(feature_tuple)
 
         _exec_price = (float(next_open) if pd.notna(next_open) else np.nan) * (1 + self.slippage)
-        df.at[df.index[-1], "xgb_signal"] = (signal, amount)
+
+        # пишем по отдельности, без кортежей
+        df.at[df.index[-1], "xgb_signal"] = int(signal)
+        df.at[df.index[-1], "xgb_amount"] = float(amount)
 
         print(f"Single prediction in {time.time() - start:.2f}s")
         return int(signal)

@@ -5,775 +5,699 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Мониторинг торгового бота</title>
 
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <!-- Bootstrap Icons -->
+  <!-- Fonts (Material 3) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,400;8..144,500;8..144,600;8..144,700&display=swap" rel="stylesheet">
+
+  <!-- UI libs -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
-  <!-- Plotly -->
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-  <!-- jQuery + Bootstrap JS -->
+  <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
   <style>
-    :root {
-      --bg: #0f1115;
-      --panel: #151924;
-      --text: #e6e6e6;
-      --muted: #a9b1c3;
-      --accent: #5cc8ff;
-      --border: #23293a;
-      --success: #2ecc71;
-      --danger: #ff6b6b;
-      --warning: #f1c40f;
+    /* ---- Палитры и MD3 токены ---- */
+    :root{
+      --primary:#7C4DFF;
+      --primary-variant:#5E35B1;
+      --secondary:#26DAD3;
+
+      --bg:#121212;
+      --surface:#181A1F;
+      --on-surface:rgba(255,255,255,0.92);
+      --on-surface-variant:rgba(255,255,255,0.74); /* ↑ контраст в тёмной теме */
+      --muted:var(--on-surface-variant);
+      --border:#262B36;
+      --error:#F06272;
+      --grid:rgba(255,255,255,.06);
+
+      /* поля ввода (тёмная тема) */
+      --field-bg:#14171d;
+      --field-bg-focus:#1d2129;
+
+      --elev-1:0 1px 2px rgba(0,0,0,.24), 0 1px 3px rgba(0,0,0,.12);
+      --elev-2:0 3px 6px rgba(0,0,0,.24), 0 3px 6px rgba(0,0,0,.12);
+
+      --radius:14px;
+      --focus:0 0 0 .2rem rgba(124,77,255,.18);
     }
-    [data-theme="light"] {
-      --bg: #f7f8fb;
-      --panel: #ffffff;
-      --text: #1b1f2a;
-      --muted: #697289;
-      --accent: #007bff;
-      --border: #e5e7ef;
-      --success: #198754;
-      --danger: #dc3545;
-      --warning: #d39e00;
+    [data-theme="light"]{
+      --primary:#6C63FF;
+      --primary-variant:#4D3CC8;
+      --secondary:#1FBFBA;
+
+      --bg:#F6F7FB;
+      --surface:#FFFFFF;
+      --on-surface:rgba(0,0,0,0.90);
+      --on-surface-variant:rgba(0,0,0,0.66);
+      --muted:var(--on-surface-variant);
+      --border:#E5E7EF;
+      --error:#E44D61;
+      --grid:rgba(0,0,0,.06);
+
+      /* поля ввода (светлая тема) */
+      --field-bg:#ffffff;
+      --field-bg-focus:#f3f4f8;
+
+      --elev-1:0 1px 2px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.04);
+      --elev-2:0 6px 10px rgba(0,0,0,.10), 0 1px 18px rgba(0,0,0,.06);
     }
 
-    html, body {
-      background: var(--bg);
-      color: var(--text);
-      height: 100%;
+    html, body { height:100%; background:var(--bg); color:var(--on-surface); overflow-x:hidden; }
+    body { font-family:"Roboto Flex", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif; }
+
+    /* --- Карточки / навбар --- */
+    .navbar{ background:var(--surface)!important; border-bottom:1px solid var(--border); box-shadow:var(--elev-1); }
+    .brand-dot{ width:10px; height:10px; border-radius:50%; background:var(--secondary); margin-right:8px; }
+    .content{ padding:18px; }
+    .card{
+      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+      box-shadow:var(--elev-1); color:var(--on-surface); transition:transform .18s ease, box-shadow .18s ease;
+    }
+    .card.kpi{ box-shadow:var(--elev-2); }
+    .card:hover{ transform:translateY(-1px); box-shadow:var(--elev-2); }
+
+    /* --- Текстовые роли / типографика --- */
+    .form-label, .kpi-sub, .text-muted { color:var(--on-surface-variant)!important; }
+    .kpi-value, .card h5, .card h6, .card p, .file-name, .nav-link { color:var(--on-surface)!important; }
+    #kpi-file { color:var(--on-surface)!important; font-weight:600; }
+    .kpi-sub{ font:500 .95rem/1.25 "Roboto Flex", sans-serif; letter-spacing:.015em; }
+    .kpi-value{ font:700 1.5rem/1.2 "Roboto Flex", sans-serif; }
+
+    /* --- Поля/селекты/плейсхолдеры + ФИКС белого фона при вводе --- */
+    .form-control, .form-select {
+      color:var(--on-surface)!important;
+      background-color:var(--field-bg) !important;
+      border-radius:10px;
+      transition:background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+    .form-control:focus, .form-select:focus, .form-control:active, .form-select:active {
+      background-color:var(--field-bg-focus) !important;
+      color:var(--on-surface)!important;
+      border-color:var(--primary)!important;
+      box-shadow:var(--focus)!important;
+      outline:none;
+    }
+    .form-control::placeholder { color:var(--on-surface-variant); opacity:1; }
+    .form-select option { color:var(--on-surface); background:var(--surface); }
+    .field-outlined{ border:1px solid var(--border); }
+
+    /* --- Tabs с индикатором --- */
+    .nav-tabs{ border-color:transparent; position:relative; }
+    .nav-tabs .nav-link{
+      border:none; display:flex; align-items:center; gap:.5rem;
+      color:var(--on-surface-variant)!important; position:relative;
+    }
+    .nav-tabs .nav-link.active{
+      color:var(--on-surface)!important; background:var(--surface);
+    }
+    .nav-tabs .nav-link.active::after{
+      content:""; position:absolute; left:12px; right:12px; bottom:-2px; height:2px;
+      background:linear-gradient(90deg,var(--primary),var(--secondary));
+      border-radius:2px;
     }
 
-    .navbar {
-      background: var(--panel) !important;
-      border-bottom: 1px solid var(--border);
+    /* --- Кнопки --- */
+    .btn-accent{ background:var(--primary); color:#fff; border:none; box-shadow:var(--elev-1); }
+    .btn-accent:hover{ filter:brightness(.95); }
+    .btn-outline-light{ color:var(--on-surface)!important; border-color:var(--border)!important; }
+    .btn-outline-light:hover{ background:rgba(255,255,255,.06); }
+    .btn-ghost{
+      background:transparent; border:1px solid var(--border); color:var(--on-surface);
+      padding:.35rem .75rem; border-radius:999px;
     }
+    .btn-ghost:hover{ background:rgba(255,255,255,.06); }
 
-    .brand-dot {
-      height: 10px;
-      width: 10px;
-      display: inline-block;
-      border-radius: 50%;
-      background: var(--success);
-      margin-right: 8px;
+    /* --- Chips --- */
+    .chips{ display:flex; flex-wrap:wrap; gap:.5rem; }
+    .chip{
+      display:inline-flex; align-items:center; gap:.35rem; padding:.38rem .75rem;
+      border:1px solid var(--border); border-radius:999px; background:transparent; color:var(--on-surface);
+      cursor:pointer; user-select:none; position:relative; overflow:hidden; line-height:1;
     }
+    .chip .bi{ font-size:1rem; }
+    .chip.selected{ background:rgba(124,77,255,.18); border-color:rgba(124,77,255,.36); }
+    .chip::after{ content:""; position:absolute; inset:auto; width:0; height:0; border-radius:50%; background:rgba(255,255,255,.15); transform:translate(-50%,-50%); transition:width .35s,height .35s; }
+    .chip:active::after{ left:var(--x); top:var(--y); width:220%; height:220%; }
 
-    .content {
-      padding: 18px;
+    /* Быстрый хвост — MD3-чипы */
+    #tailSegments .btn{
+      border-radius:999px; border:1px solid var(--border) !important;
+      background:transparent !important; color:var(--on-surface) !important;
+      padding:.35rem .8rem; line-height:1;
     }
+    #tailSegments .btn.active,
+    #tailSegments .btn:active,
+    #tailSegments .btn:focus,
+    #tailSegments .btn.show{
+      background:rgba(124,77,255,.18) !important; border-color:rgba(124,77,255,.36) !important;
+      color:var(--on-surface) !important; box-shadow:none !important;
+    }
+    #tailSegments .btn:hover{ background:rgba(255,255,255,.06) !important; }
 
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      color: var(--text);
+    /* Кнопки фильтров логов — MD3-чипы */
+    #logLevelButtons .btn{
+      border-radius:999px; border:1px solid var(--border) !important;
+      background:transparent !important; color:var(--on-surface) !important;
+      padding:.35rem .8rem; line-height:1;
     }
+    #logLevelButtons .btn.active,
+    #logLevelButtons .btn:active,
+    #logLevelButtons .btn:focus,
+    #logLevelButtons .btn.show{
+      background:rgba(124,77,255,.18) !important; border-color:rgba(124,77,255,.36) !important;
+      color:var(--on-surface) !important; box-shadow:none !important;
+    }
+    #logLevelButtons .btn:hover{ background:rgba(255,255,255,.06) !important; }
 
-    .nav-tabs .nav-link {
-      color: var(--muted);
-      border: none;
-    }
-    .nav-tabs .nav-link.active {
-      color: var(--text);
-      background: var(--panel);
-      border-bottom: 2px solid var(--accent);
-    }
+    /* --- Разное --- */
+    #chart{ height:560px; position:relative; }
+    .loading-overlay{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.18); border-radius:10px; z-index:5; }
+    .log-box{ height:420px; overflow-y:auto; white-space:pre-wrap; background:#0b0e14; color:#dcdcdc; padding:10px; border:1px solid var(--border); border-radius:10px; }
 
-    .log-box {
-      height: 420px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      background: #0b0e14;
-      color: #dcdcdc;
-      padding: 10px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-    }
+    .skeleton{display:inline-block;width:100%;height:1.2rem;border-radius:8px;background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.12),rgba(255,255,255,.06));background-size:200% 100%;animation:shimmer 1.2s infinite}
+    .skeleton.sm{height:.9rem}
+    .skeleton.lg{height:1.8rem}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
-    .form-control, .form-select, .btn {
-      border-radius: 8px;
-    }
+    #topProgress{height:3px;background:linear-gradient(90deg,var(--primary),var(--secondary));width:0;transition:width .25s;display:none;}
 
-    .btn-accent {
-      background: var(--accent);
-      color: #0b0e14;
-      border: none;
+    .chart-actions{ position:relative; }
+    .fab{
+      position:absolute; right:14px; bottom:14px;
+      display:inline-flex; align-items:center; gap:.5rem; padding:.55rem .9rem;
+      background:var(--primary); color:#fff; border:none; border-radius:999px; box-shadow:var(--elev-2); z-index:6;
     }
-    .btn-accent:hover {
-      filter: brightness(0.95);
-    }
+    .fab:hover{ filter:brightness(.95); }
 
-    .muted {
-      color: var(--muted);
-    }
+    .toolbar{ display:flex; flex-wrap:wrap; gap:.75rem 1rem; align-items:end; }
+    .toolbar .group{ display:flex; flex-direction:column; gap:.25rem; min-width:140px; }
+    .toolbar .group.narrow{ min-width:110px; }
 
-    .kpi-value {
-      font-size: 1.6rem;
-      font-weight: 700;
-    }
-    .kpi-sub {
-      font-size: 0.9rem;
-      color: var(--muted);
-    }
+    /* Таблица позиций */
+    .table-md3{ width:100%; border-collapse:separate; border-spacing:0; }
+    .table-md3 th, .table-md3 td{ padding:.55rem .75rem; border-bottom:1px solid var(--border); }
+    .table-md3 thead th{ color:var(--on-surface-variant); font-weight:600; }
+    .table-md3 td.num, .table-md3 th.num{ text-align:right; }
 
-    #chart {
-      height: 560px;
-    }
+    /* Plotly легенда */
+    .plotly .legend{ max-width:100% !important; }
 
-    .form-inline-gap > * {
-      margin-right: 10px;
-      margin-bottom: 10px;
+    /* --- Адаптив --- */
+    @media (max-width: 1200px){
+      #chart{ height:520px; }
     }
-
-    .switch {
-      cursor: pointer;
+    @media (max-width: 992px){
+      #chart{ height:480px; }
+      .toolbar .group{ min-width: 46%; }
+      .toolbar .group.narrow{ min-width: 30%; }
     }
-
-    a, .link {
-      color: var(--accent);
-      text-decoration: none;
+    @media (max-width: 768px){
+      #chart{ height:420px; }
+      .toolbar{ gap:.6rem .8rem; }
+      .nav-tabs .nav-link{ padding:.5rem .6rem; }
+    }
+    @media (max-width: 576px){
+      #chart{ height:360px; }
+      .kpi-value{ font-size:1.3rem; }
+      .kpi-sub{ font-size:.9rem; }
+      .toolbar .group{ min-width:100%; }
+      .fab{ right:10px; bottom:10px; }
     }
   </style>
 </head>
 <body>
-  <!-- Top navbar -->
   <nav class="navbar navbar-expand-lg navbar-dark px-3">
-    <a class="navbar-brand d-flex align-items-center" href="#">
-      <span class="brand-dot"></span>
-      Мониторинг бота
-    </a>
+    <a class="navbar-brand d-flex align-items-center" href="#"><span class="brand-dot"></span>Мониторинг бота</a>
     <div class="ms-auto d-flex align-items-center gap-2">
-      <div class="form-check form-switch text-nowrap">
+      <div class="form-check form-switch text-nowrap" title="Переключить тему" data-bs-toggle="tooltip">
         <input class="form-check-input" type="checkbox" id="themeToggle">
         <label class="form-check-label" for="themeToggle"><i class="bi bi-moon-stars"></i> Тема</label>
       </div>
-      <button id="refreshAll" class="btn btn-sm btn-outline-light"><i class="bi bi-arrow-clockwise"></i> Обновить всё</button>
+      <button id="refreshAll" class="btn btn-sm btn-outline-light" title="Обновить все панели" data-bs-toggle="tooltip"><i class="bi bi-arrow-clockwise"></i> Обновить всё</button>
     </div>
   </nav>
 
+  <!-- Top progress -->
+  <div id="topProgress"></div>
+
+  <!-- Snackbar -->
+  <div id="snackbar" style="position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:2000;display:none;max-width:90%;">
+    <div class="card p-2" style="background:var(--surface);box-shadow:var(--elev-2);">
+      <span id="snackbarMsg"></span>
+    </div>
+  </div>
+
   <div class="content container-fluid">
-    <!-- KPI cards -->
+    <!-- KPI -->
     <div class="row g-3 mb-3">
-      <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card p-3">
-          <div class="kpi-sub">Баланс</div>
-          <div class="kpi-value" id="kpi-balance">—</div>
-          <div class="muted" id="kpi-balance-cur">USDT</div>
-        </div>
-      </div>
-      <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card p-3">
-          <div class="kpi-sub">Позиции</div>
-          <div class="kpi-value" id="kpi-positions">—</div>
-          <div class="muted">Открытые позиции</div>
-        </div>
-      </div>
-      <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card p-3">
-          <div class="kpi-sub">Последнее обновление</div>
-          <div class="kpi-value" id="kpi-updated">—</div>
-          <div class="muted">state.json</div>
-        </div>
-      </div>
-      <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card p-3">
-          <div class="kpi-sub">Файл данных</div>
-          <div class="kpi-value" id="kpi-file">—</div>
-          <div class="muted">источник графика</div>
-        </div>
-      </div>
+      <div class="col-12 col-sm-6 col-xl-3"><div class="card p-3 kpi">
+        <div class="kpi-sub">Баланс</div>
+        <div class="kpi-value" id="kpi-balance"><span class="skeleton lg"></span></div>
+        <div class="text-muted" id="kpi-balance-cur">USDT</div>
+      </div></div>
+      <div class="col-12 col-sm-6 col-xl-3"><div class="card p-3 kpi">
+        <div class="kpi-sub">Позиции</div>
+        <div class="kpi-value" id="kpi-positions"><span class="skeleton lg"></span></div>
+        <div class="text-muted">Открытые позиции</div>
+      </div></div>
+      <div class="col-12 col-sm-6 col-xl-3"><div class="card p-3 kpi">
+        <div class="kpi-sub">Последнее обновление</div>
+        <div class="kpi-value" id="kpi-updated"><span class="skeleton lg"></span></div>
+        <div class="text-muted">state.json</div>
+      </div></div>
+      <div class="col-12 col-sm-6 col-xl-3"><div class="card p-3 kpi">
+        <div class="kpi-sub">Файл данных</div>
+        <div class="kpi-value file-name" id="kpi-file"><span class="skeleton lg"></span></div>
+        <div class="text-muted">источник графика</div>
+      </div></div>
     </div>
 
-    <!-- Tabs -->
+    <!-- Tabs with icons -->
     <ul class="nav nav-tabs" id="viewTabs" role="tablist">
-      <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="chart-tab" data-bs-toggle="tab" data-bs-target="#chart-pane" type="button" role="tab">График цен</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-pane" type="button" role="tab">Логи</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="state-tab" data-bs-toggle="tab" data-bs-target="#state-pane" type="button" role="tab">Баланс и позиции</button>
-      </li>
+      <li class="nav-item"><button class="nav-link active" id="chart-tab" data-bs-toggle="tab" data-bs-target="#chart-pane" type="button"><i class="bi bi-graph-up"></i> График цен</button></li>
+      <li class="nav-item"><button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-pane" type="button"><i class="bi bi-journal-text"></i> Логи</button></li>
+      <li class="nav-item"><button class="nav-link" id="logs-all-tab" data-bs-toggle="tab" data-bs-target="#logs-all-pane" type="button"><i class="bi bi-collection"></i> Все логи</button></li>
+      <li class="nav-item"><button class="nav-link" id="state-tab" data-bs-toggle="tab" data-bs-target="#state-pane" type="button"><i class="bi bi-wallet2"></i> Баланс и позиции</button></li>
     </ul>
 
     <div class="tab-content mt-3">
-      <!-- Chart tab -->
-      <div class="tab-pane fade show active" id="chart-pane" role="tabpanel" aria-labelledby="chart-tab">
+      <!-- Chart -->
+      <div class="tab-pane fade show active" id="chart-pane">
         <div class="card p-3 mb-3">
-          <div class="d-flex flex-wrap align-items-end form-inline-gap">
-            <div>
-              <label class="form-label">CSV-файл</label>
-              <select id="csvFile" class="form-select form-select-sm"></select>
+          <div class="toolbar">
+            <div class="group">
+              <label class="form-label">CSV‑файл</label>
+              <select id="csvFile" class="form-select form-select-sm field-outlined" title="Файл данных для графика" data-bs-toggle="tooltip"></select>
             </div>
-            <div>
+            <div class="group narrow">
               <label class="form-label">Хвост (строк)</label>
-              <input id="tailRows" type="number" min="50" step="50" value="500" class="form-control form-control-sm" />
+              <input id="tailRows" type="number" min="50" step="50" value="500" class="form-control form-control-sm field-outlined" title="Сколько последних строк загрузить" data-bs-toggle="tooltip"/>
             </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="sma20" checked>
-              <label class="form-check-label" for="sma20">SMA 20</label>
+            <div class="group">
+              <label class="form-label">Быстрый хвост</label>
+              <div id="tailSegments" class="btn-group btn-group-sm" role="group" title="Быстрый выбор размера хвоста" data-bs-toggle="tooltip">
+                <button class="btn btn-outline-light" data-tail="200">200</button>
+                <button class="btn btn-outline-light" data-tail="500">500</button>
+                <button class="btn btn-outline-light active" data-tail="1000">1000</button>
+              </div>
             </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="sma50" checked>
-              <label class="form-check-label" for="sma50">SMA 50</label>
+            <div class="group narrow">
+              <label class="form-label">Панель 2</label>
+              <select id="lowerPanel" class="form-select form-select-sm field-outlined" title="Что показывать в нижней панели" data-bs-toggle="tooltip">
+                <option value="volume">Объём</option>
+                <option value="rsi">RSI</option>
+              </select>
             </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="logScale">
-              <label class="form-check-label" for="logScale">Лог-масштаб</label>
+            <div id="rsiControls" class="group narrow" style="display:none;">
+              <label class="form-label">RSI период</label>
+              <input id="rsiPeriod" type="number" min="2" step="1" value="14" class="form-control form-control-sm field-outlined" title="Период RSI" data-bs-toggle="tooltip"/>
             </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="autoRefreshChart">
-              <label class="form-check-label" for="autoRefreshChart">Автообновление</label>
-            </div>
-            <div>
-              <label class="form-label">Интервал (с)</label>
-              <input id="chartInterval" type="number" min="5" step="5" value="30" class="form-control form-control-sm" />
+            <div class="group" style="min-width:220px;">
+              <label class="form-label">Показывать</label>
+              <div class="chips">
+                <div class="chip selected" id="chipSMA20" data-bind="#sma20" title="Включить/выключить SMA 20" data-bs-toggle="tooltip"><i class="bi bi-activity"></i> SMA 20</div>
+                <div class="chip selected" id="chipSMA50" data-bind="#sma50" title="Включить/выключить SMA 50" data-bs-toggle="tooltip"><i class="bi bi-activity"></i> SMA 50</div>
+                <div class="chip" id="chipLog" data-bind="#logScale" title="Логарифмический масштаб цены" data-bs-toggle="tooltip"><i class="bi bi-graph-down"></i> Лог‑масштаб</div>
+              </div>
             </div>
             <div class="ms-auto">
-              <button id="reloadChart" class="btn btn-accent btn-sm"><i class="bi bi-graph-up"></i> Перестроить график</button>
+              <div class="d-flex gap-2">
+                <button id="resetZoom" class="btn btn-ghost btn-sm" title="Сбросить масштаб графика" data-bs-toggle="tooltip"><i class="bi bi-arrows-fullscreen"></i> Сброс масштаба</button>
+                <button class="btn btn-outline-light btn-sm" data-bs-toggle="offcanvas" data-bs-target="#advancedSheet" title="Доп. параметры" data-bs-toggle2="tooltip">
+                  <i class="bi bi-sliders"></i> Параметры
+                </button>
+              </div>
             </div>
           </div>
         </div>
-        <div class="card p-2">
-          <div id="chart"></div>
+
+        <div class="card p-2 chart-actions">
+          <div id="chart">
+            <div id="chartLoader" class="loading-overlay" style="display:none;">
+              <div class="spinner-border text-light" role="status"><span class="visually-hidden">Загрузка…</span></div>
+            </div>
+          </div>
+          <button id="reloadChart" class="fab" title="Перестроить график" data-bs-toggle="tooltip"><i class="bi bi-arrow-repeat"></i> Перестроить</button>
         </div>
       </div>
 
-      <!-- Logs tab -->
-      <div class="tab-pane fade" id="logs-pane" role="tabpanel" aria-labelledby="logs-tab">
+      <!-- Logs by file -->
+      <div class="tab-pane fade" id="logs-pane">
         <div class="card p-3 mb-3">
-          <div class="d-flex flex-wrap align-items-end form-inline-gap">
-            <div>
-              <label class="form-label">Файл логов</label>
-              <select id="logFile" class="form-select form-select-sm"></select>
-            </div>
-            <div>
-              <label class="form-label">Хвост (строк)</label>
-              <input id="logTail" type="number" min="100" step="100" value="500" class="form-control form-control-sm" />
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="autoRefreshLogs">
-              <label class="form-check-label" for="autoRefreshLogs">Автообновление</label>
-            </div>
-            <div>
-              <label class="form-label">Интервал (с)</label>
-              <input id="logsInterval" type="number" min="5" step="5" value="15" class="form-control form-control-sm" />
-            </div>
+          <div class="toolbar">
+            <div class="group"><label class="form-label">Файл логов</label><select id="logFile" class="form-select form-select-sm field-outlined"></select></div>
+            <div class="group narrow"><label class="form-label">Хвост (строк)</label><input id="logTail" type="number" min="100" step="100" value="500" class="form-control form-control-sm field-outlined"/></div>
             <div class="ms-auto">
-              <button id="reloadLogs" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-repeat"></i> Обновить</button>
+              <button class="btn btn-outline-light btn-sm" id="reloadLogs" title="Обновить лог" data-bs-toggle="tooltip"><i class="bi bi-arrow-repeat"></i> Обновить</button>
+              <button class="btn btn-outline-light btn-sm" data-bs-toggle="offcanvas" data-bs-target="#logsSheet" title="Доп. параметры" data-bs-toggle2="tooltip"><i class="bi bi-sliders"></i> Параметры</button>
             </div>
           </div>
         </div>
-        <div class="log-box" id="logBox">—</div>
+        <div class="card p-2 position-relative">
+          <div id="logLoader" class="loading-overlay" style="display:none;">
+            <div class="spinner-border text-light" role="status"><span class="visually-hidden">Загрузка…</span></div>
+          </div>
+          <div class="log-box" id="logBox"><span class="skeleton" style="height:100%;display:block"></span></div>
+        </div>
       </div>
 
-      <!-- State tab -->
-      <div class="tab-pane fade" id="state-pane" role="tabpanel" aria-labelledby="state-tab">
+      <!-- Logs all -->
+      <div class="tab-pane fade" id="logs-all-pane">
+        <div class="card p-3 mb-3">
+          <div class="toolbar">
+            <div id="logLevelButtons" class="btn-group" role="group" aria-label="levels">
+              <button class="btn btn-outline-light btn-sm btn-filter active" data-level="ALL">ALL</button>
+              <button class="btn btn-outline-light btn-sm btn-filter" data-level="INFO">INFO</button>
+              <button class="btn btn-outline-light btn-sm btn-filter" data-level="WARN">WARN</button>
+              <button class="btn btn-outline-light btn-sm btn-filter" data-level="ERROR">ERROR</button>
+              <button class="btn btn-outline-light btn-sm btn-filter" data-level="DEBUG">DEBUG</button>
+            </div>
+            <div class="group"><label class="form-label">Поиск</label><input id="logsAllQuery" class="form-control form-control-sm field-outlined" placeholder="текст…"/></div>
+            <div class="group narrow"><label class="form-label">Последние N</label><input id="logsAllN" type="number" min="100" step="100" value="1000" class="form-control form-control-sm field-outlined"/></div>
+            <div class="ms-auto">
+              <button class="btn btn-outline-light btn-sm" id="reloadLogsAll"><i class="bi bi-arrow-repeat"></i> Обновить</button>
+              <button class="btn btn-outline-light btn-sm" data-bs-toggle="offcanvas" data-bs-target="#logsAllSheet"><i class="bi bi-sliders"></i> Параметры</button>
+            </div>
+          </div>
+        </div>
+        <div class="card p-2 position-relative">
+          <div id="logsAllLoader" class="loading-overlay" style="display:none;">
+            <div class="spinner-border text-light" role="status"><span class="visually-hidden">Загрузка…</span></div>
+          </div>
+          <div class="log-box" id="logsAllBox"><span class="skeleton" style="height:100%;display:block"></span></div>
+        </div>
+      </div>
+
+      <!-- State -->
+      <div class="tab-pane fade" id="state-pane">
         <div class="row g-3">
           <div class="col-12 col-lg-6">
-            <div class="card p-3">
-              <h5 class="mb-3">Баланс</h5>
-              <div id="state-balance">—</div>
-            </div>
+            <div class="card p-3"><h5 class="mb-3">Баланс</h5><div id="state-balance"><span class="skeleton lg" style="max-width:180px"></span></div></div>
           </div>
           <div class="col-12 col-lg-6">
             <div class="card p-3">
-              <h5 class="mb-3">Позиции</h5>
-              <div id="state-positions" class="small">—</div>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0">Позиции</h5>
+                <div class="btn-group btn-group-sm">
+                  <button class="btn btn-outline-light" id="posExport"><i class="bi bi-download"></i> CSV</button>
+                  <button class="btn btn-outline-light" id="posRefresh" title="Обновить"><i class="bi bi-arrow-repeat"></i></button>
+                </div>
+              </div>
+              <div style="max-height:420px; overflow:auto;">
+                <table class="table-md3" id="posTable">
+                  <thead><tr>
+                    <th>Тикер</th><th class="num">Кол-во</th><th class="num">Вход</th><th class="num">Цена</th><th class="num">PnL</th>
+                  </tr></thead>
+                  <tbody id="posTbody"><tr><td colspan="5"><span class="skeleton" style="height:24px;display:block"></span></td></tr></tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </div><!-- /state -->
+    </div>
+  </div>
+
+  <!-- Bottom sheets -->
+  <div class="offcanvas offcanvas-bottom text-bg-dark" tabindex="-1" id="advancedSheet" style="height:auto;">
+    <div class="offcanvas-header"><h5 class="offcanvas-title"><i class="bi bi-sliders"></i> Параметры графика</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button></div>
+    <div class="offcanvas-body small d-flex flex-wrap gap-3">
+      <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="autoRefreshChart"><label class="form-check-label" for="autoRefreshChart">Автообновление</label></div>
+      <div><label class="form-label">Интервал (с)</label><input id="chartInterval" type="number" min="5" step="5" value="30" class="form-control form-control-sm field-outlined"/></div>
+    </div>
+  </div>
+
+  <div class="offcanvas offcanvas-bottom text-bg-dark" tabindex="-1" id="logsSheet" style="height:auto;">
+    <div class="offcanvas-header"><h5 class="offcanvas-title"><i class="bi bi-sliders"></i> Параметры логов</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button></div>
+    <div class="offcanvas-body small d-flex flex-wrap gap-3">
+      <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="autoRefreshLogs"><label class="form-check-label" for="autoRefreshLogs">Автообновление</label></div>
+      <div><label class="form-label">Интервал (с)</label><input id="logsInterval" type="number" min="5" step="5" value="15" class="form-control form-control-sm field-outlined"/></div>
+    </div>
+  </div>
+
+  <div class="offcanvas offcanvas-bottom text-bg-dark" tabindex="-1" id="logsAllSheet" style="height:auto;">
+    <div class="offcanvas-header"><h5 class="offcanvas-title"><i class="bi bi-sliders"></i> Параметры «Все логи»</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button></div>
+    <div class="offcanvas-body small d-flex flex-wrap gap-3">
+      <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="autoRefreshLogsAll"><label class="form-check-label" for="autoRefreshLogsAll">Автообновление</label></div>
+      <div><label class="form-label">Интервал (с)</label><input id="logsAllInterval" type="number" min="5" step="5" value="15" class="form-control form-control-sm field-outlined"/></div>
     </div>
   </div>
 
 <script>
-  // Тема
-  const themeKey = "ui-theme";
-  function applyTheme(theme) {
-    document.documentElement.setAttribute("data-theme", theme);
-    $("#themeToggle").prop("checked", theme === "dark");
+  // enable BS tooltips
+  document.addEventListener('DOMContentLoaded', () => {
+    const tList=[].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"],[title][data-bs-toggle2]'));
+    tList.forEach(el=> new bootstrap.Tooltip(el));
+  });
+
+  // ==== Тема ====
+  const themeKey="ui-theme";
+  function applyTheme(t){ document.documentElement.setAttribute("data-theme", t); $("#themeToggle").prop("checked", t==="dark"); }
+  function initTheme(){ const saved=localStorage.getItem(themeKey)||"dark"; applyTheme(saved);
+    $("#themeToggle").on("change",()=>{const next=$("#themeToggle").is(":checked")?"dark":"light"; applyTheme(next); localStorage.setItem(themeKey,next); drawChart();});}
+
+  // ==== Утилы ====
+  const debounce=(fn,ms=250)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}};
+  function fmtNumber(x,d=2){ if(x==null||isNaN(x)) return "—"; return Number(x).toLocaleString("ru-RU",{maximumFractionDigits:d}); }
+  function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  // Top progress & snack
+  let topProgTimer=null;
+  function topProgressStart(){ const el=document.getElementById("topProgress"); el.style.width="0"; el.style.display="block"; setTimeout(()=>{ el.style.width="65%"; }, 20); }
+  function topProgressDone(){ const el=document.getElementById("topProgress"); el.style.width="100%"; clearTimeout(topProgTimer); topProgTimer=setTimeout(()=>{ el.style.display="none"; el.style.width="0"; }, 250); }
+  function showSnack(msg, timeout=2200){ $("#snackbarMsg").text(msg); $("#snackbar").fadeIn(120); setTimeout(()=>$("#snackbar").fadeOut(180), timeout); }
+  async function withProgress(promise){ try{ topProgressStart(); return await promise; } finally{ topProgressDone(); } }
+
+  // ==== Chips binding ====
+  function bindChip(id, checkboxSel){
+    const chip=$(id), cb=$(checkboxSel);
+    chip.on("pointerdown", e=>{ chip[0].style.setProperty('--x', e.offsetX+'px'); chip[0].style.setProperty('--y', e.offsetY+'px'); });
+    function sync(){ chip.toggleClass("selected", cb.is(":checked")); }
+    chip.on("click", ()=>{ cb.prop("checked", !cb.is(":checked")); sync(); drawChart(); });
+    sync();
   }
-  function initTheme() {
-    const saved = localStorage.getItem(themeKey) || "dark";
-    applyTheme(saved);
-    $("#themeToggle").on("change", () => {
-      const next = $("#themeToggle").is(":checked") ? "dark" : "light";
-      applyTheme(next);
-      localStorage.setItem(themeKey, next);
-      // Перерисуем график (Plotly учитывает фон)
-      drawChart();
+  // скрытые чекбоксы (логика)
+  const hiddenControls = $('<div style="display:none"></div>').appendTo(document.body);
+  hiddenControls.append('<input type="checkbox" id="sma20" checked>');
+  hiddenControls.append('<input type="checkbox" id="sma50" checked>');
+  hiddenControls.append('<input type="checkbox" id="logScale">');
+
+  // ==== Индикаторы ====
+  function rsi(prices, period=14){
+    const n=prices.length, out=Array(n).fill(null);
+    if(n<period+1) return out;
+    let avgGain=0, avgLoss=0;
+    for(let i=1;i<=period;i++){ const ch=prices[i]-prices[i-1]; avgGain+=Math.max(ch,0); avgLoss+=Math.max(-ch,0); }
+    avgGain/=period; avgLoss/=period; out[period]=avgLoss===0?100:100-100/(1+(avgGain/avgLoss));
+    for(let i=period+1;i<n;i++){ const ch=prices[i]-prices[i-1], g=Math.max(ch,0), l=Math.max(-ch,0);
+      avgGain=(avgGain*(period-1)+g)/period; avgLoss=(avgLoss*(period-1)+l)/period; out[i]=avgLoss===0?100:100-100/(1+(avgGain/avgLoss)); }
+    return out;
+  }
+  function sma(values, period){
+    const res=Array(values.length).fill(null); if(period<=1) return values.slice();
+    let sum=0; for(let i=0;i<values.length;i++){ const v=+values[i]; if(!isNaN(v)) sum+=v;
+      if(i>=period){ const out=+values[i-period]; if(!isNaN(out)) sum-=out; }
+      if(i>=period-1) res[i]=sum/period; } return res;
+  }
+
+  // ==== State / KPI / Positions ====
+  function renderPositions(positions){
+    const tb=$("#posTbody"); tb.empty();
+    if(!positions || !positions.length){ tb.append(`<tr><td colspan="5" class="text-muted">Открытых позиций нет</td></tr>`); return; }
+    positions.forEach(p=>{
+      const sym=(p.symbol||p.ticker||"—"), qty=(p.qty||p.size||p.amount||0);
+      const entry=(+p.entry_price||+p.entry||+p.avg_entry||0), price=(+p.price||+p.mark_price||+p.last||0);
+      const pnl=(price && entry)?(price-entry)*qty:(p.unrealized_pnl ?? 0);
+      tb.append(`<tr><td>${sym}</td><td class="num">${fmtNumber(qty,4)}</td><td class="num">${fmtNumber(entry,2)}</td><td class="num">${fmtNumber(price,2)}</td><td class="num ${pnl>=0?'text-success':'text-danger'}">${fmtNumber(pnl,2)}</td></tr>`);
     });
   }
 
-  // Форматирование
-  function fmtNumber(x, digits=2) {
-    if (x === null || x === undefined || isNaN(x)) return "—";
-    return Number(x).toLocaleString("ru-RU", { maximumFractionDigits: digits });
+  async function loadState(){
+    try{
+      const r=await withProgress(fetch("/api/state")); const s=await r.json();
+      const total=s?.balance?.total, cur=s?.balance?.currency||"—";
+      $("#kpi-balance").text(total?fmtNumber(total,2):"—"); $("#kpi-balance-cur").text(cur);
+      $("#kpi-positions").text(Array.isArray(s?.positions)?s.positions.length:"—");
+      $("#kpi-updated").text(s?.updated||"—"); $("#state-balance").text(total?`${fmtNumber(total,2)} ${cur}`:"—");
+      renderPositions(s?.positions||[]);
+    }catch{}
+  }
+  function exportPositionsCSV(){
+    const rows=[["symbol","qty","entry","price","pnl"]];
+    $("#posTbody tr").each(function(){ const t=$(this).find("td"); if(t.length===5) rows.push(t.map((_,td)=>$(td).text()).get()); });
+    const csv=rows.map(r=>r.map(x=>`"${(x??"").toString().replace(/"/g,'""')}"`).join(",")).join("\n");
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"}), url=URL.createObjectURL(blob);
+    const a=document.createElement("a"); a.href=url; a.download="positions.csv"; a.click(); URL.revokeObjectURL(url);
+  }
+  function setupPositionsControls(){ $("#posExport").on("click", exportPositionsCSV); $("#posRefresh").on("click", ()=>{ loadState(); showSnack("Позиции обновлены"); }); }
+
+  // ==== CSV ====
+  async function loadCsvList(){
+    const sel=$("#csvFile"); sel.empty();
+    try{
+      const r=await withProgress(fetch("/csv_list")); const files=await r.json();
+      files.forEach(f=> sel.append(new Option(f,f)));
+      const stored=localStorage.getItem("csv-file"); if(stored && files.includes(stored)) sel.val(stored);
+      $("#kpi-file").text(sel.val()||"—");
+    }catch{ sel.append(new Option("sample.csv","sample.csv")); }
   }
 
-  function sma(values, period) {
-    const res = Array(values.length).fill(null);
-    if (period <= 1) return values.slice();
-    let sum = 0;
-    for (let i = 0; i < values.length; i++) {
-      const v = +values[i];
-      if (!isNaN(v)) sum += v;
-      if (i >= period) {
-        const vOut = +values[i - period];
-        if (!isNaN(vOut)) sum -= vOut;
-      }
-      if (i >= period - 1) {
-        res[i] = sum / period;
-      }
-    }
-    return res;
+  // ==== Chart ====
+  async function loadCandles(){
+    const file=$("#csvFile").val(); const tail=Math.max(50,+$("#tailRows").val()||500);
+    const r=await withProgress(fetch(`/api/candles?file=${encodeURIComponent(file)}&tail=${tail}`));
+    if(!r.ok) throw new Error("Ошибка загрузки свечей"); return await r.json();
   }
+  function themeVars(){ return {
+    paper_bgcolor:cssVar("--bg"), plot_bgcolor:cssVar("--surface"), font_color:cssVar("--on-surface"), grid:cssVar("--grid")
+  }}
+  function showRsiControls(){ $("#rsiControls").toggle($("#lowerPanel").val()==="rsi"); }
 
-  // Состояние
-  async function loadState() {
-    try {
-      const r = await fetch("/api/state");
-      const s = await r.json();
-      const total = s?.balance?.total;
-      const cur = s?.balance?.currency || "—";
-      $("#kpi-balance").text(total ? fmtNumber(total, 2) : "—");
-      $("#kpi-balance-cur").text(cur);
-      $("#kpi-positions").text(Array.isArray(s?.positions) ? s.positions.length : "—");
-      $("#kpi-updated").text(s?.updated || "—");
+  async function drawChart(){
+    $("#chartLoader").show();
+    try{
+      const rows=await loadCandles(); if(!rows||!rows.length){ Plotly.purge("chart"); return; }
+      const ts=rows.map(r=>r.ts), open=rows.map(r=>r.open), high=rows.map(r=>r.high), low=rows.map(r=>r.low), close=rows.map(r=>r.close), vol=rows.map(r=>r.volume??null), orders=rows.map(r=>r.orders??null);
 
-      const balanceText = total ? `${fmtNumber(total, 2)} ${cur}` : "—";
-      $("#state-balance").text(balanceText);
+      const traces=[];
+      const cPrimary=cssVar("--primary"), cSecondary=cssVar("--secondary"), cTertiary="#9C27B0", cError=cssVar("--error");
 
-      if (Array.isArray(s?.positions) && s.positions.length) {
-        const list = s.positions.map((p, i) => {
-          const symbol = p.symbol || p.ticker || "—";
-          const qty = p.qty || p.size || p.amount || "—";
-          const price = p.entry_price || p.price || "—";
-          return `${i+1}. ${symbol}: ${qty} @ ${price}`;
-        }).join("\n");
-        $("#state-positions").text(list);
+      traces.push({type:"candlestick", x:ts, open, high, low, close, name:"OHLC", yaxis:"y",
+        increasing:{line:{color:cSecondary}}, decreasing:{line:{color:cError}}});
+
+      if($("#sma20").is(":checked")) traces.push({type:"scatter",mode:"lines",x:ts,y:sma(close,20),line:{width:1.8,color:cPrimary},name:"SMA 20",yaxis:"y"});
+      if($("#sma50").is(":checked")) traces.push({type:"scatter",mode:"lines",x:ts,y:sma(close,50),line:{width:1.8,color:cTertiary},name:"SMA 50",yaxis:"y"});
+
+      if($("#lowerPanel").val()==="volume"){
+        if(vol.some(v=>v!==null)) traces.push({type:"bar",x:ts,y:vol,name:"Объём",opacity:.4,yaxis:"y2"});
       } else {
-        $("#state-positions").text("Открытых позиций нет");
-      }
-    } catch (e) {
-      // ignore
-    }
-  }
-
-  // CSV список
-  async function loadCsvList() {
-    const sel = $("#csvFile");
-    sel.empty();
-    try {
-      const r = await fetch("/csv_list");
-      const files = await r.json();
-      files.forEach(f => sel.append(new Option(f, f)));
-      const stored = localStorage.getItem("csv-file");
-      if (stored && files.includes(stored)) sel.val(stored);
-      $("#kpi-file").text(sel.val() || "—");
-    } catch (e) {
-      sel.append(new Option("BTCUSDT_1h_anal.csv", "BTCUSDT_1h_anal.csv"));
-    }
-  }
-
-  // График
-  let chartTimer = null;
-
-  async function loadCandles() {
-    const file = $("#csvFile").val();
-    const tail = Math.max(50, +$("#tailRows").val() || 500);
-    const url = `/api/candles?file=${encodeURIComponent(file)}&tail=${tail}`;
-    const r = await fetch(url);
-    if (!r.ok) throw new Error("Ошибка загрузки свечей");
-    const data = await r.json();
-    return data;
-  }
-
-  async function drawChart() {
-    try {
-      const rows = await loadCandles();
-      if (!rows || !rows.length) {
-        Plotly.purge("chart");
-        return;
-      }
-      const ts = rows.map(r => r.ts);
-      const open = rows.map(r => r.open);
-      const high = rows.map(r => r.high);
-      const low = rows.map(r => r.low);
-      const close = rows.map(r => r.close);
-      const vol = rows.map(r => r.volume ?? null);
-
-      const traces = [];
-
-      traces.push({
-        type: "candlestick",
-        x: ts,
-        open, high, low, close,
-        name: "OHLC",
-        increasing: { line: { color: "#26a69a" } },
-        decreasing: { line: { color: "#ef5350" } },
-        yaxis: "y"
-      });
-
-      if ($("#sma20").is(":checked")) {
-        traces.push({
-          type: "scatter",
-          mode: "lines",
-          x: ts,
-          y: sma(close, 20),
-          line: { width: 1.8, color: "#ffd166" },
-          name: "SMA 20",
-          yaxis: "y"
-        });
+        const p=Math.max(2,+$("#rsiPeriod").val()||14), rv=rsi(close,p);
+        traces.push({type:"scatter",mode:"lines",x:ts,y:rv,name:`RSI ${p}`,yaxis:"y2"});
+        traces.push({type:"scatter",mode:"lines",x:[ts[0],ts.at(-1)],y:[70,70],line:{dash:"dot",width:1},showlegend:false,yaxis:"y2"});
+        traces.push({type:"scatter",mode:"lines",x:[ts[0],ts.at(-1)],y:[30,30],line:{dash:"dot",width:1},showlegend:false,yaxis:"y2"});
       }
 
-      if ($("#sma50").is(":checked")) {
-        traces.push({
-          type: "scatter",
-          mode: "lines",
-          x: ts,
-          y: sma(close, 50),
-          line: { width: 1.8, color: "#5cc8ff" },
-          name: "SMA 50",
-          yaxis: "y"
-        });
+      if(orders.some(o=>o!=null && o!==0)){
+        const bx=[],by=[], sx=[],sy=[];
+        for(let i=0;i<orders.length;i++){ if(orders[i]>0){bx.push(ts[i]);by.push(close[i]);} if(orders[i]<0){sx.push(ts[i]);sy.push(close[i]);} }
+        if(bx.length) traces.push({type:"scatter",mode:"markers",x:bx,y:by,name:"Buy",marker:{size:7,symbol:"triangle-up", line:{width:.5}, color:cSecondary},yaxis:"y"});
+        if(sx.length) traces.push({type:"scatter",mode:"markers",x:sx,y:sy,name:"Sell",marker:{size:7,symbol:"triangle-down", line:{width:.5}, color:cError},yaxis:"y"});
       }
 
-      // Объём, если есть
-      if (vol.some(v => v !== null)) {
-        traces.push({
-          type: "bar",
-          x: ts,
-          y: vol,
-          name: "Объём",
-          marker: { color: "#9fa6b2" },
-          yaxis: "y2",
-          opacity: 0.35
-        });
-      }
-
-      const theme = document.documentElement.getAttribute("data-theme") || "dark";
-      const paper_bgcolor = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
-      const plot_bgcolor = getComputedStyle(document.documentElement).getPropertyValue("--panel").trim();
-      const font_color = getComputedStyle(document.documentElement).getPropertyValue("--text").trim();
-
-      const layout = {
-        dragmode: "pan",
-        showlegend: true,
-        legend: { orientation: "h", y: 1.05 },
-        margin: { t: 20, r: 10, b: 40, l: 50 },
-        paper_bgcolor,
-        plot_bgcolor,
-        font: { color: font_color },
-        xaxis: { gridcolor: "rgba(255,255,255,0.06)" },
-        yaxis: {
-          title: "Цена",
-          type: $("#logScale").is(":checked") ? "log" : "linear",
-          gridcolor: "rgba(255,255,255,0.06)"
-        },
-        yaxis2: {
-          title: "Объём",
-          overlaying: "y",
-          side: "right",
-          showgrid: false
-        }
+      const {paper_bgcolor,plot_bgcolor,font_color,grid}=themeVars();
+      const layout={
+        dragmode:"zoom",
+        showlegend:true, legend:{orientation:"h", y:1.1, x:0, xanchor:"left"},
+        margin:{t:20,r:10,b:40,l:50}, paper_bgcolor, plot_bgcolor, font:{color:font_color},
+        xaxis:{gridcolor:grid, anchor:"y", domain:[0,1]},
+        yaxis:{title:"Цена", type: $("#logScale").is(":checked")?"log":"linear", gridcolor:grid, domain:[0.35,1]},
+        xaxis2:{gridcolor:grid, anchor:"y2", domain:[0,1], matches:"x"},
+        yaxis2:{title:($("#lowerPanel").val()==="rsi"?"RSI":"Объём"), gridcolor:grid, domain:[0,0.28]}
       };
 
-      Plotly.react("chart", traces, layout, { responsive: true, displaylogo: false, modeBarButtonsToRemove: ["lasso2d"] });
-      $("#kpi-file").text($("#csvFile").val() || "—");
-    } catch (e) {
-      console.error(e);
-    }
+      Plotly.react("chart", traces, layout, {
+        responsive:true, displaylogo:false
+      });
+      $("#kpi-file").text($("#csvFile").val()||"—");
+    }catch(e){ console.error(e); }
+    finally{ $("#chartLoader").hide(); }
   }
 
-  function setupChartControls() {
-    $("#reloadChart").on("click", drawChart);
-    $("#csvFile, #tailRows, #sma20, #sma50, #logScale").on("change", () => {
-      localStorage.setItem("csv-file", $("#csvFile").val() || "");
+  function setupChartControls(){
+    $("#reloadChart").on("click", ()=>{ drawChart(); showSnack("График перестроен"); });
+    $("#resetZoom").on("click", ()=>{
+      Plotly.relayout('chart', {'xaxis.autorange':true,'yaxis.autorange':true,'yaxis2.autorange':true});
+      showSnack("Масштаб сброшен");
+    });
+    $("#csvFile, #tailRows, #rsiPeriod").on("change", ()=>{
+      localStorage.setItem("csv-file", $("#csvFile").val()||""); drawChart();
+    });
+    $("#lowerPanel").on("change", ()=>{ showRsiControls(); drawChart(); });
+
+    bindChip("#chipSMA20", "#sma20");
+    bindChip("#chipSMA50", "#sma50");
+    bindChip("#chipLog",  "#logScale");
+
+    $("#tailSegments .btn").on("click", function(){
+      const val=+$(this).data("tail"); $("#tailRows").val(val);
+      $("#tailSegments .btn").removeClass("active"); $(this).addClass("active");
       drawChart();
     });
-    $("#autoRefreshChart, #chartInterval").on("change", handleChartAutoRefresh);
+
+    showRsiControls();
   }
 
-  function handleChartAutoRefresh() {
-    if (chartTimer) {
-      clearInterval(chartTimer);
-      chartTimer = null;
-    }
-    const enabled = $("#autoRefreshChart").is(":checked");
-    if (!enabled) return;
-    const interval = Math.max(5, +$("#chartInterval").val() || 30) * 1000;
-    chartTimer = setInterval(drawChart, interval);
+  // ==== Logs by file ====
+  let logsTimer=null;
+  async function loadLogFiles(){ const sel=$("#logFile"); sel.empty(); try{ const r=await withProgress(fetch("/logs")); const files=await r.json(); files.forEach(f=> sel.append(new Option(f,f))); }catch{} }
+  async function loadLogTail(){
+    $("#logLoader").show();
+    try{
+      const file=$("#logFile").val(); const n=Math.max(100, +$("#logTail").val()||500);
+      if(!file){ $("#logBox").text("Нет выбранного файла"); return; }
+      const r=await withProgress(fetch(`/api/log_tail?filename=${encodeURIComponent(file)}&n=${n}`));
+      if(!r.ok) throw new Error("Ошибка загрузки логов");
+      const data=await r.json(); $("#logBox").text((data?.lines||[]).join("\n")||"Лог пуст");
+      const el=document.getElementById("logBox"); el.scrollTop=el.scrollHeight;
+    }catch{ $("#logBox").text("Ошибка чтения лога"); }
+    finally{ $("#logLoader").hide(); }
   }
-
-  // Логи
-  let logsTimer = null;
-
-  async function loadLogFiles() {
-    const sel = $("#logFile");
-    sel.empty();
-    try {
-      const r = await fetch("/logs");
-      const files = await r.json();
-      files.forEach(f => sel.append(new Option(f, f)));
-    } catch (e) {
-      // ignore
-    }
-  }
-
-  async function loadLogTail() {
-    const file = $("#logFile").val();
-    const n = Math.max(100, +$("#logTail").val() || 500);
-    if (!file) {
-      $("#logBox").text("Нет выбранного файла");
-      return;
-    }
-    try {
-      const url = `/api/log_tail?filename=${encodeURIComponent(file)}&n=${n}`;
-      const r = await fetch(url);
-      if (!r.ok) throw new Error("Ошибка загрузки логов");
-      const data = await r.json();
-      $("#logBox").text((data?.lines || []).join("\n") || "Лог пуст");
-      const box = document.getElementById("logBox");
-      box.scrollTop = box.scrollHeight;
-    } catch (e) {
-      $("#logBox").text("Ошибка чтения лога");
-    }
-  }
-
-  function setupLogsControls() {
-    $("#reloadLogs").on("click", loadLogTail);
+  function setupLogsControls(){
+    $("#reloadLogs").on("click", ()=>{ loadLogTail(); showSnack("Лог обновлён"); });
     $("#logFile, #logTail").on("change", loadLogTail);
-    $("#autoRefreshLogs, #logsInterval").on("change", handleLogsAutoRefresh);
-  }
-
-  function handleLogsAutoRefresh() {
-    if (logsTimer) {
-      clearInterval(logsTimer);
-      logsTimer = null;
-    }
-    const enabled = $("#autoRefreshLogs").is(":checked");
-    if (!enabled) return;
-    const interval = Math.max(5, +$("#logsInterval").val() || 15) * 1000;
-    logsTimer = setInterval(loadLogTail, interval);
-  }
-
-  // Общая кнопка
-  function setupGlobalRefresh() {
-    $("#refreshAll").on("click", async () => {
-      await Promise.all([loadState(), drawChart(), loadLogTail()]);
+    $("#logsInterval, #autoRefreshLogs").on("change", ()=>{
+      if(logsTimer){ clearInterval(logsTimer); logsTimer=null; }
+      if($("#autoRefreshLogs").is(":checked")){
+        const iv=Math.max(5, +$("#logsInterval").val()||15)*1000; logsTimer=setInterval(loadLogTail, iv);
+      }
     });
   }
 
-  // Инициализация
-  $(async function() {
+  // ==== Logs all ====
+  let logsAllTimer=null, logsAllLevel="ALL";
+  function setLevelButtons(lv){ $(".btn-filter").removeClass("active"); $(`.btn-filter[data-level='${lv}']`).addClass("active"); }
+  async function loadLogsAll(){
+    $("#logsAllLoader").show();
+    try{
+      const n=Math.max(100, +$("#logsAllN").val()||1000), q=($("#logsAllQuery").val()||"").trim();
+      const r=await withProgress(fetch(`/api/logs_all?n=${n}&level=${encodeURIComponent(logsAllLevel)}&q=${encodeURIComponent(q)}`));
+      const arr=await r.json(); const lines=arr.map(e=>`${e.ts??""} ${e.src?`[${e.src}]`:""} ${e.level?`[${e.level}]`:""} ${e.msg??""}`.trim());
+      $("#logsAllBox").text(lines.join("\n")||"Логи пусты"); const el=document.getElementById("logsAllBox"); el.scrollTop=el.scrollHeight;
+    }catch{ $("#logsAllBox").text("Ошибка загрузки общих логов"); }
+    finally{ $("#logsAllLoader").hide(); }
+  }
+  function setupLogsAllControls(){
+    $(".btn-filter").on("click", function(){ logsAllLevel=$(this).data("level"); setLevelButtons(logsAllLevel); loadLogsAll(); });
+    $("#reloadLogsAll").on("click", ()=>{ loadLogsAll(); showSnack("Все логи обновлены"); });
+    $("#logsAllQuery, #logsAllN").on("keyup change", debounce(loadLogsAll, 300));
+    $("#logsAllInterval, #autoRefreshLogsAll").on("change", ()=>{
+      if(logsAllTimer){ clearInterval(logsAllTimer); logsAllTimer=null; }
+      if($("#autoRefreshLogsAll").is(":checked")){
+        const iv=Math.max(5, +$("#logsAllInterval").val()||15)*1000; logsAllTimer=setInterval(loadLogsAll, iv);
+      }
+    });
+  }
+
+  // ==== Refresh all ====
+  function setupGlobalRefresh(){ $("#refreshAll").on("click", async ()=>{ await Promise.all([loadState(), drawChart(), loadLogTail(), loadLogsAll()]); showSnack("Данные обновлены"); }); }
+
+  // ==== Init ====
+  $(async function(){
     initTheme();
     setupChartControls();
     setupLogsControls();
+    setupLogsAllControls();
+    setupPositionsControls();
     setupGlobalRefresh();
 
     await Promise.all([loadCsvList(), loadLogFiles(), loadState()]);
-    await drawChart();
-    await loadLogTail();
+    await drawChart(); await loadLogTail(); await loadLogsAll();
 
-    handleChartAutoRefresh();
-    handleLogsAutoRefresh();
-
-    // Перерисовка графика при переключении табов (чтобы он корректно вписывался)
     document.getElementById("chart-tab").addEventListener("shown.bs.tab", drawChart);
   });
-</script>
-<script>
-(() => {
-  const ls = window.localStorage;
-  const q = (id) => document.getElementById(id);
-
-  const prefs = {
-    theme: ls.getItem("ui.theme") || (document.documentElement.dataset.theme || "dark"),
-    autoRefresh: ls.getItem("ui.autoRefresh") === "false" ? false : true,
-    refreshMs: Number(ls.getItem("ui.refreshMs") || 5000),
-    sma20: ls.getItem("ui.sma20") === "true",
-    sma50: ls.getItem("ui.sma50") === "true",
-    logScale: ls.getItem("ui.logScale") === "true",
-  };
-
-  // Применение темы
-  const applyTheme = (t) => {
-    document.documentElement.dataset.theme = t;
-    ls.setItem("ui.theme", t);
-    const toggle = q("themeToggle");
-    if (toggle) toggle.checked = (t === "dark");
-  };
-  applyTheme(prefs.theme);
-
-  // Офлайн‑индикатор
-  const offlineBadge = document.createElement("div");
-  offlineBadge.style.cssText = `
-    position: fixed; right: 12px; bottom: 12px; z-index: 9999;
-    background: #dc3545; color: #fff; padding: 6px 10px; border-radius: 6px;
-    font-size: 12px; display: none; box-shadow: 0 2px 8px rgba(0,0,0,.2);
-  `;
-  offlineBadge.textContent = "Нет сети";
-  document.body.appendChild(offlineBadge);
-
-  const updateOnlineState = () => {
-    offlineBadge.style.display = navigator.onLine ? "none" : "block";
-  };
-  window.addEventListener("online", updateOnlineState);
-  window.addEventListener("offline", updateOnlineState);
-  updateOnlineState();
-
-  // Тосты/уведомления
-  const toastBox = document.createElement("div");
-  toastBox.style.cssText = "position: fixed; right: 12px; top: 12px; z-index: 9999;";
-  document.body.appendChild(toastBox);
-
-  const showToast = (msg, variant = "danger", timeout = 3000) => {
-    const el = document.createElement("div");
-    el.style.cssText = `
-      margin-bottom: 8px; padding: 8px 12px; border-radius: 6px; color: #fff;
-      background: ${variant === "success" ? "#198754" :
-                   variant === "warning" ? "#fd7e14" : "#dc3545"};
-      box-shadow: 0 2px 8px rgba(0,0,0,.2);
-      max-width: 420px; font-size: 14px;
-    `;
-    el.textContent = msg;
-    toastBox.appendChild(el);
-    setTimeout(() => el.remove(), timeout);
-  };
-
-  // Сохранение/восстановление переключателей
-  const bindToggle = (id, key, defaultVal) => {
-    const el = q(id);
-    if (!el) return;
-    const saved = ls.getItem(key);
-    el.checked = saved != null ? saved === "true" : defaultVal;
-    el.addEventListener("change", () => {
-      ls.setItem(key, String(el.checked));
-      if (id === "themeToggle") {
-        applyTheme(el.checked ? "dark" : "light");
-      }
-      if (id === "autoRefreshToggle") {
-        prefs.autoRefresh = el.checked;
-        if (prefs.autoRefresh) scheduleRefresh(true);
-      }
-      if (id === "logScaleToggle") {
-        prefs.logScale = el.checked;
-        // TODO: применить к графику, если он поддерживает лог‑шкалу
-      }
-      // Аналогично для SMA
-      if (id === "sma20Toggle") prefs.sma20 = el.checked;
-      if (id === "sma50Toggle") prefs.sma50 = el.checked;
-    });
-  };
-
-  bindToggle("themeToggle", "ui.themeChecked", prefs.theme === "dark");
-  bindToggle("autoRefreshToggle", "ui.autoRefresh", prefs.autoRefresh);
-  bindToggle("sma20Toggle", "ui.sma20", prefs.sma20);
-  bindToggle("sma50Toggle", "ui.sma50", prefs.sma50);
-  bindToggle("logScaleToggle", "ui.logScale", prefs.logScale);
-
-  // Поле интервала автообновления (мс)
-  const refreshInput = q("refreshMsInput");
-  if (refreshInput) {
-    refreshInput.value = String(prefs.refreshMs);
-    refreshInput.addEventListener("change", () => {
-      const v = Number(refreshInput.value);
-      prefs.refreshMs = isFinite(v) && v >= 500 ? v : 5000;
-      ls.setItem("ui.refreshMs", String(prefs.refreshMs));
-      if (prefs.autoRefresh) scheduleRefresh(true);
-    });
-  }
-
-  // Безопасный fetch с отменой и бэкоффом
-  let inFlight = null;
-  let backoff = 0; // мс
-  const minBackoff = 1000;
-  const maxBackoff = 30000;
-
-  const fetchJson = async (url, opts = {}) => {
-    if (inFlight?.controller) {
-      // Отменяем предыдущий запрос, чтобы не плодить гонки
-      inFlight.controller.abort();
-    }
-    const controller = new AbortController();
-    inFlight = { controller };
-    const signal = controller.signal;
-
-    try {
-      const res = await fetch(url, { ...opts, signal });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status}: ${text || res.statusText}`);
-      }
-      backoff = 0; // успех — сбросить бэкофф
-      return await res.json();
-    } catch (err) {
-      if (err.name === "AbortError") {
-        // Нормально, нас попросили отмениться
-        return null;
-      }
-      // Ошибка сети/сервера — увеличиваем бэкофф
-      backoff = backoff ? Math.min(backoff * 2, maxBackoff) : minBackoff;
-      showToast(`Ошибка загрузки данных: ${err.message}`, "danger");
-      return null;
-    } finally {
-      if (inFlight?.controller === controller) {
-        inFlight = null;
-      }
-    }
-  };
-
-  // Обновление KPI/графика — примерные функции‑заглушки
-  const updateKpis = (data) => {
-    // TODO: заполнить реальные KPI, если есть нужные элементы
-    const ts = q("kpiLastUpdated");
-    if (ts) ts.textContent = new Date().toLocaleString();
-  };
-
-  const updateChart = (data) => {
-    // TODO: интегрировать с вашей библиотекой графиков;
-    // применить prefs.sma20, prefs.sma50, prefs.logScale
-  };
-
-  // Автообновление
-  let refreshTimer = null;
-  const scheduleRefresh = (immediate = false) => {
-    if (refreshTimer) {
-      clearTimeout(refreshTimer);
-      refreshTimer = null;
-    }
-    if (!prefs.autoRefresh) return;
-    const delay = immediate ? 0 : (backoff || prefs.refreshMs);
-    refreshTimer = setTimeout(async () => {
-      // Пример: обновление свечей и/или состояния бота
-      const data = await fetchJson("/api/candles");
-      if (data) {
-        updateKpis(data);
-        updateChart(data);
-      }
-      scheduleRefresh(false);
-    }, delay);
-  };
-
-  // Кнопка ручного обновления (если есть)
-  const btnRefresh = q("btnRefresh");
-  if (btnRefresh) {
-    btnRefresh.addEventListener("click", () => scheduleRefresh(true));
-  }
-
-  // Запуск автообновления при старте
-  if (prefs.autoRefresh) scheduleRefresh(true);
-
-  // Защита от утечек при навигации
-  window.addEventListener("beforeunload", () => {
-    if (inFlight?.controller) inFlight.controller.abort();
-    if (refreshTimer) clearTimeout(refreshTimer);
-  });
-})();
 </script>
 </body>
 </html>

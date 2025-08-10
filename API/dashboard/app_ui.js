@@ -1,4 +1,4 @@
-// UI helpers: tooltips, enhancers, skeletons, resize Plotly, tabs ink listeners
+// UI helpers: tooltips, enhancers, skeletons, resize Plotly, tabs ink listeners, tab animations
 (function(){
   window.App = window.App || {};
   const { debounce } = window.App.util;
@@ -9,7 +9,7 @@
     tList.forEach(el=> new bootstrap.Tooltip(el));
   });
 
-  // Enhancers: NiceSelect
+  // === NiceSelect / Number inputs (без изменений) ===
   function enhanceSelect(select){
     if(select.dataset.enhanced === "1") return;
     select.dataset.enhanced = "1";
@@ -87,7 +87,6 @@
     }
   }
 
-  // Number input enhancers
   function enhanceNumberInput(input){
     if(input.dataset.enhanced === "1") return;
     input.dataset.enhanced = "1";
@@ -129,5 +128,74 @@
   // Plotly resize
   window.addEventListener('resize', debounce(()=>{ const gd = document.getElementById('chart'); if (gd && gd.data) Plotly.Plots.resize(gd); }, 120));
 
-  window.App.ui = { enhanceSelect, refreshNiceSelect, enhanceNumberInput, initEnhancers, randomizeSkeletons };
+  // === Анимация переключения вкладок: fade + slide ===
+  function initTabAnimations(){
+    const nav = document.getElementById('viewTabs');
+    if(!nav) return;
+
+    const tabs = Array.from(nav.querySelectorAll('.nav-link'));
+    let currentIndex = tabs.findIndex(t => t.classList.contains('active'));
+    if (currentIndex < 0) currentIndex = 0;
+
+    // Помечаем корень, чтобы включить CSS-анимации вкладок
+    document.documentElement.classList.add('tabs-animated');
+
+    tabs.forEach((btn, idx)=>{
+      btn.addEventListener('show.bs.tab', (e)=>{
+        const targetSel = btn.getAttribute('data-bs-target');
+        const pane = document.querySelector(targetSel);
+        if(!pane) return;
+
+        // Направление: вправо, если идём к бóльшему индексу
+        const dir = (idx > currentIndex) ? 1 : -1;
+        // Установим величину сдвига через CSS-переменную
+        pane.classList.add('tab-anim');
+        pane.style.setProperty('--tab-slide', (12 * dir) + 'px');
+      });
+
+      btn.addEventListener('shown.bs.tab', (e)=>{
+        currentIndex = idx;
+        // Очистка инлайнов после завершения перехода
+        const targetSel = btn.getAttribute('data-bs-target');
+        const pane = document.querySelector(targetSel);
+        if(!pane) return;
+        // немного позже убираем var, чтобы не мешать следующий вход
+        setTimeout(()=>{ pane.style.removeProperty('--tab-slide'); }, 260);
+      });
+    });
+  }
+
+  // Tabs ink recalculation moved here as well (unchanged)
+  function updateTabsInk(){
+    const nav = document.getElementById('viewTabs');
+    const ink = document.getElementById('tabsInk');
+    if(!nav || !ink) return;
+    const active = nav.querySelector('.nav-link.active');
+    if(!active){ ink.style.width='0'; return; }
+    const navRect = nav.getBoundingClientRect();
+    const rect = active.getBoundingClientRect();
+    const scrollX = nav.scrollLeft || 0;
+    const pad = 12;
+    const left = Math.max(0, rect.left - navRect.left + scrollX + pad);
+    const width = Math.max(24, rect.width - pad*2);
+    ink.style.transform = `translateX(${left}px)`; ink.style.width = width + 'px';
+  }
+
+  window.addEventListener('resize', debounce(updateTabsInk, 100));
+  document.addEventListener('DOMContentLoaded', ()=> {
+    const nav = document.getElementById("viewTabs");
+    if (nav){
+      nav.addEventListener("click", e=>{ if(e.target.closest('.nav-link')) setTimeout(updateTabsInk, 0); });
+      nav.querySelectorAll('.nav-link').forEach(btn=>{ btn.addEventListener('shown.bs.tab', updateTabsInk); });
+      nav.addEventListener('scroll', debounce(updateTabsInk, 50));
+    }
+  });
+
+  window.App.ui = {
+    enhanceSelect, refreshNiceSelect, enhanceNumberInput, initEnhancers,
+    randomizeSkeletons, // public
+    // экспорт ink обновления, чтобы app_init мог вызывать
+    updateTabsInk,
+    initTabAnimations
+  };
 })();

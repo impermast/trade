@@ -17,6 +17,7 @@
 
     // Visual enhancers
     App.ui.initEnhancers();
+    App.ui.initTabAnimations();
 
     // Controls
     App.chart.setupChartControls();

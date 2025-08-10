@@ -3,11 +3,11 @@
   const U = window.App.util;
   const T = window.App.theme;
 
-  // CSV list
+  // CSV list (без верхней полоски: plain fetch)
   async function loadCsvList(){
     const sel = $("#csvFile"); sel.empty();
     try{
-      const r = await U.withProgress(fetch("/csv_list"));
+      const r = await fetch("/csv_list");
       let files = await r.json();
       files = Array.isArray(files)
         ? files.filter(f => typeof f === "string").filter(f => f.toLowerCase().endsWith(".csv"))
@@ -26,12 +26,17 @@
 
   // Chart helpers
   function showRsiControls(){ $("#rsiControls").toggle($("#lowerPanel").val()==="rsi"); }
+
+  // Загрузка свечей без верхней полоски (оставляем только локальный спиннер #chartLoader)
   async function loadCandles(){
     const file=$("#csvFile").val(); const tail=Math.max(50,+$("#tailRows").val()||500);
-    const r=await U.withProgress(fetch(`/api/candles?file=${encodeURIComponent(file)}&tail=${tail}`));
-    if(!r.ok) throw new Error("Ошибка загрузки свечей"); return await r.json();
+    const r = await fetch(`/api/candles?file=${encodeURIComponent(file)}&tail=${tail}`);
+    if(!r.ok) throw new Error("Ошибка загрузки свечей");
+    return await r.json();
   }
+
   let _lastTs = null, _currentFile = null;
+
   function keepRightEdge(){
     const gd = document.getElementById('chart');
     if (!gd || !gd.layout) return;
@@ -60,7 +65,7 @@
   }
 
   async function drawChart(animate){
-    $("#chartLoader").show();
+    $("#chartLoader").show(); // локальный спиннер
     try{
       const rows = await loadCandles();
       $("#chartLoader").hide();
@@ -71,35 +76,8 @@
         return;
       }
 
+      // Полный перестроение графика — чтобы обновлялись RSI/SMA/объёмы и маркеры сигналов.
       const fileNow = $("#csvFile").val() || "";
-      const tsArr = rows.map(r=>r.ts);
-      const gdInc = document.getElementById('chart');
-      const canExtend = (
-        !animate &&
-        gdInc && gdInc.data && gdInc.data.length > 0 &&
-        (_currentFile === fileNow) &&
-        _lastTs && tsArr.length && tsArr[tsArr.length-1] > _lastTs
-      );
-
-      if (canExtend){
-        let idx = tsArr.findIndex(t => t > _lastTs);
-        if (idx > -1){
-          const addX = tsArr.slice(idx);
-          const addO = rows.slice(idx).map(r=>r.open);
-          const addH = rows.slice(idx).map(r=>r.high);
-          const addL = rows.slice(idx).map(r=>r.low);
-          const addC = rows.slice(idx).map(r=>r.close);
-          const tailMax = Math.max(50, +$("#tailRows").val()||500);
-          Plotly.extendTraces(gdInc,
-            { x:[addX], open:[addO], high:[addH], low:[addL], close:[addC] },
-            [0], tailMax
-          );
-          _lastTs = tsArr[tsArr.length-1];
-          keepRightEdge();
-          $("#kpi-file").text($("#csvFile").val()||"—");
-          return;
-        }
-      }
 
       const ts    = rows.map(r=>r.ts);
       const open  = rows.map(r=>r.open);
@@ -189,7 +167,7 @@
         showlegend:true,
         legend:{ orientation:"h", y:1.12, x:1, xanchor:"right", bgcolor:"rgba(0,0,0,0)", borderwidth:0, font:{size:11} },
         margin:{t:20,r:10,b:40,l:50}, paper_bgcolor, plot_bgcolor, font:{color:font_color},
-        xaxis:{ gridcolor:grid, gridwidth:0.4, ticklen:4, ticks:"outside", nticks: 8, anchor:"y", domain:[0,1], autorange:true, range:[ts[0], ts.at(-1)] },
+        xaxis:{ gridcolor:grid, gridwidth:0.4, ticklen:4, ticks:"outside", nticks: 8, anchor:"y", domain:[0,1], autorange:true },
         yaxis:{ title:"Цена", type:(isLog?"log":"linear"), gridcolor:grid, gridwidth:0.4, ticklen:4, ticks:"outside", domain:[0.35,1], autorange:false, range:yPriceRange },
         xaxis2:{gridcolor:grid, gridwidth:0.4, anchor:"y2", domain:[0,1], matches:"x", nticks:6, ticklen:3 },
         yaxis2:{ title: ($("#lowerPanel").val()==="volume" ? "Объём" : "RSI"), gridcolor:grid, gridwidth:0.4, domain:[0,0.28], autorange:false, range:y2Range, ticklen:3, ticks:"outside" }
@@ -276,7 +254,10 @@
     const auto = $("#autoRefreshChart").is(":checked");
     btn.classList.toggle("disabled", !auto);
 
-    if (!auto){ ring.style.strokeDashoffset = C.toFixed(1); return; }
+    if (!auto){
+      ring.style.strokeDashoffset = C.toFixed(1);
+      return;
+    }
 
     const iv = getChartInterval()*1000;
     const now = performance.now();
@@ -293,7 +274,12 @@
   }
   function startChartTimer(){
     if(chartTimer){ clearInterval(chartTimer); chartTimer=null; }
-    if(!$("#autoRefreshChart").is(":checked")){ updateFabRing(); return; }
+    const auto = $("#autoRefreshChart").is(":checked");
+    if(!auto){
+      if (fabRAF) { cancelAnimationFrame(fabRAF); fabRAF=null; }
+      updateFabRing();
+      return;
+    }
     const iv = getChartInterval()*1000;
     startFabCountdown();
     chartTimer = setInterval(()=>{
@@ -329,8 +315,16 @@
 
   // Advanced controls
   function setupAdvancedControls(){
+    // лог масштаб визуально связан со скрытым чекбоксом
     $("#logScaleSwitch").prop("checked", $("#logScale").is(":checked"));
     $("#logScaleSwitch").on("change", ()=>{ $("#logScale").prop("checked", $("#logScaleSwitch").is(":checked")); drawChart(false); });
+
+    // persist & timer controls for auto-refresh
+    const saveAuto = ()=> localStorage.setItem(CHART_AUTO_KEY, $("#autoRefreshChart").is(":checked") ? "1" : "0");
+    const saveIv   = ()=> localStorage.setItem(CHART_INTERVAL_KEY, String(getChartInterval()));
+
+    $("#autoRefreshChart").on("change", ()=>{ saveAuto(); startChartTimer(); updateFabRing(); U.showSnack($("#autoRefreshChart").is(":checked")?"Автообновление включено":"Автообновление выключено"); });
+    $("#chartInterval").on("change", ()=>{ saveIv(); startChartTimer(); updateFabRing(); U.showSnack(`Интервал: ${getChartInterval()} с`); });
   }
 
   // Expose

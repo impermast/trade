@@ -3,20 +3,49 @@
   const theme = {};
   const KEY="ui-theme";
 
+  // Длительность кроссфейда темы
+  const XFADE_MS = 220;
+
   theme.applyTheme = function(t){
     document.documentElement.setAttribute("data-theme", t);
     $("#themeToggle").prop("checked", t==="dark");
   };
+
+  // Плавная смена темы: кроссфейд всей страницы
+  function crossfadeTo(nextTheme){
+    // Включаем плавную прозрачность для <body>
+    document.body.classList.add("theme-xfade");
+    // Фаза 1: затемняем до 0
+    requestAnimationFrame(()=>{
+      document.body.style.opacity = "0";
+      // На полпути — меняем тему
+      setTimeout(()=>{
+        theme.applyTheme(nextTheme);
+        // Фаза 2: возвращаем к 1
+        document.body.style.opacity = "1";
+        setTimeout(()=>{
+          document.body.classList.remove("theme-xfade");
+          document.body.style.opacity = "";
+        }, XFADE_MS);
+      }, Math.floor(XFADE_MS/2));
+    });
+  }
+
   theme.initTheme = function(){
     const saved=localStorage.getItem(KEY)||"dark";
     theme.applyTheme(saved);
+
     $("#themeToggle").on("change",()=>{
       const next=$("#themeToggle").is(":checked")?"dark":"light";
-      theme.applyTheme(next);
       localStorage.setItem(KEY,next);
-      if(window.App.chart) window.App.chart.drawChart(false);
+      crossfadeTo(next);
+      // Перерисуем график после окончания анимации (чтобы адаптировать сетку/цвета)
+      if (window.App?.chart) {
+        setTimeout(()=>window.App.chart.drawChart(false), XFADE_MS+30);
+      }
     });
   };
+
   theme.themeVars = function(){
     const css = window.App.util.cssVar;
     return {

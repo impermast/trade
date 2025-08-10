@@ -135,6 +135,7 @@ async function loadCsvList(){
     sel.append(new Option("BTCUSDT_1m.csv","BTCUSDT_1m.csv"));
     $("#kpi-file").text(sel.val() || "—");
   }
+  // ВАЖНО: не триггерим change здесь, чтобы не перебивать анимацию
 }
 
 // ==== Chart ====
@@ -270,7 +271,6 @@ async function drawChart(animate){
       type:"candlestick", x:ts, open, high, low, close, name:"OHLC", yaxis:"y",
       increasing:{line:{color:cSecondary, width:1}}, decreasing:{line:{color:cError, width:1}}
     });
-    const candIndex = 0;
 
     if($("#sma20").is(":checked"))
       traces.push({type:"scatter",mode:"lines",x:ts,y:sma(close,20),line:{width:1.8,color:cPrimary},name:"SMA 20",yaxis:"y"});
@@ -286,7 +286,7 @@ async function drawChart(animate){
       traces.push({type:"scatter",mode:"lines",x:[ts[0],ts.at(-1)],y:[30,30],line:{dash:"dot",width:1},showlegend:false,yaxis:"y2"});
     }
 
-    // ==== Маркеры сигналов с треугольным glow ====
+    // ==== Маркеры сигналов ====
     function addSignalMarkers(ordersArr, namePrefix) {
       if (!ordersArr.some(o => o != null && o !== 0)) return;
       const bx=[],by=[], sx=[],sy=[];
@@ -297,63 +297,26 @@ async function drawChart(animate){
       const buyColor  = namePrefix==="RSI" ? "#00e68a" : "#1ea7ff";
       const sellColor = namePrefix==="RSI" ? "#ff5a3d" : "#ff2ea6";
 
-      // Glow-слой 1
-      if (bx.length) traces.push({
-        type:"scatter", mode:"markers", x:bx, y:by, name:`${namePrefix} glow1 up`,
-        marker:{ size:24, symbol:"triangle-up", color:buyColor, opacity:.12 }, yaxis:"y", hoverinfo:"skip", showlegend:false
-      });
-      if (sx.length) traces.push({
-        type:"scatter", mode:"markers", x:sx, y:sy, name:`${namePrefix} glow1 dn`,
-        marker:{ size:24, symbol:"triangle-down", color:sellColor, opacity:.12 }, yaxis:"y", hoverinfo:"skip", showlegend:false
-      });
-      // Glow-слой 2
-      if (bx.length) traces.push({
-        type:"scatter", mode:"markers", x:bx, y:by, name:`${namePrefix} glow2 up`,
-        marker:{ size:18, symbol:"triangle-up", color:buyColor, opacity:.20 }, yaxis:"y", hoverinfo:"skip", showlegend:false
-      });
-      if (sx.length) traces.push({
-        type:"scatter", mode:"markers", x:sx, y:sy, name:`${namePrefix} glow2 dn`,
-        marker:{ size:18, symbol:"triangle-down", color:sellColor, opacity:.20 }, yaxis:"y", hoverinfo:"skip", showlegend:false
-      });
-      // Основной маркер
-      if (bx.length) traces.push({
-        type:"scatter", mode:"markers", x:bx, y:by, name:`${namePrefix} Buy`,
-        marker:{ size:12, symbol:"triangle-up", color:buyColor, line:{width:1.2, color:"#fff"} }, yaxis:"y"
-      });
-      if (sx.length) traces.push({
-        type:"scatter", mode:"markers", x:sx, y:sy, name:`${namePrefix} Sell`,
-        marker:{ size:12, symbol:"triangle-down", color:sellColor, line:{width:1.2, color:"#fff"} }, yaxis:"y"
-      });
+      if (bx.length) traces.push({type:"scatter", mode:"markers", x:bx, y:by, name:`${namePrefix} glow1 up`, marker:{ size:24, symbol:"triangle-up", color:buyColor, opacity:.12 }, yaxis:"y", hoverinfo:"skip", showlegend:false});
+      if (sx.length) traces.push({type:"scatter", mode:"markers", x:sx, y:sy, name:`${namePrefix} glow1 dn`, marker:{ size:24, symbol:"triangle-down", color:sellColor, opacity:.12 }, yaxis:"y", hoverinfo:"skip", showlegend:false});
+      if (bx.length) traces.push({type:"scatter", mode:"markers", x:bx, y:by, name:`${namePrefix} glow2 up`, marker:{ size:18, symbol:"triangle-up", color:buyColor, opacity:.20 }, yaxis:"y", hoverinfo:"skip", showlegend:false});
+      if (sx.length) traces.push({type:"scatter", mode:"markers", x:sx, y:sy, name:`${namePrefix} glow2 dn`, marker:{ size:18, symbol:"triangle-down", color:sellColor, opacity:.20 }, yaxis:"y", hoverinfo:"skip", showlegend:false});
+      if (bx.length) traces.push({type:"scatter", mode:"markers", x:bx, y:by, name:`${namePrefix} Buy`, marker:{ size:12, symbol:"triangle-up", color:buyColor, line:{width:1.5, color:"#fff"} }, yaxis:"y"});
+      if (sx.length) traces.push({type:"scatter", mode:"markers", x:sx, y:sy, name:`${namePrefix} Sell`, marker:{ size:12, symbol:"triangle-down", color:sellColor, line:{width:1.5, color:"#fff"} }, yaxis:"y"});
     }
     if ($("#signals_rsi").is(":checked")) addSignalMarkers(ord_rsi, "RSI");
     if ($("#signals_xgb").is(":checked")) addSignalMarkers(ord_xgb, "XGB");
 
     const {paper_bgcolor,plot_bgcolor,font_color,grid}=themeVars();
-
-    // Сетка тоньше и реже
     const layout={
       dragmode:"zoom",
       showlegend:true,
-      legend:{
-        orientation:"h", y:1.12, x:1, xanchor:"right", bgcolor:"rgba(0,0,0,0)", borderwidth:0,
-        font:{size:11}
-      },
+      legend:{ orientation:"h", y:1.12, x:1, xanchor:"right", bgcolor:"rgba(0,0,0,0)", borderwidth:0, font:{size:11} },
       margin:{t:20,r:10,b:40,l:50}, paper_bgcolor, plot_bgcolor, font:{color:font_color},
-      xaxis:{
-        gridcolor:grid, gridwidth:0.4, ticklen:4, ticks:"outside",
-        nticks: 8,
-        anchor:"y", domain:[0,1], autorange:true, range:[ts[0], ts.at(-1)]
-      },
-      yaxis:{
-        title:"Цена", type:(isLog?"log":"linear"), gridcolor:grid, gridwidth:0.4,
-        ticklen:4, ticks:"outside",
-        domain:[0.35,1], autorange:false, range:yPriceRange
-      },
+      xaxis:{ gridcolor:grid, gridwidth:0.4, ticklen:4, ticks:"outside", nticks: 8, anchor:"y", domain:[0,1], autorange:true, range:[ts[0], ts.at(-1)] },
+      yaxis:{ title:"Цена", type:(isLog?"log":"linear"), gridcolor:grid, gridwidth:0.4, ticklen:4, ticks:"outside", domain:[0.35,1], autorange:false, range:yPriceRange },
       xaxis2:{gridcolor:grid, gridwidth:0.4, anchor:"y2", domain:[0,1], matches:"x", nticks:6, ticklen:3 },
-      yaxis2:{
-        title:(lowerIsVolume?"Объём":"RSI"), gridcolor:grid, gridwidth:0.4,
-        domain:[0,0.28], autorange:false, range:y2Range, ticklen:3, ticks:"outside"
-      }
+      yaxis2:{ title: (lowerIsVolume ? "Объём" : "RSI"), gridcolor:grid, gridwidth:0.4, domain:[0,0.28], autorange:false, range:y2Range, ticklen:3, ticks:"outside" }
     };
 
     const gd = document.getElementById("chart");
@@ -405,7 +368,6 @@ async function drawChart(animate){
 
     _currentFile = fileNow;
     if (rows && rows.length) _lastTs = rows[rows.length-1].ts;
-
     $("#kpi-file").text($("#csvFile").val()||"—");
   } catch(e) {
     console.error(e);
@@ -445,10 +407,7 @@ function updateFabRing(){
   const auto = $("#autoRefreshChart").is(":checked");
   btn.classList.toggle("disabled", !auto);
 
-  if (!auto){
-    ring.style.strokeDashoffset = C.toFixed(1);
-    return;
-  }
+  if (!auto){ ring.style.strokeDashoffset = C.toFixed(1); return; }
 
   const iv = getChartInterval()*1000;
   const now = performance.now();
@@ -466,16 +425,12 @@ function startFabCountdown(){
 
 function startChartTimer(){
   if(chartTimer){ clearInterval(chartTimer); chartTimer=null; }
-  if(!$("#autoRefreshChart").is(":checked")){
-    updateFabRing();
-    return;
-  }
+  if(!$("#autoRefreshChart").is(":checked")){ updateFabRing(); return; }
   const iv = getChartInterval()*1000;
   startFabCountdown();
   chartTimer = setInterval(()=>{
     if(document.visibilityState==="visible" && $("#chart-pane").hasClass("active")){
-      drawChart(false);
-      startFabCountdown();
+      drawChart(false); startFabCountdown();
     }
   }, iv);
 }
@@ -483,49 +438,21 @@ function startChartTimer(){
 function setupChartAutoControls(){
   applyAutoControlsFromStorage();
 
-  $("#autoRefreshChart").on("change", ()=>{
-    localStorage.setItem(CHART_AUTO_KEY, $("#autoRefreshChart").is(":checked") ? "1" : "0");
-    startChartTimer();
-  });
-  $("#chartInterval").on("change", ()=>{
-    const iv = getChartInterval();
-    $("#chartInterval").val(iv);
-    localStorage.setItem(CHART_INTERVAL_KEY, iv.toString());
-    startChartTimer();
-    startFabCountdown();
-  });
+  $("#autoRefreshChart").on("change", ()=>{ localStorage.setItem(CHART_AUTO_KEY, $("#autoRefreshChart").is(":checked") ? "1" : "0"); startChartTimer(); });
+  $("#chartInterval").on("change", ()=>{ const iv = getChartInterval(); $("#chartInterval").val(iv); localStorage.setItem(CHART_INTERVAL_KEY, iv.toString()); startChartTimer(); startFabCountdown(); });
 
-  document.getElementById("chart-tab").addEventListener("shown.bs.tab", ()=>{
-    startChartTimer();
-    drawChart(false);
-  });
+  document.getElementById("chart-tab").addEventListener("shown.bs.tab", ()=>{ startChartTimer(); drawChart(false); });
+  document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible"){ startChartTimer(); } });
 
-  document.addEventListener("visibilitychange", ()=>{
-    if(document.visibilityState==="visible"){ startChartTimer(); }
-  });
-
-  startChartTimer();
-  startFabCountdown();
+  startChartTimer(); startFabCountdown();
 }
 
 // ==== Controls ====
 function setupChartControls(){
-  $("#reloadChart").on("click", ()=>{
-    drawChart(false);
-    startFabCountdown();
-    showSnack("График перестроен");
-    const btn = document.getElementById('reloadChart');
-    btn.classList.remove('pulse'); void btn.offsetWidth; btn.classList.add('pulse');
-  });
-  $("#resetZoom").on("click", ()=>{
-    Plotly.relayout('chart', {'xaxis.autorange':true,'yaxis.autorange':true,'yaxis2.autorange':true});
-    showSnack("Масштаб сброшен");
-  });
+  $("#reloadChart").on("click", ()=>{ drawChart(false); startFabCountdown(); showSnack("График перестроен"); const btn=document.getElementById('reloadChart'); btn.classList.remove('pulse'); void btn.offsetWidth; btn.classList.add('pulse'); });
+  $("#resetZoom").on("click", ()=>{ Plotly.relayout('chart', {'xaxis.autorange':true,'yaxis.autorange':true,'yaxis2.autorange':true}); showSnack("Масштаб сброшен"); });
 
-  $("#csvFile").on("change", ()=>{
-    localStorage.setItem("csv-file", $("#csvFile").val()||"");
-    drawChart(true);
-  });
+  $("#csvFile").on("change", ()=>{ localStorage.setItem("csv-file", $("#csvFile").val()||""); drawChart(true); });
   $("#tailRows").on("change", ()=> drawChart(true));
   $("#lowerPanel").on("change", ()=>{ showRsiControls(); drawChart(false); });
   $("#rsiPeriod").on("change", ()=> drawChart(false));
@@ -547,10 +474,7 @@ function setupChartControls(){
 // ==== Доп. параметры ====
 function setupAdvancedControls(){
   $("#logScaleSwitch").prop("checked", $("#logScale").is(":checked"));
-  $("#logScaleSwitch").on("change", ()=>{
-    $("#logScale").prop("checked", $("#logScaleSwitch").is(":checked"));
-    drawChart(false);
-  });
+  $("#logScaleSwitch").on("change", ()=>{ $("#logScale").prop("checked", $("#logScaleSwitch").is(":checked")); drawChart(false); });
 }
 
 // ==== Logs by file ====
@@ -575,12 +499,7 @@ async function loadLogTail(){
 function setupLogsControls(){
   $("#reloadLogs").on("click", ()=>{ loadLogTail(); showSnack("Лог обновлён"); });
   $("#logFile, #logTail").on("change", loadLogTail);
-  $("#logsInterval, #autoRefreshLogs").on("change", ()=>{
-    if(logsTimer){ clearInterval(logsTimer); logsTimer=null; }
-    if($("#autoRefreshLogs").is(":checked")){
-      const iv=Math.max(5, +$("#logsInterval").val()||15)*1000; logsTimer=setInterval(loadLogTail, iv);
-    }
-  });
+  $("#logsInterval, #autoRefreshLogs").on("change", ()=>{ if(logsTimer){ clearInterval(logsTimer); logsTimer=null; } if($("#autoRefreshLogs").is(":checked")){ const iv=Math.max(5, +$("#logsInterval").val()||15)*1000; logsTimer=setInterval(loadLogTail, iv); } });
 }
 
 // ==== Logs all ====
@@ -604,12 +523,7 @@ function setupLogsAllControls(){
   $(".btn-filter").on("click", function(){ logsAllLevel=$(this).data("level"); setLevelButtons(logsAllLevel); loadLogsAll(); });
   $("#reloadLogsAll").on("click", ()=>{ loadLogsAll(); showSnack("Все логи обновлены"); });
   $("#logsAllQuery, #logsAllN").on("keyup/change", debounce(loadLogsAll, 300));
-  $("#logsAllInterval, #autoRefreshLogsAll").on("change", ()=>{
-    if(logsAllTimer){ clearInterval(logsAllTimer); logsAllTimer=null; }
-    if($("#autoRefreshLogsAll").is(":checked")){
-      const iv=Math.max(5, +$("#logsAllInterval").val()||15)*1000; logsAllTimer=setInterval(loadLogsAll, iv);
-    }
-  });
+  $("#logsAllInterval, #autoRefreshLogsAll").on("change", ()=>{ if(logsAllTimer){ clearInterval(logsAllTimer); logsAllTimer=null; } if($("#autoRefreshLogsAll").is(":checked")){ const iv=Math.max(5, +$("#logsAllInterval").val()||15)*1000; logsAllTimer=setInterval(loadLogsAll, iv); } });
 }
 
 // ==== CSV preview ====
@@ -655,22 +569,12 @@ function renderCsvTable(rows){
 function downloadCsvFromPreview(){
   const rows = [];
   const ths = Array.from(document.querySelectorAll("#csvThead th")).map(th => th.textContent || "");
-  if (!ths.length){
-    showSnack("Нет данных для экспорта");
-    return;
-  }
+  if (!ths.length){ showSnack("Нет данных для экспорта"); return; }
   rows.push(ths);
-  $("#csvTbody tr").each(function(){
-    const tds = $(this).find("td");
-    if (!tds.length) return;
-    rows.push(tds.map((_,td)=>$(td).text()).get());
-  });
+  $("#csvTbody tr").each(function(){ const tds = $(this).find("td"); if (!tds.length) return; rows.push(tds.map((_,td)=>$(td).text()).get()); });
   const csv = rows.map(r => r.map(x => `"${(x??"").toString().replace(/"/g,'""')}"`).join(",")).join("\n");
-  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = ($("#csvFile").val() || "data") + ".preview.csv";
-  a.click(); URL.revokeObjectURL(url);
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"}); const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = ($("#csvFile").val() || "data") + ".preview.csv"; a.click(); URL.revokeObjectURL(url);
 }
 function setupCsvPreviewControls(){
   $("#csvReload").on("click", ()=>{ loadCsvPreview(); showSnack("CSV обновлен"); });
@@ -686,53 +590,158 @@ const STATE_INTERVAL_KEY="state-interval-seconds";
 function startStateTimer(){
   const seconds=Math.max(5, +(localStorage.getItem(STATE_INTERVAL_KEY)||15));
   if(stateTimer) clearInterval(stateTimer);
-  stateTimer=setInterval(()=>{
-    if(document.visibilityState==="visible") loadState();
-  }, seconds*1000);
+  stateTimer=setInterval(()=>{ if(document.visibilityState==="visible") loadState(); }, seconds*1000);
 }
-document.addEventListener("visibilitychange", ()=>{
-  if(document.visibilityState==="visible") loadState();
-});
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") loadState(); });
 
 // ==== Positions actions ====
 function exportPositionsCsv(){
   const rows=[["symbol","qty","entry","price","pnl"]];
   $("#posTbody tr").each(function(){
-    const tds=$(this).find("td");
-    if(tds.length!==5) return;
+    const tds=$(this).find("td"); if(tds.length!==5) return;
     rows.push(tds.map((_,td)=>($(td).text()||"").trim()).get());
   });
   const csv = rows.map(r => r.map(x => `"${(x??"").replace(/"/g,'""')}"`).join(",")).join("\n");
-  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
-  const url = URL.createObjectURL(blob);
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"}); const url = URL.createObjectURL(blob);
   const a = document.createElement("a"); a.href=url; a.download="positions.csv"; a.click(); URL.revokeObjectURL(url);
 }
 
 // ==== Refresh all ====
 function setupGlobalRefresh(){
-  $("#refreshAll").on("click", async ()=>{
-    await Promise.all([loadState(), drawChart(false), loadLogTail(), loadLogsAll(), loadCsvPreview()]);
-    startFabCountdown(); showSnack("Данные обновлены");
-  });
+  $("#refreshAll").on("click", async ()=>{ await Promise.all([loadState(), drawChart(false), loadLogTail(), loadLogsAll(), loadCsvPreview()]); startFabCountdown(); showSnack("Данные обновлены"); });
   $("#posRefresh").on("click", ()=>{ loadState(); showSnack("Позиции обновлены"); });
   $("#posExport").on("click", exportPositionsCsv);
 }
 
 // Ресайз Plotly
-window.addEventListener('resize', debounce(()=>{
-  const gd = document.getElementById('chart');
-  if (gd && gd.data) Plotly.Plots.resize(gd);
-}, 120));
+window.addEventListener('resize', debounce(()=>{ const gd = document.getElementById('chart'); if (gd && gd.data) Plotly.Plots.resize(gd); }, 120));
 
 // Вариативные ширины скелетонов
 function randomizeSkeletons(){
-  document.querySelectorAll('.skeleton').forEach(el=>{
-    const w = 70 + Math.round(Math.random()*25);
-    el.style.width = w + '%';
-  });
+  document.querySelectorAll('.skeleton').forEach(el=>{ const w = 70 + Math.round(Math.random()*25); el.style.width = w + '%'; });
 }
 
-// ==== Init ====
+/* ======= UI ENHANCERS: NiceSelect + Number steppers ======= */
+function enhanceSelect(select){
+  if(select.dataset.enhanced === "1") return;
+  select.dataset.enhanced = "1";
+
+  const wrap = document.createElement('div');
+  wrap.className = 'nselect';
+  const parent = select.parentElement;
+  parent.insertBefore(wrap, select);
+  wrap.appendChild(select);
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'nselect-toggle';
+  btn.innerHTML = `<span class="nselect-label"></span><span class="nselect-caret" aria-hidden="true"></span>`;
+  wrap.appendChild(btn);
+
+  const menu = document.createElement('div');
+  menu.className = 'nselect-menu';
+  wrap.appendChild(menu);
+
+  function buildMenu(){
+    menu.innerHTML = '';
+    Array.from(select.options).forEach(opt=>{
+      const item = document.createElement('div');
+      item.className = 'nselect-option' + (opt.selected?' is-selected':'');
+      item.dataset.value = opt.value;
+      item.textContent = opt.textContent;
+      item.addEventListener('click', ()=>{
+        select.value = opt.value;
+        select.dispatchEvent(new Event('change', {bubbles:true}));
+        closeMenu();
+        updateLabel();
+        syncSelected();
+      });
+      menu.appendChild(item);
+    });
+  }
+  function syncSelected(){
+    const val = select.value;
+    menu.querySelectorAll('.nselect-option').forEach(el=>{
+      el.classList.toggle('is-selected', el.dataset.value === val);
+    });
+  }
+  function updateLabel(){
+    const sel = select.options[select.selectedIndex];
+    wrap.querySelector('.nselect-label').textContent = sel ? sel.textContent : '';
+  }
+  function openMenu(){ wrap.classList.add('is-open'); positionMenu(); document.addEventListener('click', onDocClick, {once:true}); }
+  function closeMenu(){ wrap.classList.remove('is-open'); }
+  function onDocClick(e){ if(!wrap.contains(e.target)) closeMenu(); }
+
+  function positionMenu(){
+    const rect = wrap.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const desired = 280;
+    menu.style.top = '';
+    menu.style.bottom = '';
+    if (spaceBelow < desired){
+      menu.style.bottom = `calc(100% + 6px)`;
+    } else {
+      menu.style.top = `calc(100% + 6px)`;
+    }
+  }
+
+  btn.addEventListener('click', ()=> wrap.classList.contains('is-open') ? closeMenu() : openMenu());
+  select.addEventListener('change', ()=>{ updateLabel(); syncSelected(); });
+  const mo = new MutationObserver(()=>{ buildMenu(); updateLabel(); syncSelected(); });
+  mo.observe(select, {childList:true});
+
+  buildMenu(); updateLabel(); syncSelected();
+}
+
+function refreshNiceSelect(select){
+  if(!select) return;
+  if(!select.dataset.enhanced){ enhanceSelect(select); return; }
+  // раньше здесь диспатчили change -> вызывалась drawChart(true) второй раз и ломала анимацию
+  // теперь просто обновляем подпись/выбор
+  const wrap = select.parentElement?.classList.contains('nselect') ? select.parentElement : null;
+  if (wrap){
+    const label = wrap.querySelector('.nselect-label');
+    const sel = select.options[select.selectedIndex];
+    if (label && sel) label.textContent = sel.textContent;
+  }
+}
+
+function enhanceNumberInput(input){
+  if(input.dataset.enhanced === "1") return;
+  input.dataset.enhanced = "1";
+
+  const wrap = document.createElement('div');
+  wrap.className = 'num-input';
+  input.parentElement.insertBefore(wrap, input);
+  wrap.appendChild(input);
+
+  const box = document.createElement('div');
+  box.className = 'num-step';
+  box.innerHTML = `<button type="button" class="up" aria-label="Увеличить"></button><button type="button" class="down" aria-label="Уменьшить"></button>`;
+  wrap.appendChild(box);
+
+  const step = ()=> Number(input.step || 1);
+  const clamp = (v)=>{
+    const min = input.min!=='' ? Number(input.min) : -Infinity;
+    const max = input.max!=='' ? Number(input.max) :  Infinity;
+    return Math.max(min, Math.min(max, v));
+  };
+
+  box.querySelector('.up').addEventListener('click', ()=>{ const v = clamp((Number(input.value)||0) + step()); input.value = v; input.dispatchEvent(new Event('change', {bubbles:true})); });
+  box.querySelector('.down').addEventListener('click', ()=>{ const v = clamp((Number(input.value)||0) - step()); input.value = v; input.dispatchEvent(new Event('change', {bubbles:true})); });
+
+  input.addEventListener('wheel', (e)=>{ if(document.activeElement!==input) return;
+    e.preventDefault(); const dir = Math.sign(e.deltaY); const s = step(); const v = clamp((Number(input.value)||0) + (dir>0?-s:s)); input.value=v; input.dispatchEvent(new Event('change',{bubbles:true})); }, {passive:false});
+}
+
+// ===== Init enhancers for selects & numbers =====
+function initEnhancers(){
+  document.querySelectorAll('select.form-select').forEach(enhanceSelect);
+  document.querySelectorAll('input[type=number].form-control').forEach(enhanceNumberInput);
+}
+
+/* ======= Init ======= */
 $(async function(){
   initTheme();
   pingHealth();
@@ -740,13 +749,12 @@ $(async function(){
   // tabs ink init & listeners
   updateTabsInk();
   window.addEventListener('resize', debounce(updateTabsInk, 100));
-  document.getElementById("viewTabs").addEventListener("click", e=>{
-    if(e.target.closest('.nav-link')) setTimeout(updateTabsInk, 0);
-  });
-  document.querySelectorAll('#viewTabs .nav-link').forEach(btn=>{
-    btn.addEventListener('shown.bs.tab', updateTabsInk);
-  });
+  document.getElementById("viewTabs").addEventListener("click", e=>{ if(e.target.closest('.nav-link')) setTimeout(updateTabsInk, 0); });
+  document.querySelectorAll('#viewTabs .nav-link').forEach(btn=>{ btn.addEventListener('shown.bs.tab', updateTabsInk); });
   document.getElementById("viewTabs").addEventListener('scroll', debounce(updateTabsInk, 50));
+
+  // Визуальные энхансеры
+  initEnhancers();
 
   setupChartControls();
   setupChartAutoControls();
@@ -757,7 +765,11 @@ $(async function(){
   setupGlobalRefresh();
 
   await Promise.all([loadCsvList(), loadLogFiles(), loadState()]);
-  await drawChart(true); await loadLogTail(); await loadLogsAll();
+  // refreshNiceSelect не вызываем, чтобы не триггерить лишний change
+
+  await drawChart(true);    // один вызов с анимацией
+  await loadLogTail();
+  await loadLogsAll();
 
   startStateTimer();
   randomizeSkeletons();

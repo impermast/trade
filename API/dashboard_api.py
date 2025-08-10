@@ -106,7 +106,9 @@ def api_candles():
         if not time_col or not all([o, h, l, c]):
             return jsonify({"error": "Не найдены необходимые колонки для OHLC"}), 400
 
-        df["_ts"] = pd.to_datetime(df[time_col], errors="coerce", utc=False)
+        # Важно: все timestamps в ISO-UTC
+        df["_ts"] = pd.to_datetime(df[time_col], errors="coerce", utc=True)
+
         if tail_rows > 0:
             df = df.tail(tail_rows).copy()
 
@@ -121,8 +123,11 @@ def api_candles():
         out = []
         for _, row in df.iterrows():
             ts = row["_ts"]
+            # Если дата распарсилась — ISO с +00:00; иначе — оригинальная строка
+            ts_str = ts.isoformat() if (isinstance(ts, pd.Timestamp) and pd.notna(ts)) else str(row[time_col])
+
             item = {
-                "ts": ts.isoformat() if pd.notna(ts) else str(row[time_col]),
+                "ts": ts_str,
                 "open":  float(row[o]) if pd.notna(row[o]) else None,
                 "high":  float(row[h]) if pd.notna(row[h]) else None,
                 "low":   float(row[l]) if pd.notna(row[l]) else None,
@@ -283,6 +288,7 @@ def list_csv_files():
 def state():
     """
     Нормализует форму state.json под фронт.
+    Дата/время -> ISO8601 (UTC).
     """
     state_path = os.path.join(STATIC_DATA_DIR, "state.json")
     if os.path.exists(state_path):
@@ -293,9 +299,10 @@ def state():
             ts = data.get("updated")
             if ts:
                 ts_norm = str(ts).replace(",", ".")
-                dt = pd.to_datetime(ts_norm, errors="coerce")
+                dt = pd.to_datetime(ts_norm, errors="coerce", utc=True)
                 if pd.notna(dt):
-                    data["updated"] = dt.tz_localize(None).strftime("%d.%m.%Y %H:%M:%S")
+                    # isoformat с +00:00, как на фронте и требуется проектом
+                    data["updated"] = dt.isoformat()
 
             bal = data.get("balance")
             eq = data.get("equity")

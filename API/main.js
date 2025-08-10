@@ -14,6 +14,51 @@ function initTheme(){ const saved=localStorage.getItem(themeKey)||"dark"; applyT
 const debounce=(fn,ms=250)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}};
 function fmtNumber(x,d=2){ if(x==null||isNaN(x)) return "—"; return Number(x).toLocaleString("ru-RU",{maximumFractionDigits:d}); }
 function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function escapeHtml(s){ return (s??"").toString()
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+  .replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
+
+// ==== Форматирование "последнего обновления" ====
+const RU_MONTHS = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+const pad2 = n => String(n).padStart(2,"0");
+
+function humanizeUpdated(iso){
+  if(!iso) return "—";
+  const dt = new Date(iso);
+  if (isNaN(+dt)) return "—";
+
+  const now = new Date();
+  const diffSec = Math.max(0, Math.floor((now - dt)/1000));
+
+  // относительное
+  let rel;
+  if (diffSec < 30) rel = "только что";
+  else if (diffSec < 60) rel = `${diffSec} сек назад`;
+  else if (diffSec < 3600) rel = `${Math.floor(diffSec/60)} мин назад`;
+  else if (diffSec < 86400) rel = `${Math.floor(diffSec/3600)} ч назад`;
+  else rel = `${Math.floor(diffSec/86400)} дн назад`;
+
+  // «сегодня/вчера» или дата
+  const isSameDay = (a,b)=> a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+  const yest = new Date(now.getFullYear(), now.getMonth(), now.getDate()-1);
+
+  const timeStr = `${pad2(dt.getHours())}:${pad2(dt.getMinutes())}:${pad2(dt.getSeconds())}`;
+  let main;
+  if (isSameDay(dt, now))       main = `сегодня, ${timeStr}`;
+  else if (isSameDay(dt, yest)) main = `вчера, ${timeStr}`;
+  else                          main = `${dt.getDate()} ${RU_MONTHS[dt.getMonth()]} ${dt.getFullYear()}, ${timeStr}`;
+
+  return `${main} · ${rel}`;
+}
+
+let updatedTicker = null;
+function startUpdatedTicker(){
+  if (updatedTicker) { clearInterval(updatedTicker); updatedTicker=null; }
+  updatedTicker = setInterval(()=>{
+    const iso = $("#kpi-updated").data("iso") || null;
+    $("#kpi-updated").text(humanizeUpdated(iso));
+  }, 30000); // раз в 30 сек обновляем «N мин назад»
+}
 
 // Top progress & snack
 let topProgTimer=null;
@@ -107,7 +152,13 @@ async function loadState(){
     const total=s?.balance?.total, cur=s?.balance?.currency||"—";
     $("#kpi-balance").text(total?fmtNumber(total,2):"—"); $("#kpi-balance-cur").text(cur);
     $("#kpi-positions").text(Array.isArray(s?.positions)?s.positions.length:"—");
-    $("#kpi-updated").text(s?.updated||"—"); $("#state-balance").text(total?`${fmtNumber(total,2)} ${cur}`:"—");
+    const isoUpd = s?.updated || null;
+    $("#kpi-updated")
+      .data("iso", isoUpd)
+      .text(humanizeUpdated(isoUpd))
+      .attr("title", isoUpd ? new Date(isoUpd).toISOString() : "—"); // точное ISO в тултипе
+    startUpdatedTicker();
+    $("#state-balance").text(total?`${fmtNumber(total,2)} ${cur}`:"—");
     renderPositions(s?.positions||[]);
   }catch{}
 }
@@ -316,11 +367,11 @@ async function drawChart(animate){
       xaxis:{ gridcolor:grid, gridwidth:0.4, ticklen:4, ticks:"outside", nticks: 8, anchor:"y", domain:[0,1], autorange:true, range:[ts[0], ts.at(-1)] },
       yaxis:{ title:"Цена", type:(isLog?"log":"linear"), gridcolor:grid, gridwidth:0.4, ticklen:4, ticks:"outside", domain:[0.35,1], autorange:false, range:yPriceRange },
       xaxis2:{gridcolor:grid, gridwidth:0.4, anchor:"y2", domain:[0,1], matches:"x", nticks:6, ticklen:3 },
-      yaxis2:{ title: (lowerIsVolume ? "Объём" : "RSI"), gridcolor:grid, gridwidth:0.4, domain:[0,0.28], autorange:false, range:y2Range, ticklen:3, ticks:"outside" }
+      yaxis2:{ title: ($("#lowerPanel").val()==="volume" ? "Объём" : "RSI"), gridcolor:grid, gridwidth:0.4, domain:[0,0.28], autorange:false, range:y2Range, ticklen:3, ticks:"outside" }
     };
 
     const gd = document.getElementById("chart");
-    await Plotly.react(gd, traces, layout, { responsive:true, displaylogo:false });
+    await Plotly.react(gd, traces, layout, { responsive:true, displaylogo:false, displayModeBar:false });
 
     // плавная поэтапная отрисовка при ручном действии
     if (animate) {
@@ -443,7 +494,7 @@ function setupChartAutoControls(){
 
   document.getElementById("chart-tab").addEventListener("shown.bs.tab", ()=>{ startChartTimer(); drawChart(false); });
   document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible"){ startChartTimer(); } });
-
+  document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible"){ const iso=$("#kpi-updated").data("iso"); $("#kpi-updated").text(humanizeUpdated(iso)); }});
   startChartTimer(); startFabCountdown();
 }
 
@@ -480,6 +531,15 @@ function setupAdvancedControls(){
 // ==== Logs by file ====
 let logsTimer=null;
 async function loadLogFiles(){ const sel=$("#logFile"); sel.empty(); try{ const r=await withProgress(fetch("/logs")); const files=await r.json(); files.forEach(f=> sel.append(new Option(f,f))); }catch{} }
+function colorizeLogLine(line){
+  const up = line.toUpperCase();
+  let cls="log-info";
+  if (up.includes(" ERROR")) cls="log-error";
+  else if (up.includes("[ERROR]")) cls="log-error";
+  else if (up.includes(" WARN") || up.includes("[WARN") || up.includes(" WARNING")) cls="log-warn";
+  else if (up.includes(" DEBUG") || up.includes("[DEBUG")) cls="log-debug";
+  return `<div class="${cls}">${escapeHtml(line)}</div>`;
+}
 async function loadLogTail(){
   $("#logLoader").show();
   try{
@@ -488,8 +548,8 @@ async function loadLogTail(){
     const r=await withProgress(fetch(`/api/log_tail?filename=${encodeURIComponent(file)}&n=${n}`));
     if(!r.ok) throw new Error("Ошибка загрузки логов");
     const data=await r.json();
-    const text=(data?.lines||[]).join("\n")||"";
-    $("#logBox").text(text || "Лог пуст");
+    const lines=(data?.lines||[]).map(colorizeLogLine).join("") || "";
+    $("#logBox").html(lines || "Лог пуст");
     const el=document.getElementById("logBox"); el.scrollTop=el.scrollHeight;
   }catch{
     $("#logBox").html(`<div class="empty"><div class="title">Ошибка чтения</div><div class="sub">Проверьте путь к логам</div></div>`);
@@ -505,14 +565,22 @@ function setupLogsControls(){
 // ==== Logs all ====
 let logsAllTimer=null, logsAllLevel="ALL";
 function setLevelButtons(lv){ $(".btn-filter").removeClass("active"); $(`.btn-filter[data-level='${lv}']`).addClass("active"); }
+function colorizeAllEntry(ts, level, src, msg){
+  const lv = (level||"").toUpperCase();
+  const cls = lv==="ERROR"?"log-error": lv==="WARN"?"log-warn": lv==="DEBUG"?"log-debug":"log-info";
+  const tsHtml = ts ? `<span class="log-ts">${escapeHtml(ts)}</span>` : "";
+  const srcHtml = src ? ` <span class="log-src">[${escapeHtml(src)}]</span>` : "";
+  const lvHtml = lv ? ` <span class="${cls}">[${lv}]</span>` : "";
+  return `<div>${tsHtml}${srcHtml}${lvHtml} ${escapeHtml(msg)}</div>`;
+}
 async function loadLogsAll(){
   $("#logsAllLoader").show();
   try{
     const n=Math.max(100, +$("#logsAllN").val()||1000), q=($("#logsAllQuery").val()||"").trim();
     const r=await withProgress(fetch(`/api/logs_all?n=${n}&level=${encodeURIComponent(logsAllLevel)}&q=${encodeURIComponent(q)}`));
     const arr=await r.json();
-    const lines=arr.map(e=>`${e.ts??""} ${e.src?`[${e.src}]`:""} ${e.level?`[${e.level}]`:""} ${e.msg??""}`.trim());
-    $("#logsAllBox").text(lines.join("\n")||"Логи пусты");
+    const lines=arr.map(e=>colorizeAllEntry(e.ts??"", e.level??"", e.src??"", e.msg??"")).join("");
+    $("#logsAllBox").html(lines || "Логи пусты");
     const el=document.getElementById("logsAllBox"); el.scrollTop=el.scrollHeight;
   }catch{
     $("#logsAllBox").html(`<div class="empty"><div class="title">Ошибка</div><div class="sub">Не удалось загрузить логи</div></div>`);
@@ -560,6 +628,10 @@ function renderCsvTable(rows){
   const frag = document.createDocumentFragment();
   rows.forEach(r => {
     const tr = document.createElement("tr");
+    const hasRsi = Number(r["orders_rsi"] ?? 0) !== 0;
+    const hasXgb = Number(r["orders_xgb"] ?? 0) !== 0 || Number(r["orders"] ?? 0) !== 0;
+    if (hasRsi) tr.classList.add("has-rsi");
+    if (hasXgb) tr.classList.add("has-xgb");
     tr.innerHTML = cols.map(c => `<td class="${/^(open|high|low|close|volume|orders|orders_rsi|orders_xgb)$/i.test(c)?'num':''}">${r[c] ?? ""}</td>`).join("");
     frag.appendChild(tr);
   });

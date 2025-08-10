@@ -1,7 +1,7 @@
 import asyncio
 import os
 import re
-import time
+import webbrowser
 from typing import Optional, Iterable
 
 import numpy as np
@@ -370,7 +370,12 @@ async def main() -> None:
         if not ok:
             logger.error(f"Дашборд не поднял порт {HOST}:{PORT}. Смотри LOGS/dashboard.out.log")
         else:
-            logger.info(f"Дашборд доступен на http://{HOST}:{PORT}")
+            url = f"http://{HOST}:{PORT}"
+            logger.info(f"Дашборд доступен на {url}")
+            try:
+                webbrowser.open_new_tab(url)
+            except Exception as e:
+                logger.warning(f"Не удалось открыть браузер: {e}")
 
     try:
         await asyncio.gather(

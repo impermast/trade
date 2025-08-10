@@ -3,7 +3,7 @@ from flask import Flask, request, send_from_directory, jsonify, send_file
 import os, re, json, subprocess, sys, signal
 from collections import deque
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 import pandas as pd
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -57,7 +57,6 @@ def api_candles():
     anal = get_anal_list()
     all_csv = get_csv_list()
 
-    # пул допустимых файлов
     allowed = anal if anal else all_csv
     if not allowed:
         return jsonify([])
@@ -82,7 +81,6 @@ def api_candles():
     try:
         df = pd.read_csv(csv_path)
 
-        # маппинг колонок без учёта регистра
         lower_map = {c.lower(): c for c in df.columns}
 
         time_col = next((lower_map[k] for k in ("time","timestamp","date","datetime") if k in lower_map), None)
@@ -92,26 +90,21 @@ def api_candles():
         c = lower_map.get("close")
         v = next((lower_map[k] for k in ("volume","vol") if k in lower_map), None)
 
-        # варианты колонок ордеров
         orders_col      = lower_map.get("orders")
         orders_rsi_col  = lower_map.get("orders_rsi")
-        # поддержим старые/кривые названия модели
         orders_xgb_col  = lower_map.get("orders_xgb") or lower_map.get("xgb_signal")
 
         if not time_col or not all([o, h, l, c]):
             return jsonify({"error": "Не найдены необходимые колонки для OHLC"}), 400
 
-        # время
         df["_ts"] = pd.to_datetime(df[time_col], errors="coerce", utc=False)
         if tail_rows > 0:
             df = df.tail(tail_rows).copy()
 
-        # числовые поля
         for col in [o, h, l, c, v, orders_col, orders_rsi_col, orders_xgb_col]:
             if col and col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
 
-        # ордера делаем явными нулями, чтобы фронту не присылать пустоты
         for col in [orders_col, orders_rsi_col, orders_xgb_col]:
             if col and col in df.columns:
                 df[col] = df[col].fillna(0).astype(float)
@@ -127,7 +120,6 @@ def api_candles():
                 "close": float(row[c]) if pd.notna(row[c]) else None,
                 "volume": float(row[v]) if (v and pd.notna(row[v])) else None,
             }
-            # добавим все варианты колонок ордеров, если есть
             if orders_col:
                 val = row[orders_col]
                 item["orders"] = float(val) if pd.notna(val) else 0.0
@@ -145,6 +137,33 @@ def api_candles():
         return resp
     except Exception as e:
         return jsonify({"error": f"Ошибка обработки CSV: {e}"}), 500
+
+# ---------- Быстрый tail ----------
+def _tail_lines(path: str, n: int, block_size: int = 8192) -> List[str]:
+    """Возвращает последние n строк файла, читая блоками с конца (UTF‑8, ignore errors)."""
+    n = max(1, int(n))
+    lines: List[bytes] = []
+    with open(path, "rb") as f:
+        f.seek(0, os.SEEK_END)
+        file_size = f.tell()
+        buffer = b""
+        pos = file_size
+        while pos > 0 and len(lines) <= n:
+            read_size = min(block_size, pos)
+            pos -= read_size
+            f.seek(pos)
+            chunk = f.read(read_size)
+            buffer = chunk + buffer
+            # разрезаем по строкам
+            parts = buffer.split(b"\n")
+            # сохраняем всё кроме последней (может быть неполной)
+            lines = parts[1:] + lines
+            buffer = parts[0]
+        if buffer:
+            lines = [buffer] + lines
+    # только хвост n, декодируем
+    tail_bytes = lines[-n:] if len(lines) > n else lines
+    return [b.decode("utf-8", "ignore").rstrip("\r\n") for b in tail_bytes]
 
 @app.route("/logs")
 def list_logs():
@@ -165,11 +184,17 @@ def log_tail():
     if not os.path.exists(log_path):
         return jsonify({"error": "Файл не найден"}), 404
 
-    dq = deque(maxlen=max(n,1))
-    with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
-        for line in f:
-            dq.append(line.rstrip("\n"))
-    return jsonify({"lines": list(dq)})
+    try:
+        lines = _tail_lines(log_path, max(n, 1))
+    except Exception:
+        # fallback на медленный путь
+        dq = deque(maxlen=max(n,1))
+        with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                dq.append(line.rstrip("\n"))
+        lines = list(dq)
+
+    return jsonify({"lines": lines})
 
 _TS_RE = re.compile(r"\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{3,6})?")
 _LEVELS = ("INFO","WARN","WARNING","ERROR","DEBUG","CRITICAL")
@@ -201,25 +226,35 @@ def logs_all():
     level = (request.args.get("level") or "ALL").upper()
     q = (request.args.get("q") or "").strip().lower()
 
+    files = [f for f in os.listdir(LOGS_DIR) if f.endswith(".log")]
+    if not files:
+        return jsonify([])
+
+    # разумный лимит строк на файл: немного больше, чем надо, но ограничено
+    per_file = max(n // max(len(files),1) * 3, n)  # минимум n, но распределяем
+    per_file = min(max(per_file, 500), 5000)       # [500..5000]
+
     entries = []
-    for fname in [f for f in os.listdir(LOGS_DIR) if f.endswith(".log")]:
+    for fname in files:
         path = os.path.join(LOGS_DIR, fname)
         try:
-            with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                for line in f:
-                    ts, lv, src, msg = _parse_line(fname, line)
-                    if level != "ALL" and (lv or "") != level:
-                        continue
-                    if q and q not in msg.lower():
-                        continue
-                    entries.append({
-                        "ts": ts.to_pydatetime() if isinstance(ts, pd.Timestamp) else None,
-                        "level": lv or "",
-                        "src": src,
-                        "msg": msg
-                    })
+            lines = _tail_lines(path, per_file)
         except Exception:
-            continue
+            # fallback
+            lines = _tail_lines(path, per_file // 2)
+
+        for line in lines:
+            ts, lv, src, msg = _parse_line(fname, line)
+            if level != "ALL" and (lv or "") != level:
+                continue
+            if q and q not in msg.lower():
+                continue
+            entries.append({
+                "ts": ts.to_pydatetime() if isinstance(ts, pd.Timestamp) else None,
+                "level": lv or "",
+                "src": src,
+                "msg": msg
+            })
 
     entries.sort(key=lambda x: (x["ts"] or datetime.min, x["src"]))
     if n > 0 and len(entries) > n:
@@ -238,9 +273,7 @@ def list_csv_files():
 @app.route("/api/state")
 def state():
     """
-    Нормализует форму state.json под фронт:
-    - Bybit: уже отдаёт balance.total/currency — пропускаем без изменений.
-    - Mock: пишет кошелёк по валютам и equity — считаем balance.total и currency.
+    Нормализует форму state.json под фронт.
     """
     state_path = os.path.join(STATIC_DATA_DIR, "state.json")
     if os.path.exists(state_path):
@@ -248,7 +281,6 @@ def state():
             with open(state_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            # нормализуем updated -> dd.mm.yyyy HH:MM:SS без TZ
             ts = data.get("updated")
             if ts:
                 ts_norm = str(ts).replace(",", ".")
@@ -256,23 +288,19 @@ def state():
                 if pd.notna(dt):
                     data["updated"] = dt.tz_localize(None).strftime("%d.%m.%Y %H:%M:%S")
 
-            # --------- нормализация баланса ---------
             bal = data.get("balance")
             eq = data.get("equity")
 
-            # если это уже правильный объект {total, currency, ...} — оставляем
             good_object = isinstance(bal, dict) and ("total" in bal and "currency" in bal)
 
             if not good_object:
                 assets = bal if isinstance(bal, dict) else {}
-                # валюта из equity или дефолт USDT
                 cur = None
                 if isinstance(eq, dict) and isinstance(eq.get("currency"), str):
                     cur = eq.get("currency")
                 if not cur:
                     cur = "USDT"
 
-                # total: сначала из equity.total, иначе берем по валюте, иначе сумма всех чисел
                 total = None
                 if isinstance(eq, dict) and isinstance(eq.get("total"), (int, float)):
                     total = float(eq["total"])
@@ -288,7 +316,6 @@ def state():
                     "total": total,
                     "currency": cur
                 }
-                # необязательное поле: отдаём активы, если есть (для будущих экранах)
                 if assets:
                     data["assets"] = assets
 
@@ -298,7 +325,6 @@ def state():
         except Exception as e:
             app.logger.error(f"Error reading state.json: {e}")
 
-    # пустой ответ по контракту фронта
     return jsonify({"balance":{"total":None,"currency":"USDT"},"positions":[],"updated":None})
 
 @app.route("/api/health")

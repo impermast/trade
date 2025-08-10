@@ -1,20 +1,12 @@
-# === main.py ===
 import asyncio
 import os
-from typing import Optional
+import re
+import time
+from typing import Optional, Iterable
 
 import numpy as np
 import pandas as pd
-
-# Подключения твоего проекта
-from API.bybit_api import BybitAPI  # оставляем на всякий случай
-from API.mock_api import MockAPI
-from API.dashboard_api import run_flask_in_new_terminal, stop_flask
-from BOTS.analbot import Analytic
-from BOTS.loggerbot import Logger
-from BOTS.PLOTBOTS.plotbot import PlotBot
-from STRATEGY.rsi import RSIonly_Strategy
-from STRATEGY.XGBstrategy import XGBStrategy
+from datetime import datetime, timedelta
 
 # ------------ Конфиг ------------
 UPDATE_INTERVAL = 10   # сек между тиками для симуляции поживее
@@ -32,6 +24,9 @@ DATA_DIR = "DATA"
 LOGS_DIR = "LOGS"
 STATIC_DIR = os.path.join(DATA_DIR, "static")
 
+# Возраст логов для обрезки (часы) — можно переопределить через ENV
+CLEAN_LOGS_MAX_AGE_HOURS = int(os.getenv("CLEAN_LOGS_MAX_AGE_HOURS", "24"))
+
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(LOGS_DIR, exist_ok=True)
 os.makedirs(STATIC_DIR, exist_ok=True)
@@ -41,12 +36,18 @@ CSV_ANAL_PATH_RSI = os.path.join(DATA_DIR, f"{SYMBOL_NAME}_{TF}_anal.csv")
 CSV_ANAL_PATH_XGB = os.path.join(DATA_DIR, f"{SYMBOL_NAME}_{TF}_xgb.csv")
 STATE_PATH = os.path.join(STATIC_DIR, "state.json")
 
-logger = Logger(
-    name="MainBot",
-    tag="[MAIN]",
-    logfile=os.path.join(LOGS_DIR, "mainbot.log"),
-    console=False
-).get_logger()
+# === ВАЖНО: логгер инициализируем ПОСЛЕ чистки логов в __main__ ===
+logger = None  # будет установлен ниже
+
+# Подключения твоего проекта (после конфигов, но до функций)
+from API.bybit_api import BybitAPI  # оставляем на всякий случай
+from API.mock_api import MockAPI
+from API.dashboard_api import run_flask_in_new_terminal, stop_flask
+from BOTS.analbot import Analytic
+from BOTS.loggerbot import Logger
+from BOTS.PLOTBOTS.plotbot import PlotBot
+from STRATEGY.rsi import RSIonly_Strategy
+from STRATEGY.XGBstrategy import XGBStrategy
 
 stop_event = asyncio.Event()
 
@@ -55,7 +56,105 @@ botapi = MockAPI()
 # botapi = BybitAPI()
 
 
-# ------------ Утилиты ------------
+# ------------ Очистка логов по таймстампу ------------
+
+_TS_REGEX = re.compile(r"^(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+)\b")
+
+def _parse_log_dt(line: str) -> Optional[datetime]:
+    """
+    Пытается распарсить таймстамп из начала строки.
+    Формат: 'YYYY-MM-DD HH:MM:SS,ffffff'
+    Возвращает naive datetime (локальное время).
+    """
+    m = _TS_REGEX.match(line)
+    if not m:
+        return None
+    ts = m.group("ts")
+    try:
+        return datetime.strptime(ts, "%Y-%m-%d %H:%M:%S,%f")
+    except Exception:
+        return None
+
+def _iter_trimmed_lines(lines: Iterable[str], cutoff_dt: datetime) -> Iterable[str]:
+    """
+    Оставляет только записи (и их хвосты), чей заголовок >= cutoff_dt.
+    'Хвост' — строки без таймстампа, следующие за сохранённой записью (например, traceback).
+    """
+    keep_block = False
+    for line in lines:
+        dt = _parse_log_dt(line)
+        if dt is not None:
+            keep_block = dt >= cutoff_dt
+        if keep_block:
+            yield line
+
+def _trim_log_file(path: str, cutoff_dt: datetime) -> tuple[int, int]:
+    """
+    Тримит один .log-файл по времени.
+    Возвращает (bytes_before, bytes_after).
+    """
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as src:
+            # потоковая фильтрация без загрузки целиком в память
+            tmp_path = path + ".tmp~"
+            with open(tmp_path, "w", encoding="utf-8") as dst:
+                for out_line in _iter_trimmed_lines(src, cutoff_dt):
+                    dst.write(out_line)
+        before = os.path.getsize(path)
+        after = os.path.getsize(tmp_path)
+        # атомарная замена
+        os.replace(tmp_path, path)
+        return before, after
+    except FileNotFoundError:
+        return (0, 0)
+    except IsADirectoryError:
+        return (0, 0)
+    except Exception:
+        # В случае ошибки не трогаем исходник
+        try:
+            if os.path.exists(path + ".tmp~"):
+                os.remove(path + ".tmp~")
+        except Exception:
+            pass
+        return (0, 0)
+
+def _trim_logs_by_age(log_dir: str, max_age_hours: int) -> dict:
+    """
+    Проходит по *.log в каталоге, оставляет записи за последние max_age_hours.
+    Возвращает словарь с короткой статистикой.
+    """
+    if max_age_hours <= 0:
+        return {"processed": 0, "changed": 0, "saved_bytes": 0}
+
+    now_local = datetime.now()  # формат логов — без TZ, считаем локальным временем
+    cutoff = now_local - timedelta(hours=max_age_hours)
+
+    processed = 0
+    changed = 0
+    saved = 0
+
+    try:
+        for entry in os.scandir(log_dir):
+            if not entry.is_file() or not entry.name.endswith(".log"):
+                continue
+            processed += 1
+            before, after = _trim_log_file(entry.path, cutoff)
+            if after > 0 and before >= after:
+                if before != after:
+                    changed += 1
+                    saved += (before - after)
+            # если after == 0 — файл стал пустым, это тоже изменение
+            elif after == 0 and before > 0:
+                changed += 1
+                saved += before
+    except FileNotFoundError:
+        pass
+
+    return {"processed": processed, "changed": changed, "saved_bytes": saved}
+
+
+# ------------ Утилиты прочие ------------
+
 def _is_port_open(host: str, port: int) -> bool:
     import socket
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -86,7 +185,12 @@ async def write_state_fallback(state_path: str) -> None:
         with open(state_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
     except Exception as e:
-        logger.error(f"Не смог записать fallback state.json: {e}")
+        # может быть ещё без логгера
+        try:
+            if logger:
+                logger.error(f"Не смог записать fallback state.json: {e}")
+        except Exception:
+            pass
 
 def _resolve_rsi_column(df: pd.DataFrame, period: int) -> str:
     col = "rsi" if period == 14 else f"rsi_{period}"
@@ -100,8 +204,8 @@ def _apply_rsi_orders_series(df: pd.DataFrame, period: int, lower: float, upper:
       +1 BUY  при пересечении уровня lower (30) снизу вверх
       -1 SELL при пересечении уровня upper (70) снизу вверх
     """
-    col = _resolve_rsi_column(df, period)
-    rsi = pd.to_numeric(df[col], errors="coerce")
+    rsi_col = _resolve_rsi_column(df, period)
+    rsi = pd.to_numeric(df[rsi_col], errors="coerce")
 
     prev = rsi.shift(1)
     cross_buy  = (prev < lower) & (rsi >= lower)
@@ -127,36 +231,35 @@ async def plot_loop(use_plot: bool) -> None:
     await loop.run_in_executor(None, _start)
 
 
-# ------------ Торговый цикл RSI: позиционная логика ------------
+# ------------ Торговый цикл RSI ------------
 async def trading_loop_rsi(bot) -> None:
     logger.info(f"[RSI] Запущен торговый цикл {type(bot).__name__}")
     period = 14
     lower, upper = 30.0, 70.0
 
     # внутреннее состояние цикла
-    last_action = 0  # -1/0/1 по последнему сработанному сигналу
+    last_action = 0
     position_size = 0.0
 
     try:
         while not stop_event.is_set():
-            # 1) Забираем данные
+            # 1) Данные
             df = await bot.get_ohlcv_async(SYMBOL, timeframe=TF, limit=200)
             if "timestamp" in df.columns and "time" not in df.columns:
                 df = df.rename(columns={"timestamp": "time"})
             df.to_csv(CSV_RAW_PATH, index=False)
 
-            # 2) Аналитика — как в XGB: задаём output_file для автосоздания CSV
+            # 2) Аналитика
             data_name = f"{SYMBOL_NAME}_{TF}"
             analytic = Analytic(df.copy(), data_name=data_name, output_file="rsi.csv")
 
-            # Стратегия сама обеспечит нужные индикаторы (как XGB)
             _ = analytic.make_strategy(
                 RSIonly_Strategy,
                 inplace=False,
                 rsi={"period": period, "lower": lower, "upper": upper},
             )
 
-            # Векторная разметка сигналов (если RSI не посчитался — посчитаем и повторим)
+            # 3) Векторная разметка сигналов
             try:
                 _apply_rsi_orders_series(analytic.df, period=period, lower=lower, upper=upper)
             except Exception as e:
@@ -166,32 +269,24 @@ async def trading_loop_rsi(bot) -> None:
                     _apply_rsi_orders_series(analytic.df, period=period, lower=lower, upper=upper)
                 except Exception as e2:
                     logger.error(f"[RSI] Не удалось обеспечить RSI: {e2}")
-                    # гарантируем колонку orders_rsi хотя бы нулями, чтобы CSV и UI не падали
                     if "orders_rsi" not in analytic.df.columns:
                         analytic.df["orders_rsi"] = 0
 
-            # 3) Решение по последнему сигналу
+            # 4) Торговое действие (упрощённо)
             last_sig = int(analytic.df["orders_rsi"].iloc[-1])
-
-            # 4) Позиционная торговля: покупаем/продаём долями, без шортов
             price = float(df["close"].iloc[-1])
             bal = await bot.get_balance_async()
             usdt = float(bal.get("USDT", 0.0))
-
-            # целевой размер позиции как доля от портфеля (очень скромно)
-            target_frac = 0.25  # 25% портфеля в активе максимум
+            target_frac = 0.25
             max_qty = (usdt * target_frac) / price if price > 0 else 0.0
 
             if last_sig == 1 and last_action != 1:
-                # открываем/наращиваем, но не более max_qty за раз
                 qty = max(0.0, min(max_qty, 0.001 + max_qty * 0.5))
                 if qty > 0:
                     await bot.place_order_async(SYMBOL, "buy", qty=qty)
                     position_size += qty
                     last_action = 1
-
             elif last_sig == -1 and last_action != -1:
-                # сокращаем/закрываем — продаём всё, что есть
                 pos = await bot.get_positions_async(SYMBOL)
                 have = float(pos.get("size", 0.0)) if isinstance(pos, dict) else 0.0
                 qty = have
@@ -200,7 +295,7 @@ async def trading_loop_rsi(bot) -> None:
                     position_size = 0.0
                     last_action = -1
 
-            # 5) Сохранение аналитики — файл создаётся сам: DATA/<SYMBOL_NAME>_<TF>_rsi.csv
+            # 5) Сохранение аналитики
             analytic._save_results_to_csv()
 
             # 6) Обновляем состояние для дашборда
@@ -226,8 +321,7 @@ async def trading_loop_rsi(bot) -> None:
         logger.info("[RSI] Торговый цикл завершён")
 
 
-
-# ------------ Торговый цикл XGB (оставлен, но без агрессии) ------------
+# ------------ Торговый цикл XGB (сигнал в колонку) ------------
 async def trading_loop_xgb(bot) -> None:
     logger.info(f"[XGB] Запущен торговый цикл {type(bot).__name__}")
     try:
@@ -297,6 +391,19 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    # 1) Трим логов ПО ПАТТЕРНУ ТАЙМСТАМПА — только при ручном запуске
+    stats = _trim_logs_by_age(LOGS_DIR, CLEAN_LOGS_MAX_AGE_HOURS)
+    print(f"[INIT] Trim logs: processed={stats['processed']} changed={stats['changed']} "
+          f"saved_bytes={stats['saved_bytes']} (cutoff {CLEAN_LOGS_MAX_AGE_HOURS}h)")
+
+    # 2) Теперь поднимаем логгер — безопасно, файлы уже подготовлены
+    logger = Logger(
+        name="MainBot",
+        tag="[MAIN]",
+        logfile=os.path.join(LOGS_DIR, "mainbot.log"),
+        console=False
+    ).get_logger()
+
     try:
         asyncio.run(main())
     except KeyboardInterrupt:

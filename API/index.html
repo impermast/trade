@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Мониторинг торгового бота</title>
 
-  <!-- Fonts (Material 3) -->
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,400;8..144,500;8..144,600;8..144,700&display=swap" rel="stylesheet">
@@ -98,59 +98,73 @@
     .form-select option { color:var(--on-surface); background:var(--surface); }
     .field-outlined{ border:1px solid var(--border); }
 
+    /* ===== Tabs + animated ink indicator ===== */
     .nav-tabs{ border-color:transparent; position:relative; }
     .nav-tabs .nav-link{
       border:none; display:flex; align-items:center; gap:.5rem;
       color:var(--on-surface-variant)!important; position:relative;
+      background:transparent;
     }
-    .nav-tabs .nav-link.active{
-      color:var(--on-surface)!important; background:var(--surface);
+    .nav-tabs .nav-link.active {
+      background-color: rgba(255,255,255,0.08) !important;
+      color: var(--on-surface) !important;
+      font-weight: 600;
     }
-    .nav-tabs .nav-link.active::after{
-      content:""; position:absolute; left:12px; right:12px; bottom:-2px; height:2px;
+    .tabs-ink{
+      position:absolute; height:2px; bottom:-2px;
       background:linear-gradient(90deg,var(--primary),var(--secondary));
-      border-radius:2px;
+      border-radius:2px; pointer-events:none;
+      width:0; transform:translateX(0);
+      transition: width .25s ease, transform .25s ease;
     }
 
-    .btn-accent{ background:var(--primary); color:#fff; border:none; box-shadow:var(--elev-1); }
-    .btn-accent:hover{ filter:brightness(.95); }
+    /* Сегмент кнопок хвоста */
+    #tailSegments.btn-group .btn{ border-radius:0!important; padding:.35rem .8rem; line-height:1; }
+    #tailSegments.btn-group .btn + .btn{ margin-left:-1px; }
+    #tailSegments.btn-group .btn:first-child{ border-top-left-radius:999px!important; border-bottom-left-radius:999px!important; }
+    #tailSegments.btn-group .btn:last-child{ border-top-right-radius:999px!important; border-bottom-right-radius:999px!important; }
+    #tailSegments.btn-group .btn:not(:last-child){ border-right-width:0; }
+
     .btn-outline-light{ color:var(--on-surface)!important; border-color:var(--border)!important; }
     .btn-outline-light:hover{ background:rgba(255,255,255,.06); }
+    .btn-outline-light.active,
+    .btn-outline-light:active,
+    .btn-outline-light:focus,
+    .btn-outline-light.show{
+      background:rgba(124,77,255,.18)!important;
+      border-color:rgba(124,77,255,.36)!important;
+      color:var(--on-surface)!important;
+      box-shadow:none!important;
+    }
+
     .btn-ghost{
       background:transparent; border:1px solid var(--border); color:var(--on-surface);
       padding:.35rem .75rem; border-radius:999px;
     }
     .btn-ghost:hover{ background:rgba(255,255,255,.06); }
 
+    /* Chips */
     .chips{ display:flex; flex-wrap:wrap; gap:.5rem; }
     .chip{
       display:inline-flex; align-items:center; gap:.35rem; padding:.38rem .75rem;
       border:1px solid var(--border); border-radius:999px; background:transparent; color:var(--on-surface);
       cursor:pointer; user-select:none; position:relative; overflow:hidden; line-height:1;
+      transition:background .15s ease, border-color .15s ease;
     }
     .chip .bi{ font-size:1rem; }
     .chip.selected{ background:rgba(124,77,255,.18); border-color:rgba(124,77,255,.36); }
-    .chip::after{ content:""; position:absolute; inset:auto; width:0; height:0; border-radius:50%; background:rgba(255,255,255,.15); transform:translate(-50%,-50%); transition:width .35s,height .35s; }
+    .chip::after{ content:""; position:absolute; inset:auto; width:0; height:0; border-radius:50%; background:rgba(255,255,255,.14); transform:translate(-50%,-50%); transition:width .35s,height .35s; }
     .chip:active::after{ left:var(--x); top:var(--y); width:220%; height:220%; }
 
-    #tailSegments .btn,
-    #logLevelButtons .btn{
-      border-radius:999px; border:1px solid var(--border) !important;
-      background:transparent !important; color:var(--on-surface) !important;
-      padding:.35rem .8rem; line-height:1;
-    }
-    #tailSegments .btn.active,
-    #tailSegments .btn:active,
-    #tailSegments .btn:focus,
-    #tailSegments .btn.show,
-    #logLevelButtons .btn.active,
-    #logLevelButtons .btn:active,
-    #logLevelButtons .btn:focus,
-    #logLevelButtons .btn.show{
-      background:rgba(124,77,255,.18) !important; border-color:rgba(124,77,255,.36) !important;
-      color:var(--on-surface) !important; box-shadow:none !important;
-    }
-    #tailSegments .btn:hover, #logLevelButtons .btn:hover{ background:rgba(255,255,255,.06) !important; }
+    .toolbar{ display:flex; flex-wrap:wrap; gap:.75rem 1rem; align-items:end; }
+    .toolbar .group{ display:flex; flex-direction:column; gap:.25rem; min-width:140px; }
+    .toolbar .group.narrow{ min-width:110px; }
+
+    /* Таблица */
+    .table-md3{ width:100%; border-collapse:separate; border-spacing:0; }
+    .table-md3 thead th{ position:sticky; top:0; background:var(--surface); z-index:1; border-bottom:1px solid var(--border); padding:.5rem .6rem; font-weight:600;}
+    .table-md3 tbody td{ border-bottom:1px solid var(--border); padding:.44rem .6rem; }
+    .table-md3 .num{ text-align:right; }
 
     #chart{ height:560px; position:relative; }
     .loading-overlay{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.18); border-radius:10px; z-index:5; }
@@ -161,31 +175,45 @@
     .skeleton.lg{height:1.8rem}
     @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
-    #topProgress{height:3px;background:linear-gradient(90deg,var(--primary),var(--secondary));width:0;transition:width .25s;display:none;}
+    /* Прогресс-лайн */
+    #topProgress{
+      position:fixed; left:0; right:0; top:0; height:3px;
+      background:linear-gradient(90deg,var(--primary),var(--secondary));
+      width:0; transition:width .25s; display:none; z-index:1200; pointer-events:none;
+    }
 
     .chart-actions{ position:relative; }
+
+    /* FAB */
     .fab{
       position:absolute; right:14px; bottom:14px;
-      display:inline-flex; align-items:center; gap:.5rem; padding:.55rem .9rem;
-      background:var(--primary); color:#fff; border:none; border-radius:999px; box-shadow:var(--elev-2); z-index:6;
+      display:inline-flex; align-items:center; gap:.55rem;
+      padding:.6rem 1rem .6rem .85rem;
+      background:var(--primary); color:#fff; border:none;
+      border-radius:999px; box-shadow:var(--elev-2); z-index:6;
+      line-height:1; font-weight:600;
     }
     .fab:hover{ filter:brightness(.95); }
+    .fab::after{ content:""; position:absolute; inset:-3px; border-radius:999px; border:2px solid rgba(255,255,255,.14); pointer-events:none; }
+    .fab .fab-ico-wrap{ position:relative; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; }
+    .fab .fab-ico-wrap .bi{ font-size:14px; }
+    .fab .fab-ring{ position:absolute; inset:-4px; pointer-events:none; }
+    .fab .fab-ring svg{ width:30px; height:30px; transform:rotate(-90deg); display:block; }
+    .fab .ring-bg{ stroke:rgba(255,255,255,.25); stroke-width:3.5; fill:none; }
+    .fab .ring{ stroke:rgba(255,255,255,.9); stroke-width:3.5; fill:none; stroke-linecap:round; transition:opacity .2s ease; }
+    .fab.disabled .ring{ opacity:.35; }
 
-    .toolbar{ display:flex; flex-wrap:wrap; gap:.75rem 1rem; align-items:end; }
-    .toolbar .group{ display:flex; flex-direction:column; gap:.25rem; min-width:140px; }
-    .toolbar .group.narrow{ min-width:110px; }
-
-    .table-md3{ width:100%; border-collapse:separate; border-spacing:0; }
-    .table-md3 th, .table-md3 td{ padding:.55rem .75rem; border-bottom:1px solid var(--border); }
-    .table-md3 thead th{ color:var(--on-surface-variant); font-weight:600; }
-    .table-md3 td.num, .table-md3 th.num{ text-align:right; }
-
-    .plotly .legend{ max-width:100% !important; }
+    /* Анимация «wipe» для ручного перестроения графика */
+    .animate-wipe { animation: wipeX .6s ease-out both; }
+    @keyframes wipeX {
+      from { clip-path: inset(0 100% 0 0); opacity:.0; transform:translateX(-10px);}
+      to   { clip-path: inset(0 0 0 0);   opacity:1;  transform:none;}
+    }
 
     @media (max-width: 1200px){ #chart{ height:520px; } }
     @media (max-width: 992px){ #chart{ height:480px; } .toolbar .group{ min-width: 46%; } .toolbar .group.narrow{ min-width: 30%; } }
     @media (max-width: 768px){ #chart{ height:420px; } .toolbar{ gap:.6rem .8rem; } .nav-tabs .nav-link{ padding:.5rem .6rem; } }
-    @media (max-width: 576px){ #chart{ height:360px; } .kpi-value{ font-size:1.3rem; } .kpi-sub{ font-size:.9rem; } .toolbar .group{ min-width:100%; } .fab{ right:10px; bottom:10px; } }
+    @media (max-width: 576px){ #chart{ height:360px; } .kpi-value{ font-size:1.3rem; } .fab{ right:10px; bottom:10px; } }
   </style>
 </head>
 <body>
@@ -234,12 +262,13 @@
     </div>
 
     <!-- Tabs -->
-    <ul class="nav nav-tabs" id="viewTabs" role="tablist">
+    <ul class="nav nav-tabs" id="viewTabs" role="tablist" style="position:relative;">
       <li class="nav-item"><button class="nav-link active" id="chart-tab" data-bs-toggle="tab" data-bs-target="#chart-pane" type="button"><i class="bi bi-graph-up"></i> График цен</button></li>
       <li class="nav-item"><button class="nav-link" id="csv-tab" data-bs-toggle="tab" data-bs-target="#csv-pane" type="button"><i class="bi bi-table"></i> CSV данные</button></li>
       <li class="nav-item"><button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-pane" type="button"><i class="bi bi-journal-text"></i> Логи</button></li>
       <li class="nav-item"><button class="nav-link" id="logs-all-tab" data-bs-toggle="tab" data-bs-target="#logs-all-pane" type="button"><i class="bi bi-collection"></i> Все логи</button></li>
       <li class="nav-item"><button class="nav-link" id="state-tab" data-bs-toggle="tab" data-bs-target="#state-pane" type="button"><i class="bi bi-wallet2"></i> Баланс и позиции</button></li>
+      <span id="tabsInk" class="tabs-ink"></span>
     </ul>
 
     <div class="tab-content mt-3">
@@ -258,9 +287,9 @@
             <div class="group">
               <label class="form-label">Быстрый хвост</label>
               <div id="tailSegments" class="btn-group btn-group-sm" role="group" title="Быстрый выбор размера хвоста" data-bs-toggle="tooltip">
-                <button class="btn btn-outline-light" data-tail="200">200</button>
+                <button class="btn btn-outline-light active" data-tail="200">200</button>
                 <button class="btn btn-outline-light" data-tail="500">500</button>
-                <button class="btn btn-outline-light active" data-tail="1000">1000</button>
+                <button class="btn btn-outline-light" data-tail="1000">1000</button>
               </div>
             </div>
             <div class="group narrow">
@@ -277,11 +306,10 @@
             <div class="group" style="min-width:280px;">
               <label class="form-label">Показывать</label>
               <div class="chips">
-                <div class="chip selected" id="chipSMA20" data-bind="#sma20" title="Включить/выключить SMA 20" data-bs-toggle="tooltip"><i class="bi bi-activity"></i> SMA 20</div>
-                <div class="chip selected" id="chipSMA50" data-bind="#sma50" title="Включить/выключить SMA 50" data-bs-toggle="tooltip"><i class="bi bi-activity"></i> SMA 50</div>
-                <div class="chip" id="chipSigRSI" data-bind="#signals_rsi" title="Сигналы RSI" data-bs-toggle="tooltip"><i class="bi bi-lightning"></i> RSI сигналы</div>
-                <div class="chip" id="chipSigXGB" data-bind="#signals_xgb" title="Сигналы XGB" data-bs-toggle="tooltip"><i class="bi bi-robot"></i> XGB сигналы</div>
-                <div class="chip" id="chipLog" data-bind="#logScale" title="Логарифмический масштаб цены" data-bs-toggle="tooltip"><i class="bi bi-graph-down"></i> Лог‑масштаб</div>
+                <div class="chip" id="chipSMA20" data-bind="#sma20" title="Включить/выключить SMA 20" data-bs-toggle="tooltip"><i class="bi bi-activity"></i> SMA 20</div>
+                <div class="chip" id="chipSMA50" data-bind="#sma50" title="Включить/выключить SMA 50" data-bs-toggle="tooltip"><i class="bi bi-activity"></i> SMA 50</div>
+                <div class="chip selected" id="chipSigRSI" data-bind="#signals_rsi" title="Сигналы RSI" data-bs-toggle="tooltip"><i class="bi bi-lightning"></i> RSI сигналы</div>
+                <div class="chip selected" id="chipSigXGB" data-bind="#signals_xgb" title="Сигналы XGB" data-bs-toggle="tooltip"><i class="bi bi-robot"></i> XGB сигналы</div>
               </div>
             </div>
             <div class="ms-auto">
@@ -301,7 +329,18 @@
               <div class="spinner-border text-light" role="status"><span class="visually-hidden">Загрузка…</span></div>
             </div>
           </div>
-          <button id="reloadChart" class="fab" title="Перестроить график" data-bs-toggle="tooltip"><i class="bi bi-arrow-repeat"></i> Перестроить</button>
+          <button id="reloadChart" class="fab" title="Перестроить график" data-bs-toggle="tooltip">
+            <span class="fab-ico-wrap">
+              <span class="fab-ring" aria-hidden="true">
+                <svg viewBox="0 0 40 40">
+                  <circle class="ring-bg" cx="20" cy="20" r="16"></circle>
+                  <circle id="fabRing" class="ring" cx="20" cy="20" r="16" stroke-dasharray="100" stroke-dashoffset="100"></circle>
+                </svg>
+              </span>
+              <i class="bi bi-arrow-repeat"></i>
+            </span>
+            Перестроить
+          </button>
         </div>
       </div>
 
@@ -413,15 +452,17 @@
   <div class="offcanvas offcanvas-bottom text-bg-dark" tabindex="-1" id="advancedSheet" style="height:auto;">
     <div class="offcanvas-header"><h5 class="offcanvas-title"><i class="bi bi-sliders"></i> Параметры графика</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button></div>
     <div class="offcanvas-body small d-flex flex-wrap gap-3">
-      <!-- ВКЛЮЧЕНО ПО УМОЛЧАНИЮ -->
       <div class="form-check form-switch">
         <input class="form-check-input" type="checkbox" id="autoRefreshChart" checked>
         <label class="form-check-label" for="autoRefreshChart">Автообновление</label>
       </div>
       <div>
         <label class="form-label">Интервал (с)</label>
-        <!-- 10 секунд по умолчанию -->
         <input id="chartInterval" type="number" min="5" step="5" value="10" class="form-control form-control-sm field-outlined"/>
+      </div>
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="logScaleSwitch">
+        <label class="form-check-label" for="logScaleSwitch">Логарифмический масштаб цены</label>
       </div>
     </div>
   </div>
@@ -443,7 +484,7 @@
   </div>
 
 <script>
-  // enable BS tooltips
+  // tooltips
   document.addEventListener('DOMContentLoaded', () => {
     const tList=[].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"],[title][data-bs-toggle2]'));
     tList.forEach(el=> new bootstrap.Tooltip(el));
@@ -453,7 +494,7 @@
   const themeKey="ui-theme";
   function applyTheme(t){ document.documentElement.setAttribute("data-theme", t); $("#themeToggle").prop("checked", t==="dark"); }
   function initTheme(){ const saved=localStorage.getItem(themeKey)||"dark"; applyTheme(saved);
-    $("#themeToggle").on("change",()=>{const next=$("#themeToggle").is(":checked")?"dark":"light"; applyTheme(next); localStorage.setItem(themeKey,next); drawChart();});}
+    $("#themeToggle").on("change",()=>{const next=$("#themeToggle").is(":checked")?"dark":"light"; applyTheme(next); localStorage.setItem(themeKey,next); drawChart(false);});}
 
   // ==== Утилы ====
   const debounce=(fn,ms=250)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}};
@@ -462,25 +503,44 @@
 
   // Top progress & snack
   let topProgTimer=null;
-  function topProgressStart(){ const el=document.getElementById("topProgress"); el.style.width="0"; el.style.display="block"; setTimeout(()=>{ el.style.width="65%"; }, 20); }
+  function topProgressStart(){ const el=document.getElementById("topProgress"); el.style.width="0"; el.style.display="block"; requestAnimationFrame(()=>{ el.style.width="65%"; }); }
   function topProgressDone(){ const el=document.getElementById("topProgress"); el.style.width="100%"; clearTimeout(topProgTimer); topProgTimer=setTimeout(()=>{ el.style.display="none"; el.style.width="0"; }, 250); }
   function showSnack(msg, timeout=2200){ $("#snackbarMsg").text(msg); $("#snackbar").fadeIn(120); setTimeout(()=>$("#snackbar").fadeOut(180), timeout); }
   async function withProgress(promise){ try{ topProgressStart(); return await promise; } finally{ topProgressDone(); } }
+
+  // ==== Tabs ink (фикс полоски) ====
+  function updateTabsInk(){
+    const nav = document.getElementById('viewTabs');
+    const ink = document.getElementById('tabsInk');
+    if(!nav || !ink) return;
+    const active = nav.querySelector('.nav-link.active');
+    if(!active){ ink.style.width='0'; return; }
+
+    const navRect = nav.getBoundingClientRect();
+    const rect = active.getBoundingClientRect();
+
+    const scrollX = nav.scrollLeft || 0;
+    const pad = 12;
+    const left = Math.max(0, rect.left - navRect.left + scrollX + pad);
+    const width = Math.max(24, rect.width - pad*2);
+
+    ink.style.transform = `translateX(${left}px)`;
+    ink.style.width = width + 'px';
+  }
 
   // ==== Chips binding ====
   function bindChip(id, checkboxSel){
     const chip=$(id), cb=$(checkboxSel);
     chip.on("pointerdown", e=>{ chip[0].style.setProperty('--x', e.offsetX+'px'); chip[0].style.setProperty('--y', e.offsetY+'px'); });
     function sync(){ chip.toggleClass("selected", cb.is(":checked")); }
-    chip.on("click", ()=>{ cb.prop("checked", !cb.is(":checked")); sync(); drawChart(); });
+    chip.on("click", ()=>{ cb.prop("checked", !cb.is(":checked")); sync(); drawChart(false); });
     sync();
   }
-  // скрытые чекбоксы (логика)
   const hiddenControls = $('<div style="display:none"></div>').appendTo(document.body);
-  hiddenControls.append('<input type="checkbox" id="sma20" checked>');
-  hiddenControls.append('<input type="checkbox" id="sma50" checked>');
-  hiddenControls.append('<input type="checkbox" id="signals_rsi">');
-  hiddenControls.append('<input type="checkbox" id="signals_xgb">');
+  hiddenControls.append('<input type="checkbox" id="sma20">');
+  hiddenControls.append('<input type="checkbox" id="sma50">');
+  hiddenControls.append('<input type="checkbox" id="signals_rsi" checked>');
+  hiddenControls.append('<input type="checkbox" id="signals_xgb" checked>');
   hiddenControls.append('<input type="checkbox" id="logScale">');
 
   // ==== Индикаторы ====
@@ -523,14 +583,6 @@
       renderPositions(s?.positions||[]);
     }catch{}
   }
-  function exportPositionsCSV(){
-    const rows=[["symbol","qty","entry","price","pnl"]];
-    $("#posTbody tr").each(function(){ const t=$(this).find("td"); if(t.length===5) rows.push(t.map((_,td)=>$(td).text()).get()); });
-    const csv=rows.map(r=>r.map(x=>`"${(x??"").toString().replace(/"/g,'""')}"`).join(",")).join("\n");
-    const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"}), url=URL.createObjectURL(blob);
-    const a=document.createElement("a"); a.href=url; a.download="positions.csv"; a.click(); URL.revokeObjectURL(url);
-  }
-  function setupPositionsControls(){ $("#posExport").on("click", exportPositionsCSV); $("#posRefresh").on("click", ()=>{ loadState(); showSnack("Позиции обновлены"); }); }
 
   // ==== CSV list ====
   async function loadCsvList(){
@@ -544,21 +596,11 @@
         ? files.filter(f => typeof f === "string").filter(f => f.toLowerCase().endsWith(".csv"))
         : [];
 
-      // *_anal.csv вверх списка, затем алфавит
-      files.sort((a, b) => {
-        const aAnal = /_anal\.csv$/i.test(a) ? 0 : 1;
-        const bAnal = /_anal\.csv$/i.test(b) ? 0 : 1;
-        if (aAnal !== bAnal) return aAnal - bAnal;
-        return a.localeCompare(b, "ru");
-      });
-
+      files.sort((a, b) => a.localeCompare(b, "ru"));
       files.forEach(f => sel.append(new Option(f, f)));
 
       const stored = localStorage.getItem("csv-file");
-      const def = (stored && files.includes(stored))
-        ? stored
-        : (files.find(f => /_anal\.csv$/i.test(f)) || files[0] || "");
-
+      const def = (stored && files.includes(stored)) ? stored : (files[0] || "");
       if (def) sel.val(def);
       $("#kpi-file").text(sel.val() || "—");
     } catch {
@@ -568,23 +610,73 @@
   }
 
   // ==== Chart ====
+  function themeVars(){ return { paper_bgcolor:cssVar("--bg"), plot_bgcolor:cssVar("--surface"), font_color:cssVar("--on-surface"), grid:cssVar("--grid") } }
+  function showRsiControls(){ $("#rsiControls").toggle($("#lowerPanel").val()==="rsi"); }
+
   async function loadCandles(){
     const file=$("#csvFile").val(); const tail=Math.max(50,+$("#tailRows").val()||500);
     const r=await withProgress(fetch(`/api/candles?file=${encodeURIComponent(file)}&tail=${tail}`));
     if(!r.ok) throw new Error("Ошибка загрузки свечей"); return await r.json();
   }
-  function themeVars(){ return { paper_bgcolor:cssVar("--bg"), plot_bgcolor:cssVar("--surface"), font_color:cssVar("--on-surface"), grid:cssVar("--grid") } }
-  function showRsiControls(){ $("#rsiControls").toggle($("#lowerPanel").val()==="rsi"); }
 
-  async function drawChart(){
+  // === [3] инкрементальные обновления + [7] удерживать правый край ===
+  let _lastTs = null;
+  let _currentFile = null;
+  function keepRightEdge(){
+    const gd = document.getElementById('chart');
+    if (!gd || !gd.layout) return;
+    const xa = gd.layout.xaxis || {};
+    const isAuto = xa.autorange === true || typeof xa.range === "undefined";
+    if (isAuto) Plotly.relayout(gd, {'xaxis.autorange': true});
+  }
+
+  async function drawChart(animate){
     $("#chartLoader").show();
     try{
-      const rows=await loadCandles();
+      const rows = await loadCandles();
+      $("#chartLoader").hide();
+
       if(!rows || !rows.length){
         Plotly.purge("chart");
         document.getElementById("chart").innerHTML = `<div class="p-3 text-muted">Нет данных для отображения.</div>`;
         return;
       }
+
+      // ==== инкрементальное добавление свечей (без полной перерисовки) ====
+      const fileNow = $("#csvFile").val() || "";
+      const tsArr = rows.map(r=>r.ts);
+      const gdInc = document.getElementById('chart');
+      const canExtend = (
+        !animate &&
+        gdInc && gdInc.data && gdInc.data.length > 0 &&
+        (_currentFile === fileNow) &&
+        _lastTs && tsArr.length && tsArr[tsArr.length-1] > _lastTs
+      );
+
+      if (canExtend){
+        // найти индекс первых новых точек
+        let idx = tsArr.findIndex(t => t > _lastTs);
+        if (idx > -1){
+          const addX = tsArr.slice(idx);
+          const addO = rows.slice(idx).map(r=>r.open);
+          const addH = rows.slice(idx).map(r=>r.high);
+          const addL = rows.slice(idx).map(r=>r.low);
+          const addC = rows.slice(idx).map(r=>r.close);
+
+          const tailMax = Math.max(50, +$("#tailRows").val()||500);
+
+          Plotly.extendTraces(gdInc,
+            { x:[addX], open:[addO], high:[addH], low:[addL], close:[addC] },
+            [0], tailMax
+          );
+
+          _lastTs = tsArr[tsArr.length-1];
+          keepRightEdge();        // [7]
+          $("#kpi-file").text($("#csvFile").val()||"—");
+          return; // выходим — остальную тяжёлую перерисовку не делаем
+        }
+      }
+
       const ts    = rows.map(r=>r.ts);
       const open  = rows.map(r=>r.open);
       const high  = rows.map(r=>r.high);
@@ -592,7 +684,6 @@
       const close = rows.map(r=>r.close);
       const vol   = rows.map(r=>r.volume ?? null);
 
-      // Сигналы
       const ord_rsi = rows.map(r => (r.orders_rsi ?? r.orders ?? null));
       const ord_xgb = rows.map(r => (r.orders_xgb ?? null));
 
@@ -602,14 +693,45 @@
       const cTertiary  = "#9C27B0";
       const cError     = cssVar("--error");
 
-      traces.push({type:"candlestick", x:ts, open, high, low, close, name:"OHLC", yaxis:"y",
-        increasing:{line:{color:cSecondary}}, decreasing:{line:{color:cError}}});
+      const lowerIsVolume = $("#lowerPanel").val()==="volume";
+      const isLog = $("#logScale").is(":checked");
 
-      if($("#sma20").is(":checked")) traces.push({type:"scatter",mode:"lines",x:ts,y:sma(close,20),line:{width:1.8,color:cPrimary},name:"SMA 20",yaxis:"y"});
-      if($("#sma50").is(":checked")) traces.push({type:"scatter",mode:"lines",x:ts,y:sma(close,50),line:{width:1.8,color:cTertiary},name:"SMA 50",yaxis:"y"});
+      const lows  = low .filter(v => Number.isFinite(v));
+      const highs = high.filter(v => Number.isFinite(v));
+      let pMin = Math.min(...lows);
+      let pMax = Math.max(...highs);
+      if (!Number.isFinite(pMin) || !Number.isFinite(pMax)) { pMin = 0; pMax = 1; }
+      if (isLog) {
+        const positives = [].concat(open,high,low,close).filter(v => Number.isFinite(v) && v>0);
+        const minPos = positives.length ? Math.min(...positives) : 1e-6;
+        pMin = Math.max(pMin, minPos*0.95);
+      }
+      const pad = (pMax - pMin) * 0.04 || pMin*0.04 || 1;
+      const yPriceRange = isLog ? [pMin*0.98, pMax*1.02] : [pMin - pad, pMax + pad];
 
-      if($("#lowerPanel").val()==="volume"){
-        if(vol.some(v=>v!==null)) traces.push({type:"bar",x:ts,y:vol,name:"Объём",opacity:.4,yaxis:"y2"});
+      let y2Range;
+      if (lowerIsVolume){
+        const vVals = vol.filter(v => Number.isFinite(v));
+        const vmax  = vVals.length ? Math.max(...vVals) : 1;
+        y2Range = [0, vmax*1.15];
+      } else {
+        y2Range = [0, 100];
+      }
+
+      // --- Candles trace (полный набор данных, но будем "раскрывать" длину массива) ---
+      traces.push({
+        type:"candlestick", x:ts, open, high, low, close, name:"OHLC", yaxis:"y",
+        increasing:{line:{color:cSecondary}}, decreasing:{line:{color:cError}}
+      });
+      const candIndex = 0;
+
+      if($("#sma20").is(":checked"))
+        traces.push({type:"scatter",mode:"lines",x:ts,y:sma(close,20),line:{width:1.8,color:cPrimary},name:"SMA 20",yaxis:"y"});
+      if($("#sma50").is(":checked"))
+        traces.push({type:"scatter",mode:"lines",x:ts,y:sma(close,50),line:{width:1.8,color:cTertiary},name:"SMA 50",yaxis:"y"});
+
+      if (lowerIsVolume){
+        traces.push({type:"bar", x:ts, y:vol, name:"Объём", opacity:.4, yaxis:"y2"});
       } else {
         const p=Math.max(2,+$("#rsiPeriod").val()||14), rv=rsi(close,p);
         traces.push({type:"scatter",mode:"lines",x:ts,y:rv,name:`RSI ${p}`,yaxis:"y2"});
@@ -617,10 +739,8 @@
         traces.push({type:"scatter",mode:"lines",x:[ts[0],ts.at(-1)],y:[30,30],line:{dash:"dot",width:1},showlegend:false,yaxis:"y2"});
       }
 
-      // Значки покупок/продаж
       const showRSI = $("#signals_rsi").is(":checked");
       const showXGB = $("#signals_xgb").is(":checked");
-
       function addSignalMarkers(ordersArr, namePrefix, buyColor, sellColor) {
         if (!ordersArr.some(o => o != null && o !== 0)) return;
         const bx=[],by=[], sx=[],sy=[];
@@ -630,16 +750,13 @@
         }
         if (bx.length) traces.push({
           type: "scatter", mode: "markers", x: bx, y: by, name: `${namePrefix} Buy`,
-          marker: { size: 12, symbol: "triangle-up", color: buyColor, line: { width: 1.2, color: "#fff" } },
-          yaxis: "y"
+          marker: { size: 12, symbol: "triangle-up", color: buyColor, line: { width: 1.2, color: "#fff" } }, yaxis: "y"
         });
         if (sx.length) traces.push({
           type: "scatter", mode: "markers", x: sx, y: sy, name: `${namePrefix} Sell`,
-          marker: { size: 12, symbol: "triangle-down", color: sellColor, line: { width: 1.2, color: "#fff" } },
-          yaxis: "y"
+          marker: { size: 12, symbol: "triangle-down", color: sellColor, line: { width: 1.2, color: "#fff" } }, yaxis: "y"
         });
       }
-
       if (showRSI) addSignalMarkers(ord_rsi, "RSI", "#00ff7f", "#ff4500");
       if (showXGB) addSignalMarkers(ord_xgb, "XGB", "#1e90ff", "#ff1493");
 
@@ -648,24 +765,80 @@
         dragmode:"zoom",
         showlegend:true, legend:{orientation:"h", y:1.1, x:0, xanchor:"left"},
         margin:{t:20,r:10,b:40,l:50}, paper_bgcolor, plot_bgcolor, font:{color:font_color},
-        xaxis:{gridcolor:grid, anchor:"y", domain:[0,1]},
-        yaxis:{title:"Цена", type: $("#logScale").is(":checked")?"log":"linear", gridcolor:grid, domain:[0.35,1]},
+        xaxis:{gridcolor:grid, anchor:"y", domain:[0,1], autorange:true, range:[ts[0], ts.at(-1)]}, // фиксированный диапазон X
+        yaxis:{title:"Цена", type:(isLog?"log":"linear"), gridcolor:grid, domain:[0.35,1], autorange:false, range:yPriceRange},
         xaxis2:{gridcolor:grid, anchor:"y2", domain:[0,1], matches:"x"},
-        yaxis2:{title:($("#lowerPanel").val()==="rsi"?"RSI":"Объём"), gridcolor:grid, domain:[0,0.28]}
+        yaxis2:{title:(lowerIsVolume?"Объём":"RSI"), gridcolor:grid, domain:[0,0.28], autorange:false, range:y2Range}
       };
 
-      Plotly.react("chart", traces, layout, { responsive:true, displaylogo:false });
+      const gd = document.getElementById("chart");
+      await Plotly.react(gd, traces, layout, { responsive:true, displaylogo:false });
+
+      // ====== ПОШАГОВАЯ ОТРИСОВКА СВЕЧЕЙ СЛЕВА НАПРАВО (ease-in) ======
+      if (animate) {
+        const N = ts.length;
+        if (N > 1) {
+          let lastK = Math.min(2, N);
+          await Plotly.restyle(gd, {
+            x:    [ts.slice(0, lastK)],
+            open: [open.slice(0, lastK)],
+            high: [high.slice(0, lastK)],
+            low:  [low.slice(0, lastK)],
+            close:[close.slice(0, lastK)]
+          }, [candIndex]);
+
+          const duration = 1200;
+          const t0 = performance.now();
+          const easeIn = t => t*t*t;
+
+          function step(now){
+            let p = (now - t0) / duration;
+            if (p < 0) p = 0;
+            if (p > 1) p = 1;
+
+            const e = easeIn(p);
+            const k = Math.max(lastK, Math.min(N, Math.floor(1 + e * (N - 1))));
+
+            if (k !== lastK){
+              Plotly.restyle(gd, {
+                x:    [ts.slice(0, k)],
+                open: [open.slice(0, k)],
+                high: [high.slice(0, k)],
+                low:  [low.slice(0, k)],
+                close:[close.slice(0, k)]
+              }, [candIndex]);
+              lastK = k;
+            }
+
+            if (p < 1){
+              requestAnimationFrame(step);
+            } else {
+              Plotly.restyle(gd, {
+                x:    [ts],
+                open: [open],
+                high: [high],
+                low:  [low],
+                close:[close]
+              }, [candIndex]);
+            }
+          }
+          requestAnimationFrame(step);
+        }
+      }
+
+      _currentFile = fileNow;
+      if (rows && rows.length) _lastTs = rows[rows.length-1].ts;
+
       $("#kpi-file").text($("#csvFile").val()||"—");
     } catch(e) {
       console.error(e);
-      document.getElementById("chart").innerHTML = `<div class="p-3 text-danger">Не удалось загрузить свечи. Проверь CSV и колонки (time/open/high/low/close). Детали в консоли.</div>`;
-    } finally {
       $("#chartLoader").hide();
+      document.getElementById("chart").innerHTML = `<div class="p-3 text-danger">Не удалось загрузить свечи. Проверь CSV и колонки (time/open/high/low/close). Детали в консоли.</div>`;
     }
   }
 
-  // ==== Chart auto-refresh (НОВОЕ) ====
-  let chartTimer=null;
+  // ==== Автообновление графика + Кольцо ====
+  let chartTimer=null, fabRAF=null, nextRefreshAt=0;
   const CHART_INTERVAL_KEY="chart-interval-seconds";
   const CHART_AUTO_KEY="chart-auto";
 
@@ -674,7 +847,6 @@
     return Math.max(5, v|0);
   }
   function isChartAutoOn(){
-    // при первом запуске по умолчанию true
     const saved = localStorage.getItem(CHART_AUTO_KEY);
     if (saved === null) return true;
     return saved === "1";
@@ -684,22 +856,56 @@
     const iv = +localStorage.getItem(CHART_INTERVAL_KEY) || 10;
     $("#chartInterval").val(iv);
   }
+
+  function updateFabRing(){
+    const ring = document.getElementById('fabRing');
+    const btn  = document.getElementById('reloadChart');
+    if (!ring || !btn) return;
+
+    const C = 2*Math.PI*16;
+    ring.style.strokeDasharray = C.toFixed(1);
+
+    const auto = $("#autoRefreshChart").is(":checked");
+    btn.classList.toggle("disabled", !auto);
+
+    if (!auto){
+      ring.style.strokeDashoffset = C.toFixed(1);
+      return;
+    }
+
+    const iv = getChartInterval()*1000;
+    const now = performance.now();
+    const remain = Math.max(0, nextRefreshAt - now);
+    const progress = 1 - (remain/iv);
+    ring.style.strokeDashoffset = (C*(1-progress)).toFixed(1);
+
+    fabRAF = requestAnimationFrame(updateFabRing);
+  }
+  function startFabCountdown(){
+    if (fabRAF) cancelAnimationFrame(fabRAF);
+    nextRefreshAt = performance.now() + getChartInterval()*1000;
+    fabRAF = requestAnimationFrame(updateFabRing);
+  }
+
   function startChartTimer(){
     if(chartTimer){ clearInterval(chartTimer); chartTimer=null; }
-    if(!$("#autoRefreshChart").is(":checked")) return;
+    if(!$("#autoRefreshChart").is(":checked")){
+      updateFabRing();
+      return;
+    }
     const iv = getChartInterval()*1000;
+    startFabCountdown();
     chartTimer = setInterval(()=>{
       if(document.visibilityState==="visible" && $("#chart-pane").hasClass("active")){
-        drawChart();
+        drawChart(false); // автообновление без анимаций (инкрементально)
+        startFabCountdown();
       }
     }, iv);
   }
 
   function setupChartAutoControls(){
-    // синхронизируем UI с localStorage
     applyAutoControlsFromStorage();
 
-    // изменения чекбокса и интервала
     $("#autoRefreshChart").on("change", ()=>{
       localStorage.setItem(CHART_AUTO_KEY, $("#autoRefreshChart").is(":checked") ? "1" : "0");
       startChartTimer();
@@ -709,47 +915,64 @@
       $("#chartInterval").val(iv);
       localStorage.setItem(CHART_INTERVAL_KEY, iv.toString());
       startChartTimer();
+      startFabCountdown();
     });
 
-    // перезапуск при показе вкладки «График»
     document.getElementById("chart-tab").addEventListener("shown.bs.tab", ()=>{
       startChartTimer();
-      drawChart();
+      drawChart(false);
     });
 
-    // перезапуск при смене видимости
     document.addEventListener("visibilitychange", ()=>{
       if(document.visibilityState==="visible"){ startChartTimer(); }
     });
 
-    // запускаем сразу при старте страницы
     startChartTimer();
+    startFabCountdown();
   }
 
+  // ==== Controls ====
   function setupChartControls(){
-    $("#reloadChart").on("click", ()=>{ drawChart(); showSnack("График перестроен"); });
+    $("#reloadChart").on("click", ()=>{
+      drawChart(false);
+      startFabCountdown();
+      showSnack("График перестроен");
+    });
     $("#resetZoom").on("click", ()=>{
       Plotly.relayout('chart', {'xaxis.autorange':true,'yaxis.autorange':true,'yaxis2.autorange':true});
       showSnack("Масштаб сброшен");
     });
-    $("#csvFile, #tailRows, #rsiPeriod").on("change", ()=>{
-      localStorage.setItem("csv-file", $("#csvFile").val()||""); drawChart();
+
+    $("#csvFile").on("change", ()=>{
+      localStorage.setItem("csv-file", $("#csvFile").val()||"");
+      drawChart(true); // ручное действие — с анимацией
     });
-    $("#lowerPanel").on("change", ()=>{ showRsiControls(); drawChart(); });
+    $("#tailRows").on("change", ()=> drawChart(true));
+    $("#lowerPanel").on("change", ()=>{ showRsiControls(); drawChart(false); });
+    $("#rsiPeriod").on("change", ()=> drawChart(false));
 
     bindChip("#chipSMA20", "#sma20");
     bindChip("#chipSMA50", "#sma50");
     bindChip("#chipSigRSI", "#signals_rsi");
     bindChip("#chipSigXGB", "#signals_xgb");
-    bindChip("#chipLog",  "#logScale");
 
     $("#tailSegments .btn").on("click", function(){
+      $("#tailSegments .btn").removeClass("active");
+      $(this).addClass("active");
       const val=+$(this).data("tail"); $("#tailRows").val(val);
-      $("#tailSegments .btn").removeClass("active"); $(this).addClass("active");
-      drawChart();
+      drawChart(true);
     });
 
     showRsiControls();
+  }
+
+  // ==== Доп. параметры ====
+  function setupAdvancedControls(){
+    $("#logScaleSwitch").prop("checked", $("#logScale").is(":checked"));
+    $("#logScaleSwitch").on("change", ()=>{
+      $("#logScale").prop("checked", $("#logScaleSwitch").is(":checked"));
+      drawChart(false);
+    });
   }
 
   // ==== Logs by file ====
@@ -794,7 +1017,7 @@
   function setupLogsAllControls(){
     $(".btn-filter").on("click", function(){ logsAllLevel=$(this).data("level"); setLevelButtons(logsAllLevel); loadLogsAll(); });
     $("#reloadLogsAll").on("click", ()=>{ loadLogsAll(); showSnack("Все логи обновлены"); });
-    $("#logsAllQuery, #logsAllN").on("keyup change", debounce(loadLogsAll, 300));
+    $("#logsAllQuery, #logsAllN").on("keyup/change", debounce(loadLogsAll, 300));
     $("#logsAllInterval, #autoRefreshLogsAll").on("change", ()=>{
       if(logsAllTimer){ clearInterval(logsAllTimer); logsAllTimer=null; }
       if($("#autoRefreshLogsAll").is(":checked")){
@@ -885,26 +1108,63 @@
     if(document.visibilityState==="visible") loadState();
   });
 
+  // ==== Positions actions ====
+  function exportPositionsCsv(){
+    const rows=[["symbol","qty","entry","price","pnl"]];
+    $("#posTbody tr").each(function(){
+      const tds=$(this).find("td");
+      if(tds.length!==5) return;
+      rows.push(tds.map((_,td)=>($(td).text()||"").trim()).get());
+    });
+    const csv = rows.map(r => r.map(x => `"${(x??"").replace(/"/g,'""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download="positions.csv"; a.click(); URL.revokeObjectURL(url);
+  }
+
   // ==== Refresh all ====
-  function setupGlobalRefresh(){ $("#refreshAll").on("click", async ()=>{ await Promise.all([loadState(), drawChart(), loadLogTail(), loadLogsAll(), loadCsvPreview()]); showSnack("Данные обновлены"); }); }
+  function setupGlobalRefresh(){
+    $("#refreshAll").on("click", async ()=>{
+      await Promise.all([loadState(), drawChart(false), loadLogTail(), loadLogsAll(), loadCsvPreview()]);
+      startFabCountdown(); showSnack("Данные обновлены");
+    });
+    $("#posRefresh").on("click", ()=>{ loadState(); showSnack("Позиции обновлены"); });
+    $("#posExport").on("click", exportPositionsCsv);
+  }
+
+  // [4] мягкий ресайз Plotly при изменении окна
+  window.addEventListener('resize', debounce(()=>{
+    const gd = document.getElementById('chart');
+    if (gd && gd.data) Plotly.Plots.resize(gd);
+  }, 120));
 
   // ==== Init ====
   $(async function(){
     initTheme();
+
+    // tabs ink init & listeners
+    updateTabsInk();
+    window.addEventListener('resize', debounce(updateTabsInk, 100));
+    document.getElementById("viewTabs").addEventListener("click", e=>{
+      if(e.target.closest('.nav-link')) setTimeout(updateTabsInk, 0);
+    });
+    document.querySelectorAll('#viewTabs .nav-link').forEach(btn=>{
+      btn.addEventListener('shown.bs.tab', updateTabsInk);
+    });
+    document.getElementById("viewTabs").addEventListener('scroll', debounce(updateTabsInk, 50));
+
     setupChartControls();
-    setupChartAutoControls();   // <-- НОВОЕ: автообновление графика
+    setupChartAutoControls();
+    setupAdvancedControls();
     setupLogsControls();
     setupLogsAllControls();
-    setupPositionsControls();
     setupCsvPreviewControls();
     setupGlobalRefresh();
 
     await Promise.all([loadCsvList(), loadLogFiles(), loadState()]);
-    await drawChart(); await loadLogTail(); await loadLogsAll();
+    await drawChart(true); await loadLogTail(); await loadLogsAll();
 
     startStateTimer();
-
-    document.getElementById("chart-tab").addEventListener("shown.bs.tab", drawChart);
   });
 </script>
 </body>

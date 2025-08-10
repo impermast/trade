@@ -16,6 +16,19 @@ os.makedirs(LOGS_DIR, exist_ok=True)
 
 app = Flask(__name__)
 
+# ---------- выдать index и простую статику из папки API ----------
+@app.route("/")
+def index():
+    return send_file(os.path.join(BASE_DIR, "index.html"))
+
+@app.route("/styles.css")
+def serve_styles():
+    return send_from_directory(BASE_DIR, "styles.css")
+
+@app.route("/main.js")
+def serve_main_js():
+    return send_from_directory(BASE_DIR, "main.js")
+
 # ---------- Веб ----------
 def get_csv_list() -> list[str]:
     files = [f for f in os.listdir(DATA_DIR) if f.endswith(".csv")]
@@ -37,10 +50,6 @@ def add_cache_headers(resp):
     if request.path.startswith("/api/"):
         resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     return resp
-
-@app.route("/")
-def index():
-    return send_file(os.path.join(BASE_DIR, "index.html"))
 
 @app.route("/candles")
 def candles():
@@ -213,9 +222,9 @@ def _parse_line(filename: str, line: str):
     level = None
     up = line.upper()
     for lv in _LEVELS:
-        if f"[{lv}]" in up or f" {lv}:" in up or up.startswith(f"{lv} ") or up.endswith(f" {lv}"):
-            level = "WARN" if lv == "WARNING" else lv
-            break
+      if f"[{lv}]" in up or f" {lv}:" in up or up.startswith(f"{lv} ") or up.endswith(f" {lv}"):
+          level = "WARN" if lv == "WARNING" else lv
+          break
 
     msg = re.sub(r"\s{2,}", " ", msg)
     return ts_val, level, src, msg

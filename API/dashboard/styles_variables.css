@@ -1,0 +1,81 @@
+:root{
+  /* Палитра v2 */
+  --primary:#6E46FF;
+  --primary-variant:#5634CA;
+  --secondary:#20C9C3;
+  --secondary-variant:#1AAFAA;
+
+  --bg:#101115;
+  --surface:#171A1F;
+  --on-surface:rgba(255,255,255,0.92);
+  --on-surface-variant:rgba(255,255,255,0.70);
+  --muted:var(--on-surface-variant);
+  --border:#242834;
+  --error:#F0685F;
+  --grid:rgba(255,255,255,0.05);
+
+  --field-bg:#14171d;
+  --field-bg-focus:#1d2129;
+
+  --elev-1:0 2px 6px rgba(0,0,0,0.28);
+  --elev-2:0 8px 18px rgba(0,0,0,0.28);
+
+  --radius:14px;
+  --focus:0 0 0 .2rem rgba(110,70,255,0.20);
+
+  /* Общая высота мелких контролов */
+  --ctl-h: 38px;
+
+  /* Динамические градиенты */
+  --grad-1: linear-gradient(90deg, var(--primary), var(--secondary));
+  --grad-2: linear-gradient(135deg, var(--primary-variant), var(--secondary-variant));
+
+  /* Тон подсветок */
+  --ink-active-bg: linear-gradient(90deg, rgba(110,70,255,0.10), rgba(32,201,195,0.08));
+  --kpi-hover-bg: linear-gradient(135deg, rgba(110,70,255,0.10), rgba(32,201,195,0.08));
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50%{ background-position: 100% 50%; }
+  100%{ background-position: 0% 50%; }
+}
+
+[data-theme="light"]{
+  --primary:#5E58FF;
+  --primary-variant:#4B43D1;
+  --secondary:#1EC1BB;
+  --secondary-variant:#16A6A1;
+
+  --bg:#F6F7FB;
+  --surface:#FFFFFF;
+  --on-surface:rgba(0,0,0,0.90);
+  --on-surface-variant:rgba(0,0,0,0.66);
+  --muted:var(--on-surface-variant);
+  --border:#E5E7EF;
+  --error:#E65C53;
+  --grid:rgba(0,0,0,0.06);
+
+  --field-bg:#ffffff;
+  --field-bg-focus:#f3f4f8;
+
+  --elev-1:0 1px 2px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+  --elev-2:0 6px 16px rgba(0,0,0,0.10), 0 2px 22px rgba(0,0,0,0.06);
+
+  --ink-active-bg: linear-gradient(90deg, rgba(94,88,255,0.08), rgba(30,193,187,0.06));
+  --kpi-hover-bg: linear-gradient(135deg, rgba(94,88,255,0.06), rgba(30,193,187,0.05));
+}
+/* Light theme fixes for .navbar-dark */
+[data-theme="light"] .navbar.navbar-dark .navbar-brand,
+[data-theme="light"] .navbar.navbar-dark .nav-link,
+[data-theme="light"] .navbar.navbar-dark .form-check-label,
+[data-theme="light"] .navbar.navbar-dark .navbar-text { color: var(--on-surface) !important; }
+[data-theme="light"] .navbar.navbar-dark .form-check-input { border-color: var(--border) !important; background-color: transparent !important; }
+[data-theme="light"] .navbar.navbar-dark .btn.btn-outline-light { color: var(--on-surface) !important; border-color: var(--border) !important; background: transparent !important; }
+[data-theme="light"] .navbar.navbar-dark .btn.btn-outline-light.active,
+[data-theme="light"] .navbar.navbar-dark .btn.btn-outline-light.show { color: #fff !important; }
+/* Light: outline-light readability */
+[data-theme="light"] .btn-outline-light { color: var(--on-surface) !important; border-color: var(--border) !important; }
+[data-theme="light"] .btn-outline-light:hover { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .btn-outline-light.active,
+[data-theme="light"] .btn-outline-light.show { color: #fff !important; border-color: transparent !important; }

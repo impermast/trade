@@ -1,0 +1,114 @@
+/* === Tabs + ink === */
+.nav-tabs{ border-color:transparent; position:relative; }
+[data-theme="dark"] .nav-tabs .nav-link{
+  border:none; display:flex; align-items:center; gap:.5rem; color:var(--on-surface-variant)!important; background:transparent;
+}
+[data-theme="dark"] .nav-tabs .nav-link.active{
+  background: #0f1217 !important; color: var(--on-surface) !important; font-weight: 600;
+  border:1px solid var(--border) !important; border-bottom-color: transparent !important;
+  border-top-left-radius: 12px; border-top-right-radius: 12px;
+}
+[data-theme="light"] .nav-tabs .nav-link{
+  border:none; display:flex; align-items:center; gap:.5rem; color:var(--on-surface-variant)!important; background:transparent;
+}
+[data-theme="light"] .nav-tabs .nav-link.active{
+  background-image: var(--ink-active-bg) !important; background-size: 200% 200%; animation: gradientShift 10s ease infinite;
+  color: var(--on-surface) !important; font-weight: 600;
+  border:1px solid var(--border) !important; border-bottom-color: transparent !important;
+  border-top-left-radius: 12px; border-top-right-radius: 12px;
+}
+.tabs-ink{
+  position:absolute; height:2px; bottom:-2px; background:var(--grad-1);
+  border-radius:2px; pointer-events:none; width:0; transform:translateX(0);
+  transition: width .28s cubic-bezier(0.2,0.8,0.2,1.6), transform .28s cubic-bezier(0.2,0.8,0.2,1.6);
+  background-size: 200% 200%; animation: gradientShift 7s ease infinite;
+}
+
+/* === Сегментированные группы === */
+.segmented-wrap{
+  display:inline-flex; align-items:center; height: var(--ctl-h);
+  background: var(--field-bg); border:1px solid var(--border);
+  border-radius: 10px; padding: 2px; gap:0;
+}
+.segmented-wrap .btn{
+  height: calc(var(--ctl-h) - 6px);
+  border: none !important;
+  border-radius: 8px !important;
+  padding: .35rem .9rem;
+  line-height: 1;
+  color: var(--on-surface-variant);
+  background: transparent;
+}
+.segmented-wrap .btn + .btn{ margin-left: 2px; }
+.segmented-wrap .btn:hover{ background: var(--field-bg-focus) !important; color: var(--on-surface) !important; }
+.segmented-wrap .btn.active{
+  color:#fff!important; background: var(--grad-2) !important; background-size:200% 200%;
+  animation: gradientShift 8s ease infinite;
+  box-shadow:0 4px 12px rgba(0,0,0,0.22);
+}
+
+/* Применение к конкретным блокам */
+#tailSegments {
+  display:inline-flex; align-items:center; height: var(--ctl-h);
+  background: var(--field-bg); border:1px solid var(--border);
+  border-radius: 10px; padding: 2px;
+}
+#tailSegments .btn{
+  height: calc(var(--ctl-h) - 6px);
+  border: none !important;
+  border-radius: 8px !important;
+  padding: .35rem .9rem;
+  line-height: 1;
+  color: var(--on-surface-variant);
+  background: transparent;
+}
+#tailSegments .btn + .btn{ margin-left: 2px; }
+[data-theme="dark"] #tailSegments .btn:hover,
+[data-theme="dark"] #tailSegments .btn:focus{ color:#fff !important; background-color: var(--field-bg-focus) !important; }
+#tailSegments .btn-outline-light.active{
+  color:#fff!important; border-color:transparent!important;
+  background:var(--grad-2)!important; background-size:200% 200%; animation:gradientShift 8s ease infinite;
+  box-shadow:0 4px 12px rgba(0,0,0,0.22);
+}
+
+/* Кнопки уровней логов */
+#logLevelButtons{
+  display:inline-flex; align-items:center; height: var(--ctl-h);
+  background: var(--field-bg); border:1px solid var(--border);
+  border-radius: 10px; padding: 2px;
+}
+#logLevelButtons .btn{
+  height: calc(var(--ctl-h) - 6px);
+  border: none !important;
+  border-radius: 8px !important;
+  padding: .35rem .75rem;
+  line-height: 1;
+  color: var(--on-surface-variant);
+  background: transparent;
+}
+#logLevelButtons .btn + .btn{ margin-left: 2px; }
+#logLevelButtons .btn:hover{ background:var(--field-bg-focus) !important; color: var(--on-surface) !important; }
+#logLevelButtons .btn.active{
+  color:#fff!important; background: var(--grad-2) !important; background-size:200% 200%; animation: gradientShift 8s ease infinite;
+  box-shadow:0 4px 12px rgba(0,0,0,0.22);
+}
+
+/* Общий стиль для активных outline-кнопок */
+.btn-outline-light.active,
+.btn-outline-light.show{ background:var(--grad-2)!important; color:#fff!important; border-color:transparent!important; background-size:200% 200%; animation:gradientShift 8s ease infinite; }
+[data-theme="dark"] .btn-outline-light:hover,
+[data-theme="dark"] .btn-outline-light:focus{ color:#fff !important; background:rgba(255,255,255,0.06) !important; }
+
+/* Таблица */
+.table-md3{ width:100%; border-collapse:separate; border-spacing:0; }
+.table-md3 thead th{ position:sticky; top:0; background:var(--surface); z-index:1; border-bottom:1px solid var(--border); padding:.5rem .6rem; font-weight:700; }
+.table-md3 tbody td{ border-bottom:1px solid var(--border); padding:.48rem .6rem; }
+.table-md3 tbody tr:nth-child(even){ background:rgba(255,255,255,0.02); }
+.table-md3 .num{ text-align:right; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+.table-md3 thead th + th, .table-md3 tbody td + td{ box-shadow: inset 1px 0 0 rgba(255,255,255,0.04); }
+
+/* Подсветка строк CSV */
+.table-md3 tbody tr.has-rsi { background: linear-gradient(90deg, rgba(110,70,255,0.08), rgba(110,70,255,0.00));}
+.table-md3 tbody tr.has-xgb { background: linear-gradient(90deg, rgba(32,201,195,0.07), rgba(32,201,195,0.00));}
+.table-md3 tbody tr.has-rsi td:first-child { box-shadow: inset 3px 0 0 rgba(110,70,255,0.35);}
+.table-md3 tbody tr.has-xgb td:first-child { box-shadow: inset 3px 0 0 rgba(32,201,195,0.35);}

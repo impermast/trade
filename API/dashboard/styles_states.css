@@ -1,0 +1,12 @@
+/* Пустые состояния */
+.empty{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:28px; color:var(--on-surface-variant); }
+.empty svg{ width:128px; height:128px; opacity:.9; filter:saturate(.94); }
+.empty .title{ font-weight:700; color:var(--on-surface); font-size:1.05rem; }
+.empty .sub{ opacity:.85; }
+
+/* Пилюля статуса */
+.status-pill{ display:inline-flex; align-items:center; gap:.5rem; padding:.28rem .6rem; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid var(--border); font-weight:600; }
+.status-dot{ width:10px; height:10px; border-radius:50%; }
+.status-ok{ background:#21d09c; box-shadow:0 0 10px rgba(33,208,156,0.55); animation: okPulse 2.2s ease-in-out infinite; }
+.status-warn{ background:#f4b942; box-shadow:0 0 10px rgba(244,185,66,0.5); }
+@keyframes okPulse{ 0%{ box-shadow:0 0 8px rgba(33,208,156,0.4) } 50%{ box-shadow:0 0 14px rgba(33,208,156,0.7) } 100%{ box-shadow:0 0 8px rgba(33,208,156,0.4) } }

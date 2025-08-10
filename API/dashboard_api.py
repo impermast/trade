@@ -1,5 +1,5 @@
 # dashboard_api.py
-from flask import Flask, request, send_from_directory, jsonify, send_file
+from flask import Flask, request, send_from_directory, jsonify, send_file, abort
 import os, re, json, subprocess, sys, signal
 from collections import deque
 from datetime import datetime
@@ -8,6 +8,7 @@ import pandas as pd
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
+DASHBOARD_DIR = os.path.join(BASE_DIR, "dashboard")
 DATA_DIR = os.path.join(PROJECT_ROOT, "DATA")
 LOGS_DIR = os.path.join(PROJECT_ROOT, "LOGS")
 STATIC_DATA_DIR = os.path.join(DATA_DIR, "static")
@@ -19,16 +20,39 @@ app = Flask(__name__)
 # ---------- выдать index и простую статику из папки API ----------
 @app.route("/")
 def index():
-    return send_file(os.path.join(BASE_DIR, "index.html"))
+    return send_file(os.path.join(DASHBOARD_DIR, "index.html"))
 
 @app.route("/styles.css")
 def serve_styles():
-    return send_from_directory(BASE_DIR, "styles.css")
+    return send_from_directory(DASHBOARD_DIR, "styles.css")
 
 @app.route("/main.js")
 def serve_main_js():
-    return send_from_directory(BASE_DIR, "main.js")
+    return send_from_directory(DASHBOARD_DIR, "main.js")
 
+# Универсальная раздача ассетов из API/dashboard: core.js, theme.js, ui.js, state.js, chart.js, logs.js, csv.js, init.js и т.п.
+ALLOWED_ASSET_EXTS = {".js", ".css", ".map", ".svg", ".png", ".jpg", ".jpeg", ".webp"}
+
+@app.route("/<path:filename>")
+def serve_dashboard_asset(filename: str):
+    """
+    Отдаёт файлы только из папки DASHBOARD_DIR по точному имени файла без подпапок.
+    Не перехватывает /api/*, /csv_list, /logs и другие явно объявленные роуты.
+    """
+    # Блокируем подпапки и пути вида a/b/c — разрешаем только одно имя файла
+    if "/" in filename or "\\" in filename:
+        abort(404)
+
+    name = os.path.basename(filename)
+    ext = os.path.splitext(name)[1].lower()
+    if ext not in ALLOWED_ASSET_EXTS:
+        abort(404)
+
+    path = os.path.join(DASHBOARD_DIR, name)
+    if not os.path.isfile(path):
+        abort(404)
+
+    return send_from_directory(DASHBOARD_DIR, name)
 # ---------- Веб ----------
 def get_csv_list() -> list[str]:
     files = [f for f in os.listdir(DATA_DIR) if f.endswith(".csv")]

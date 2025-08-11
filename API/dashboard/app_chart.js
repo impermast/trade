@@ -201,6 +201,10 @@
 
       const ord_rsi = rows.map(r => (r.orders_rsi ?? r.orders ?? null));
       const ord_xgb = rows.map(r => (r.orders_xgb ?? null));
+      const ord_macd = rows.map(r => (r.orders_macd ?? null));
+      const ord_bollinger = rows.map(r => (r.orders_bollinger ?? null));
+      const ord_stochastic = rows.map(r => (r.orders_stochastic ?? null));
+      const ord_williams_r = rows.map(r => (r.orders_williams_r ?? null));
 
       const traces=[];
       const cPrimary   = U.cssVar("--primary");
@@ -273,6 +277,10 @@
       }
       if ($("#signals_rsi").is(":checked")) addSignalMarkers(ord_rsi, "RSI");
       if ($("#signals_xgb").is(":checked")) addSignalMarkers(ord_xgb, "XGB");
+      if ($("#signals_macd").is(":checked")) addSignalMarkers(ord_macd, "MACD");
+      if ($("#signals_bollinger").is(":checked")) addSignalMarkers(ord_bollinger, "BOLLINGER");
+      if ($("#signals_stochastic").is(":checked")) addSignalMarkers(ord_stochastic, "STOCHASTIC");
+      if ($("#signals_williams_r").is(":checked")) addSignalMarkers(ord_williams_r, "WILLIAMS_R");
 
       const {paper_bgcolor,plot_bgcolor,font_color,grid}=T.themeVars();
       const layout={
@@ -485,6 +493,10 @@
     U.bindChip("#chipSMA50", "#sma50");
     U.bindChip("#chipSigRSI", "#signals_rsi");
     U.bindChip("#chipSigXGB", "#signals_xgb");
+    U.bindChip("#chipSigMACD", "#signals_macd");
+    U.bindChip("#chipSigBOLLINGER", "#signals_bollinger");
+    U.bindChip("#chipSigStochastic", "#signals_stochastic");
+    U.bindChip("#chipSigWilliamsR", "#signals_williams_r");
 
     const tailSegments = $("#tailSegments");
     if (tailSegments && tailSegments.length) {

@@ -6,7 +6,7 @@ from typing import Optional, Dict, Any, List, Tuple, Union
 from functools import lru_cache
 
 from ta.trend import SMAIndicator, EMAIndicator, MACD
-from ta.momentum import RSIIndicator
+from ta.momentum import RSIIndicator, StochasticOscillator, WilliamsRIndicator
 from ta.volatility import BollingerBands
 
 class Indicators:
@@ -67,6 +67,19 @@ class Indicators:
             period = params.get("period", 20)
             suffix = f"_{period}" if period != 20 else ""
             return [f"bb_h{suffix}", f"bb_m{suffix}", f"bb_l{suffix}"]
+
+        elif indicator == "williams_r":
+            period = params.get("period", 14)
+            return f"williams_r_{period}" if period != 14 else "williams_r"
+
+        elif indicator == "stochastic_oscillator":
+            k_period = params.get("k_period", 14)
+            d_period = params.get("d_period", 3)
+            is_default = (k_period == 14 and d_period == 3)
+            if is_default:
+                return ["stoch_k", "stoch_d"]
+            else:
+                return [f"stoch_k_{k_period}_{d_period}", f"stoch_d_{k_period}_{d_period}"]
 
         return indicator
 
@@ -363,5 +376,118 @@ class Indicators:
                 col_h: result_h,
                 col_m: result_m,
                 col_l: result_l
+            }, index=self.df.index)
+            return result_df
+
+    def williams_r(self, period: int = 14, inplace: bool = True) -> Optional[pd.DataFrame]:
+        """
+        Calculate Williams %R indicator.
+
+        Args:
+            period: Period for the Williams %R calculation
+            inplace: Whether to modify the DataFrame in place
+
+        Returns:
+            DataFrame with Williams %R values if inplace is False, None otherwise
+        """
+        # Get column name for this indicator
+        params = {"period": period}
+        col_name = self._get_column_name("williams_r", params)
+
+        # Check if indicator already exists
+        if self._indicator_exists(col_name):
+            self.logger.info(f"Williams %R with period {period} already calculated, using existing values.")
+            if not inplace:
+                return self.df[[col_name]].copy()
+            return None
+
+        # Check if result is cached
+        params_tuple = tuple(sorted(params.items()))
+        cached_result = self._get_cached_result("williams_r", params_tuple)
+
+        if cached_result is not None:
+            self.logger.info(f"Using cached Williams %R with period {period}.")
+            result = cached_result
+        else:
+            # Calculate the indicator
+            self.logger.info(f"Calculating Williams %R with period {period}.")
+            williams_r = WilliamsRIndicator(
+                high=self.df['high'],
+                low=self.df['low'],
+                close=self.df['close'],
+                window=period
+            )
+            result = williams_r.williams_r().values
+
+            # Cache the result
+            self._cache_result("williams_r", params_tuple, result)
+
+        # Update the DataFrame
+        if inplace:
+            self.df[col_name] = result
+            return None
+        else:
+            # Create a new DataFrame with just the indicator column
+            result_df = pd.DataFrame({col_name: result}, index=self.df.index)
+            return result_df
+
+    def stochastic_oscillator(self, k_period: int = 14, d_period: int = 3, 
+                             inplace: bool = True) -> Optional[pd.DataFrame]:
+        """
+        Calculate Stochastic Oscillator (%K and %D).
+
+        Args:
+            k_period: Period for %K calculation
+            d_period: Period for %D calculation (smoothing of %K)
+            inplace: Whether to modify the DataFrame in place
+
+        Returns:
+            DataFrame with Stochastic Oscillator values if inplace is False, None otherwise
+        """
+        # Get column names for this indicator
+        params = {"k_period": k_period, "d_period": d_period}
+        col_names = self._get_column_name("stochastic_oscillator", params)
+        col_k, col_d = col_names
+
+        # Check if indicator already exists
+        if self._indicator_exists(col_names):
+            self.logger.info(f"Stochastic Oscillator with parameters {params} already calculated, using existing values.")
+            if not inplace:
+                return self.df[col_names].copy()
+            return None
+
+        # Check if result is cached
+        params_tuple = tuple(sorted(params.items()))
+        cached_result = self._get_cached_result("stochastic_oscillator", params_tuple)
+
+        if cached_result is not None:
+            self.logger.info(f"Using cached Stochastic Oscillator with parameters {params}.")
+            result_k, result_d = cached_result
+        else:
+            # Calculate the indicator
+            self.logger.info(f"Calculating Stochastic Oscillator with parameters {params}.")
+            stoch = StochasticOscillator(
+                high=self.df['high'],
+                low=self.df['low'],
+                close=self.df['close'],
+                window=k_period,
+                smooth_window=d_period
+            )
+            result_k = stoch.stoch().values
+            result_d = stoch.stoch_signal().values
+
+            # Cache the results as a tuple of arrays
+            self._cache_result("stochastic_oscillator", params_tuple, (result_k, result_d))
+
+        # Update the DataFrame
+        if inplace:
+            self.df[col_k] = result_k
+            self.df[col_d] = result_d
+            return None
+        else:
+            # Create a new DataFrame with just the indicator columns
+            result_df = pd.DataFrame({
+                col_k: result_k,
+                col_d: result_d
             }, index=self.df.index)
             return result_df

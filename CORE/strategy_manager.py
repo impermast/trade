@@ -22,6 +22,10 @@ import pandas as pd
 from STRATEGY.base import BaseStrategy
 from STRATEGY.rsi import RSIonly_Strategy
 from STRATEGY.XGBstrategy import XGBStrategy
+from STRATEGY.macd_crossover import MACDCrossoverStrategy
+from STRATEGY.bollinger_mean_reversion import BollingerMeanReversionStrategy
+from STRATEGY.stochastic_oscillator import StochasticOscillatorStrategy
+from STRATEGY.williams_r import WilliamsRStrategy
 
 
 class SignalType(Enum):
@@ -83,8 +87,12 @@ class WeightedVotingAggregator(SignalAggregator):
     
     def __init__(self, strategy_weights: Optional[Dict[str, float]] = None):
         self.strategy_weights = strategy_weights or {
-            "RSIonly_Strategy": 0.4,
-            "XGBStrategy": 0.6
+            "RSI": 0.20,
+            "XGB": 0.30,
+            "MACD": 0.20,
+            "BOLLINGER": 0.12,
+            "STOCHASTIC": 0.10,
+            "WILLIAMS_R": 0.08
         }
     
     def aggregate(self, signals: List[StrategySignal]) -> AggregatedDecision:
@@ -290,6 +298,34 @@ class StrategyManager:
             self.logger.info("XGB стратегия зарегистрирована")
         except Exception as e:
             self.logger.error(f"Ошибка регистрации XGB стратегии: {e}")
+        
+        try:
+            macd_strategy = MACDCrossoverStrategy()
+            self.register_strategy("MACD", macd_strategy)
+            self.logger.info("MACD Crossover стратегия зарегистрирована")
+        except Exception as e:
+            self.logger.error(f"Ошибка регистрации MACD стратегии: {e}")
+        
+        try:
+            bollinger_strategy = BollingerMeanReversionStrategy()
+            self.register_strategy("BOLLINGER", bollinger_strategy)
+            self.logger.info("Bollinger Bands Mean Reversion стратегия зарегистрирована")
+        except Exception as e:
+            self.logger.error(f"Ошибка регистрации Bollinger стратегии: {e}")
+        
+        try:
+            stochastic_strategy = StochasticOscillatorStrategy()
+            self.register_strategy("STOCHASTIC", stochastic_strategy)
+            self.logger.info("Stochastic Oscillator стратегия зарегистрирована")
+        except Exception as e:
+            self.logger.error(f"Ошибка регистрации Stochastic стратегии: {e}")
+        
+        try:
+            williams_r_strategy = WilliamsRStrategy()
+            self.register_strategy("WILLIAMS_R", williams_r_strategy)
+            self.logger.info("Williams %R стратегия зарегистрирована")
+        except Exception as e:
+            self.logger.error(f"Ошибка регистрации Williams %R стратегии: {e}")
     
     def register_strategy(self, name: str, strategy: BaseStrategy) -> None:
         """Регистрирует новую стратегию"""

@@ -34,22 +34,26 @@
     thead.append(`<tr>${cols.map(c => `<th>${c}</th>`).join("")}</tr>`);
 
     // Оптимизация: создаем HTML строку вместо множественных DOM операций
-    const rowsHtml = rows.map(r => {
-      const hasRsi = Number(r["orders_rsi"] ?? 0) !== 0;
-      const hasXgb = Number(r["orders_xgb"] ?? 0) !== 0 || Number(r["orders"] ?? 0) !== 0;
-      const classes = [];
-      if (hasRsi) classes.push("has-rsi");
-      if (hasXgb) classes.push("has-xgb");
-      
-      const classAttr = classes.length > 0 ? ` class="${classes.join(' ')}"` : '';
-      const cells = cols.map(c => {
-        const cellClass = /^(open|high|low|close|volume|orders|orders_rsi|orders_xgb)$/i.test(c) ? 'num' : '';
-        const cellClassAttr = cellClass ? ` class="${cellClass}"` : '';
-        return `<td${cellClassAttr}>${r[c] ?? ""}</td>`;
+          const rowsHtml = rows.map(r => {
+        const hasRsi = Number(r["orders_rsi"] ?? 0) !== 0;
+        const hasXgb = Number(r["orders_xgb"] ?? 0) !== 0 || Number(r["orders"] ?? 0) !== 0;
+        const hasMacd = Number(r["orders_macd"] ?? 0) !== 0;
+        const hasBollinger = Number(r["orders_bollinger"] ?? 0) !== 0;
+        const classes = [];
+        if (hasRsi) classes.push("has-rsi");
+        if (hasXgb) classes.push("has-xgb");
+        if (hasMacd) classes.push("has-macd");
+        if (hasBollinger) classes.push("has-bollinger");
+        
+        const classAttr = classes.length > 0 ? ` class="${classes.join(' ')}"` : '';
+        const cells = cols.map(c => {
+          const cellClass = /^(open|high|low|close|volume|orders|orders_rsi|orders_xgb|orders_macd|orders_bollinger)$/i.test(c) ? 'num' : '';
+          const cellClassAttr = cellClass ? ` class="${cellClass}"` : '';
+          return `<td${cellClassAttr}>${r[c] ?? ""}</td>`;
+        }).join("");
+        
+        return `<tr${classAttr}>${cells}</tr>`;
       }).join("");
-      
-      return `<tr${classAttr}>${cells}</tr>`;
-    }).join("");
 
     tbody.html(rowsHtml);
   }

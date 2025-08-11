@@ -259,8 +259,12 @@
 /* Специальные строки таблицы */
 .table-md3 tbody tr.has-rsi { background: linear-gradient(90deg, rgba(110,70,255,0.08), rgba(110,70,255,0.00));}
 .table-md3 tbody tr.has-xgb { background: linear-gradient(90deg, rgba(32,201,195,0.07), rgba(32,201,195,0.00));}
+.table-md3 tbody tr.has-macd { background: linear-gradient(90deg, rgba(255,165,0,0.08), rgba(255,165,0,0.00));}
+.table-md3 tbody tr.has-bollinger { background: linear-gradient(90deg, rgba(255,69,0,0.08), rgba(255,69,0,0.00));}
 .table-md3 tbody tr.has-rsi td:first-child { box-shadow: inset 3px 0 0 rgba(110,70,255,0.35);}
 .table-md3 tbody tr.has-xgb td:first-child { box-shadow: inset 3px 0 0 rgba(32,201,195,0.35);}
+.table-md3 tbody tr.has-macd td:first-child { box-shadow: inset 3px 0 0 rgba(255,165,0,0.35);}
+.table-md3 tbody tr.has-bollinger td:first-child { box-shadow: inset 3px 0 0 rgba(255,69,0,0.35);}
 
 /* Анимации для табов */
 .tabs-animated .tab-pane.tab-anim{

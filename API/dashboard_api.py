@@ -122,6 +122,10 @@ def api_candles():
         orders_col      = lower_map.get("orders")
         orders_rsi_col  = lower_map.get("orders_rsi")
         orders_xgb_col  = lower_map.get("orders_xgb") or lower_map.get("xgb_signal")
+        orders_macd_col = lower_map.get("orders_macd")
+        orders_bollinger_col = lower_map.get("orders_bollinger")
+        orders_stochastic_col = lower_map.get("orders_stochastic")
+        orders_williams_r_col = lower_map.get("orders_williams_r")
 
         if not time_col or not all([o, h, l, c]):
             return jsonify({"error": "Не найдены необходимые колонки для OHLC"}), 400
@@ -132,11 +136,11 @@ def api_candles():
         if tail_rows > 0:
             df = df.tail(tail_rows).copy()
 
-        for col in [o, h, l, c, v, orders_col, orders_rsi_col, orders_xgb_col]:
+        for col in [o, h, l, c, v, orders_col, orders_rsi_col, orders_xgb_col, orders_macd_col, orders_bollinger_col, orders_stochastic_col, orders_williams_r_col]:
             if col and col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
 
-        for col in [orders_col, orders_rsi_col, orders_xgb_col]:
+        for col in [orders_col, orders_rsi_col, orders_xgb_col, orders_macd_col, orders_bollinger_col, orders_stochastic_col, orders_williams_r_col]:
             if col and col in df.columns:
                 df[col] = df[col].fillna(0).astype(float)
 
@@ -163,6 +167,18 @@ def api_candles():
             if orders_xgb_col:
                 val = row[orders_xgb_col]
                 item["orders_xgb"] = float(val) if pd.notna(val) else 0.0
+            if orders_macd_col:
+                val = row[orders_macd_col]
+                item["orders_macd"] = float(val) if pd.notna(val) else 0.0
+            if orders_bollinger_col:
+                val = row[orders_bollinger_col]
+                item["orders_bollinger"] = float(val) if pd.notna(val) else 0.0
+            if orders_stochastic_col:
+                val = row[orders_stochastic_col]
+                item["orders_stochastic"] = float(val) if pd.notna(val) else 0.0
+            if orders_williams_r_col:
+                val = row[orders_williams_r_col]
+                item["orders_williams_r"] = float(val) if pd.notna(val) else 0.0
 
             out.append(item)
 

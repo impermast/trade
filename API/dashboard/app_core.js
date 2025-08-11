@@ -169,10 +169,14 @@
   hiddenControls.append('<input type="checkbox" id="sma50">');
   hiddenControls.append('<input type="checkbox" id="signals_rsi" checked>');
   hiddenControls.append('<input type="checkbox" id="signals_xgb" checked>');
+  hiddenControls.append('<input type="checkbox" id="signals_macd" checked>');
+  hiddenControls.append('<input type="checkbox" id="signals_bollinger" checked>');
+  hiddenControls.append('<input type="checkbox" id="signals_stochastic" checked>');
+  hiddenControls.append('<input type="checkbox" id="signals_williams_r" checked>');
   hiddenControls.append('<input type="checkbox" id="logScale">');
 
   // Добавляем обработчики для скрытых чекбоксов, чтобы сбрасывать переменные оптимизации
-  $("#sma20, #sma50, #signals_rsi, #signals_xgb, #logScale").on("change", function() {
+  $("#sma20, #sma50, #signals_rsi, #signals_xgb, #signals_macd, #signals_bollinger, #signals_stochastic, #signals_williams_r, #logScale").on("change", function() {
     // Сбрасываем переменные оптимизации при изменении любых чекбоксов
     if(window.App.chart && window.App.chart._currentFile !== undefined) {
       window.App.chart._currentFile = null;

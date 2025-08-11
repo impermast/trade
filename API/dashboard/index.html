@@ -43,6 +43,7 @@
   <script defer src="app_theme.js"></script>
   <script defer src="app_ui.js"></script>
   <script defer src="app_state.js"></script>
+  <script defer src="app_api_info.js"></script>
   <script defer src="app_chart.js"></script>
   <script defer src="app_logs.js"></script>
   <script defer src="app_csv.js"></script>
@@ -61,6 +62,12 @@
       <div class="status-pill" id="statusPill" title="Состояние API" data-bs-toggle="tooltip">
         <span class="status-dot status-warn" id="statusDot"></span>
         <span id="statusText">offline</span>
+      </div>
+      
+      <!-- Индикатор текущего API -->
+      <div class="api-indicator" id="apiIndicator" title="Текущий API" data-bs-toggle="tooltip">
+        <i data-lucide="server" class="api-icon" id="apiIcon"></i>
+        <span id="apiName">—</span>
       </div>
     </div>
     <div class="ms-auto d-flex align-items-center gap-2">

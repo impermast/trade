@@ -367,6 +367,79 @@ def state():
 def health():
     return jsonify({"status":"ok"})
 
+@app.route("/api/current_api")
+def current_api():
+    """
+    Возвращает информацию о текущем подключенном API.
+    """
+    try:
+        # Определяем текущий API на основе конфигурации
+        from CORE.config import APIConfig
+        
+        if APIConfig.USE_MOCK_API:
+            api_info = {
+                "name": "MockAPI",
+                "type": "simulation",
+                "description": "Симуляция торговли с генерацией данных",
+                "status": "active",
+                "features": ["OHLCV генерация", "Баланс симуляция", "Позиции симуляция"]
+            }
+        elif APIConfig.USE_BYBIT_API:
+            api_info = {
+                "name": "Bybit",
+                "type": "exchange",
+                "description": "Bybit Exchange - реальная торговля",
+                "status": "active",
+                "features": ["Реальные данные", "Торговля", "Баланс", "Позиции"]
+            }
+        else:
+            # Проверяем другие доступные API
+            try:
+                # Попробуем импортировать и проверить другие API
+                if hasattr(APIConfig, 'USE_BINANCE_API') and APIConfig.USE_BINANCE_API:
+                    api_info = {
+                        "name": "Binance",
+                        "type": "exchange",
+                        "description": "Binance Exchange - реальная торговля",
+                        "status": "active",
+                        "features": ["Реальные данные", "Торговля", "Баланс", "Позиции"]
+                    }
+                elif hasattr(APIConfig, 'USE_COINBASE_API') and APIConfig.USE_COINBASE_API:
+                    api_info = {
+                        "name": "Coinbase",
+                        "type": "exchange",
+                        "description": "Coinbase Exchange - реальная торговля",
+                        "status": "active",
+                        "features": ["Реальные данные", "Торговля", "Баланс", "Позиции"]
+                    }
+                else:
+                    api_info = {
+                        "name": "Не определен",
+                        "type": "unknown",
+                        "description": "API не настроен в конфигурации",
+                        "status": "inactive",
+                        "features": []
+                    }
+            except Exception:
+                api_info = {
+                    "name": "Не определен",
+                    "type": "unknown",
+                    "description": "API не настроен в конфигурации",
+                    "status": "inactive",
+                    "features": []
+                }
+        
+        return jsonify(api_info)
+    except Exception as e:
+        app.logger.error(f"Error getting current API info: {e}")
+        return jsonify({
+            "name": "Ошибка",
+            "type": "error",
+            "description": "Не удалось получить информацию об API",
+            "status": "error",
+            "features": []
+        })
+
 
 # ---------- Локальный запуск ----------
 def run():

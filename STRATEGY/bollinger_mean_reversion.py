@@ -23,26 +23,12 @@ class BollingerMeanReversionStrategy(BaseStrategy):
     иначе 'bb_h_{period}', 'bb_m_{period}', 'bb_l_{period}'.
     """
     
-    def __init__(
-        self,
-        df: Optional[pd.DataFrame] = None,
-        data_name: Optional[str] = None,
-        output_file: str = "anal.csv",
-        save_after_init: bool = True,
-        **params: Any,
-    ) -> None:
-        # объявляем зависимость от Bollinger Bands
-        super().__init__(name="BollingerMeanReversion", indicators=["bollinger_bands"], **params)
-        
-        # Параметры для поведения "как у других стратегий"
-        self._init_df = df
-        self._init_data_name = data_name
-        self._init_output_file = output_file
-        self._save_after_init = bool(save_after_init)
-        
-        # Если передали df на вход — сразу обеспечим индикаторы
-        if self._init_df is not None:
-            self._ensure_indicators_and_save(self._init_df)
+    def __init__(self, **params: Any) -> None:
+        super().__init__(
+            name="BollingerMeanReversion", 
+            indicators=["bollinger_bands"], 
+            **params
+        )
     
     def default_params(self) -> Dict[str, Dict[str, Any]]:
         return {
@@ -51,6 +37,11 @@ class BollingerMeanReversionStrategy(BaseStrategy):
                 "window_dev": 2.0
             }
         }
+    
+    def _ensure_orders_col(self, df: pd.DataFrame) -> None:
+        """Создаем колонку для сигналов стратегии"""
+        if "orders_bollinger" not in df.columns:
+            df.insert(len(df.columns), "orders_bollinger", pd.Series(index=df.index, dtype="float64"))
     
     # ----- helpers -----
     @staticmethod
@@ -61,37 +52,6 @@ class BollingerMeanReversionStrategy(BaseStrategy):
             return "bb_h", "bb_m", "bb_l"
         else:
             return f"bb_h_{period}", f"bb_m_{period}", f"bb_l_{period}"
-    
-    @staticmethod
-    def _ensure_orders_col(df: pd.DataFrame) -> None:
-        """Создаем колонку для сигналов стратегии"""
-        if "orders_bollinger" not in df.columns:
-            df.insert(len(df.columns), "orders_bollinger", pd.Series(index=df.index, dtype="float64"))
-    
-    def _resolve_data_name(self, df: pd.DataFrame) -> str:
-        """Определяем имя для файла аналитики"""
-        if self._init_data_name:
-            return self._init_data_name
-        # Пытаемся вытащить symbol/asset/ticker для корректного имени файла
-        for col in ("symbol", "asset", "ticker"):
-            if col in df.columns and isinstance(df[col].iloc[0], str):
-                raw = str(df[col].iloc[0])
-                token = raw.split("/")[0].split("-")[0]
-                return token.upper()
-        return "BOLLINGER"
-    
-    def _ensure_indicators_and_save(self, df: pd.DataFrame) -> None:
-        """Полный путь как у других стратегий: берём (indicators, stratparams) из check_indicators()
-        и просим Analytic посчитать необходимые индикаторы. При необходимости сохраняем CSV."""
-        # ленивый импорт, чтобы не словить циклический
-        from BOTS.analbot import Analytic  # type: ignore
-        
-        indicators, stratparams = self.check_indicators()
-        data_name = self._resolve_data_name(df)
-        anal = Analytic(df=df, data_name=data_name, output_file=self._init_output_file)
-        anal.make_calc(indicators=indicators, stratparams=stratparams, parallel=False)
-        if self._save_after_init:
-            anal._save_results_to_csv()  # noqa: SLF001
     
     def _ensure_required_bollinger(self, df: pd.DataFrame, period: int) -> None:
         """Узко: если нужных колонок Bollinger Bands нет — считаем через Analytic"""

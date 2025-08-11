@@ -13,7 +13,6 @@ import pandas as pd
 sys.path.append(os.path.abspath("."))
 
 from STRATEGY.base import BaseStrategy  # type: ignore
-from BOTS.analbot import Analytic  # type: ignore
 
 
 class XGBStrategy(BaseStrategy):
@@ -37,10 +36,6 @@ class XGBStrategy(BaseStrategy):
         batch_size: int = 256,
         prediction_cache_size: int = 2048,
         use_quantization: bool = False,
-        df: Optional[pd.DataFrame] = None,
-        data_name: Optional[str] = None,
-        output_file: str = "anal.csv",
-        save_after_init: bool = True,
         **params: Dict[str, Any],
     ) -> None:
         super().__init__(
@@ -52,11 +47,6 @@ class XGBStrategy(BaseStrategy):
         self.prediction_cache_size = int(prediction_cache_size)
         self.use_quantization = bool(use_quantization)
         self.slippage = float(slippage)
-
-        self._init_df = df
-        self._init_data_name = data_name
-        self._init_output_file = output_file
-        self._save_after_init = save_after_init
 
         # Load model
         if model_path in self._model_cache:
@@ -82,10 +72,6 @@ class XGBStrategy(BaseStrategy):
         # cache for single predictions
         self._cached_predict = lru_cache(maxsize=self.prediction_cache_size)(self._predict)
 
-        # If dataframe is provided, ensure indicators now
-        if self._init_df is not None:
-            self._ensure_indicators_and_save(self._init_df)
-
     # ----- BaseStrategy required -----
     def default_params(self) -> Dict[str, Dict[str, Any]]:
         return {
@@ -96,28 +82,8 @@ class XGBStrategy(BaseStrategy):
             "bollinger_bands": {"period": 20, "window_dev": 2},
         }
 
-    # ----- helpers -----
-    def _resolve_data_name(self, df: pd.DataFrame) -> str:
-        if self._init_data_name:
-            return self._init_data_name
-        for col in ("symbol", "asset", "ticker"):
-            if col in df.columns and isinstance(df[col].iloc[0], str):
-                raw = str(df[col].iloc[0])
-                token = raw.split("/")[0].split("-")[0]
-                return token.upper()
-        return "XGB"
-
-    def _ensure_indicators_and_save(self, df: pd.DataFrame) -> None:
-        """Calculate indicators/features via Analytic if needed."""
-        indicators, stratparams = self.check_indicators()
-        data_name = self._resolve_data_name(df)
-        anal = Analytic(df=df, data_name=data_name, output_file=self._init_output_file)
-        anal.make_calc(indicators, stratparams, parallel=True)
-        if self._save_after_init:
-            # internal method in Analytic that writes CSV; keep interface stable
-            anal._save_results_to_csv()  # noqa: SLF001
-
-    def _ensure_signal_columns(self, df: pd.DataFrame) -> None:
+    def _ensure_orders_col(self, df: pd.DataFrame) -> None:
+        """Ensure signal columns exist for this strategy."""
         if "orders_xgb" not in df.columns:
             df.insert(len(df.columns), "orders_xgb", pd.Series(index=df.index, dtype="float64"))
         if "xgb_amount" not in df.columns:
@@ -125,6 +91,7 @@ class XGBStrategy(BaseStrategy):
         if "xgb_signal" not in df.columns:  # legacy alias for UI/backward-compat
             df.insert(len(df.columns), "xgb_signal", pd.Series(index=df.index, dtype="float64"))
 
+    # ----- helpers -----
     def _have_all_features(self, row: pd.Series) -> bool:
         return all((f in row) and pd.notna(row[f]) for f in self.features)
 
@@ -190,7 +157,7 @@ class XGBStrategy(BaseStrategy):
 
     def _set_signal(self, df: pd.DataFrame, idx: int, sig: int, amt: float, overwrite: bool = False) -> None:
         """Unified write path to avoid history overwrite."""
-        self._ensure_signal_columns(df)
+        self._ensure_orders_col(df)
         if not overwrite and idx in df.index:
             # do not overwrite non-NaN history
             existing = df.at[idx, "orders_xgb"]
@@ -209,7 +176,7 @@ class XGBStrategy(BaseStrategy):
         if df.shape[0] < 2:
             return 0
 
-        self._ensure_signal_columns(df)
+        self._ensure_orders_col(df)
 
         # Ensure features
         if not self._have_all_features(df.iloc[-2]):

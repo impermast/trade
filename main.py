@@ -14,8 +14,7 @@ from CORE.config import TradingConfig, DashboardConfig, PathConfig, LoggingConfi
 # Получаем пути к CSV файлам
 csv_paths = TradingConfig.get_csv_paths()
 CSV_RAW_PATH = csv_paths['raw']
-CSV_ANAL_PATH_RSI = csv_paths['rsi_anal']
-CSV_ANAL_PATH_XGB = csv_paths['xgb_anal']
+CSV_ANAL_PATH = csv_paths['anal']  # единый файл для всех стратегий
 STATE_PATH = PathConfig.STATE_PATH
 
 # === ВАЖНО: логгер инициализируем ПОСЛЕ чистки логов в __main__ ===
@@ -59,7 +58,7 @@ async def plot_loop(use_plot: bool) -> None:
         return
     logger.info("Запущен графический цикл PlotBot")
     def _start():
-        plotbot = PlotBot(csv_file=CSV_ANAL_PATH_RSI, refresh_interval=TradingConfig.UPDATE_INTERVAL)
+        plotbot = PlotBot(csv_file=CSV_ANAL_PATH, refresh_interval=TradingConfig.UPDATE_INTERVAL)
         plotbot.start()
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, _start)

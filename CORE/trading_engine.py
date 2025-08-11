@@ -56,7 +56,7 @@ class TradingEngine:
         
         # Пути для сохранения данных
         self.csv_raw_path = TradingConfig.get_csv_paths()['raw']
-        self.csv_anal_path = TradingConfig.get_csv_paths()['rsi_anal']  # используем RSI как основной
+        self.csv_anal_path = TradingConfig.get_csv_paths()['anal']  # единый файл для всех стратегий
         self.state_path = PathConfig.STATE_PATH
         
         self.logger.info(f"TradingEngine инициализирован для {self.symbol}")

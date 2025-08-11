@@ -155,8 +155,7 @@ class TradingConfig:
         symbol_name = cls.get_symbol_name()
         return {
             'raw': f"DATA/{symbol_name}_{cls.TIMEFRAME}.csv",
-            'rsi_anal': f"DATA/{symbol_name}_{cls.TIMEFRAME}_anal.csv",
-            'xgb_anal': f"DATA/{symbol_name}_{cls.TIMEFRAME}_xgb.csv"
+            'anal': f"DATA/{symbol_name}_{cls.TIMEFRAME}_anal.csv",  # единый файл для всех стратегий
         }
 
 

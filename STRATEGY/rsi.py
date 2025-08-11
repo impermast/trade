@@ -10,7 +10,6 @@ import pandas as pd
 sys.path.append(os.path.abspath("."))
 
 from STRATEGY.base import BaseStrategy  # type: ignore
-# ВАЖНО: Analytic импортируем лениво внутри методов, чтобы избежать циклов.
 
 
 class RSIonly_Strategy(BaseStrategy):
@@ -24,68 +23,25 @@ class RSIonly_Strategy(BaseStrategy):
     Если нужных колонок нет — стратегия сама запросит их расчёт у Analytic (как XGB).
     """
 
-    def __init__(
-        self,
-        df: Optional[pd.DataFrame] = None,
-        data_name: Optional[str] = None,
-        output_file: str = "anal.csv",
-        save_after_init: bool = True,
-        **params: Any,
-    ) -> None:
-        # объявляем зависимость от RSI (Analytic знает, что считать)
-        super().__init__(name="RSIOnly", indicators=["rsi"], **params)
-
-        # Параметры для поведения "как у XGB"
-        self._init_df = df
-        self._init_data_name = data_name
-        self._init_output_file = output_file
-        self._save_after_init = bool(save_after_init)
-
-        # Если передали df на вход — сразу обеспечим индикаторы
-        if self._init_df is not None:
-            self._ensure_indicators_and_save(self._init_df)
+    def __init__(self, **params: Any) -> None:
+        super().__init__(
+            name="RSIOnly", 
+            indicators=["rsi"], 
+            **params
+        )
 
     def default_params(self) -> Dict[str, Dict[str, Any]]:
         return {"rsi": {"period": 14, "lower": 30.0, "upper": 70.0}}
+
+    def _ensure_orders_col(self, df: pd.DataFrame) -> None:
+        if "orders_rsi" not in df.columns:
+            df.insert(len(df.columns), "orders_rsi", pd.Series(index=df.index, dtype="float64"))
 
     # ----- helpers -----
     @staticmethod
     def _rsi_col(period: int) -> str:
         # Имена согласованы с Indicators: rsi или rsi_{period}
         return "rsi" if int(period) == 14 else f"rsi_{int(period)}"
-
-    @staticmethod
-    def _ensure_orders_col(df: pd.DataFrame) -> None:
-        if "orders_rsi" not in df.columns:
-            df.insert(len(df.columns), "orders_rsi", pd.Series(index=df.index, dtype="float64"))
-
-    def _resolve_data_name(self, df: pd.DataFrame) -> str:
-        if self._init_data_name:
-            return self._init_data_name
-        # Пытаемся вытащить symbol/asset/ticker для корректного имени файла аналитики
-        for col in ("symbol", "asset", "ticker"):
-            if col in df.columns and isinstance(df[col].iloc[0], str):
-                raw = str(df[col].iloc[0])
-                token = raw.split("/")[0].split("-")[0]
-                return token.upper()
-        return "RSI"
-
-    def _ensure_indicators_and_save(self, df: pd.DataFrame) -> None:
-        """
-        Полный путь как у XGB: берём (indicators, stratparams) из check_indicators()
-        и просим Analytic посчитать необходимые индикаторы. При необходимости сохраняем CSV.
-        """
-        # ленивый импорт, чтобы не словить циклический
-        from BOTS.analbot import Analytic  # type: ignore
-
-        indicators, stratparams = self.check_indicators()
-        data_name = self._resolve_data_name(df)
-        anal = Analytic(df=df, data_name=data_name, output_file=self._init_output_file)
-        # для RSI параллельность не критична, но оставим единообразно
-        anal.make_calc(indicators=indicators, stratparams=stratparams, parallel=False)
-        if self._save_after_init:
-            # интерфейс Analytic не меняем; это внутренний метод сохранения
-            anal._save_results_to_csv()  # noqa: SLF001
 
     def _ensure_required_rsi(self, df: pd.DataFrame, period: int) -> None:
         """

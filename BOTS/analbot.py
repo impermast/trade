@@ -23,7 +23,7 @@ T = TypeVar('T', bound=BaseStrategy)
 
 class Analytic:
     def __init__(self, df: pd.DataFrame, data_name: str, output_file: str = "anal.csv", 
-                 cache_dir: str = "DATA/cache") -> None:
+                 cache_dir: str = "DATA/cache", create_cache_dir: bool = False) -> None:
         """
         Initialize the Analytic class with data and output settings.
 
@@ -32,6 +32,7 @@ class Analytic:
             data_name: Name of the data (used for output file naming)
             output_file: Suffix for the output file name
             cache_dir: Directory for caching strategy results
+            create_cache_dir: Whether to create cache directory automatically (default: False)
         """
         self.df: pd.DataFrame = df
         self.logger = Logger(name="Analytic", tag="[ANAL]", logfile="LOGS/analytic.log", console=True).get_logger()
@@ -41,8 +42,9 @@ class Analytic:
         self.output_path: str = f'DATA/{data_name}_{output_file}'
         self.cache_dir: str = cache_dir
 
-        # Create cache directory if it doesn't exist
-        os.makedirs(self.cache_dir, exist_ok=True)
+        # Create cache directory only if explicitly requested
+        if create_cache_dir:
+            os.makedirs(self.cache_dir, exist_ok=True)
 
     @staticmethod
     @lru_cache(maxsize=128)
@@ -258,6 +260,10 @@ class Analytic:
         Returns:
             The cached result if available, None otherwise
         """
+        # Check if cache directory exists
+        if not os.path.exists(self.cache_dir):
+            return None
+            
         cache_file = os.path.join(self.cache_dir, f"{cache_key}.pkl")
 
         if not os.path.exists(cache_file):
@@ -266,7 +272,7 @@ class Analytic:
         try:
             # Check if the cache file is recent enough (less than 1 day old)
             cache_age = time.time() - os.path.getmtime(cache_file)
-            if cache_age > 86400:  # 24 hours in seconds
+            if cache_age > 86400: # 24 hours in seconds
                 self.logger.info(f"Cache file {cache_file} is too old, recalculating")
                 return None
 
@@ -286,6 +292,11 @@ class Analytic:
             cache_key: The cache key for the strategy
             result: The result to cache
         """
+        # Check if cache directory exists, if not, skip caching
+        if not os.path.exists(self.cache_dir):
+            self.logger.info(f"Cache directory {self.cache_dir} does not exist, skipping cache write")
+            return
+            
         cache_file = os.path.join(self.cache_dir, f"{cache_key}.pkl")
 
         try:
@@ -310,8 +321,8 @@ class Analytic:
         Returns:
             Signal value from the strategy
         """
-        # Check cache first if enabled
-        if use_cache:
+        # Check cache first if enabled and cache directory exists
+        if use_cache and os.path.exists(self.cache_dir):
             cache_key = self._generate_cache_key(strategy_cls, **params)
             cached_result = self._get_cached_result(cache_key)
             if cached_result is not None:
@@ -397,6 +408,6 @@ if __name__ == "__main__":
         df['timestamp'] = pd.to_datetime(df['timestamp'])
 
     # Create an Analytic instance and run a strategy
-    analyzer = Analytic(df, "BTCUSDT_1h")
+    analyzer = Analytic(df, "BTCUSDT_1h", create_cache_dir=False)
     result = analyzer.make_strategy(RSIonly_Strategy, rsi={"period": 14, "lower": 20})
     print(result)

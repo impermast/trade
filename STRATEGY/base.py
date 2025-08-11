@@ -18,13 +18,19 @@ class BaseStrategy(ABC):
         params (Dict[str, Any]): Strategy parameters with their values
     """
 
-    def __init__(self, name: str = "BaseStrategy", indicators: Optional[List[str]] = None, **params):
+    def __init__(self, name: str = "BaseStrategy", indicators: Optional[List[str]] = None, 
+                 df: Optional[pd.DataFrame] = None, data_name: Optional[str] = None,
+                 output_file: str = "DATA/BTCUSDT_1m_anal.csv", save_after_init: bool = True, **params):
         """
         Initialize a strategy with name, required indicators, and parameters.
 
         Args:
             name (str): Name of the strategy
             indicators (Optional[List[str]]): List of indicators required by the strategy
+            df (Optional[pd.DataFrame]): DataFrame to initialize with
+            data_name (Optional[str]): Name for the data
+            output_file (str): Output file path
+            save_after_init (bool): Whether to save after initialization
             **params: Strategy-specific parameters that override default values
 
         Raises:
@@ -39,6 +45,16 @@ class BaseStrategy(ABC):
 
         # Merge default parameters with user-provided parameters
         self.params = self._merge_with_defaults(default_params, params)
+        
+        # Common initialization parameters
+        self._init_df = df
+        self._init_data_name = data_name
+        self._init_output_file = output_file
+        self._save_after_init = bool(save_after_init)
+        
+        # If dataframe is provided, ensure indicators now
+        if self._init_df is not None:
+            self._ensure_indicators_and_save(self._init_df)
 
     @abstractmethod
     def get_signals(self, df: pd.DataFrame) -> int:
@@ -60,6 +76,16 @@ class BaseStrategy(ABC):
 
         Returns:
             Dict[str, Any]: Dictionary of parameter names and their default values
+        """
+        pass
+
+    @abstractmethod
+    def _ensure_orders_col(self, df: pd.DataFrame) -> None:
+        """
+        Ensure the orders column exists for this strategy.
+        
+        Args:
+            df (pd.DataFrame): DataFrame to add orders column to
         """
         pass
 
@@ -113,6 +139,45 @@ class BaseStrategy(ABC):
             Tuple[List[str], Dict[str, Any]]: Tuple containing indicators and parameters
         """
         return (self.indicators, self.params)
+
+    def _resolve_data_name(self, df: pd.DataFrame) -> str:
+        """
+        Resolve data name for analytics file.
+        
+        Args:
+            df (pd.DataFrame): DataFrame to extract name from
+            
+        Returns:
+            str: Resolved data name
+        """
+        if self._init_data_name:
+            return self._init_data_name
+        # Try to extract symbol/asset/ticker for correct filename
+        for col in ("symbol", "asset", "ticker"):
+            if col in df.columns and isinstance(df[col].iloc[0], str):
+                raw = str(df[col].iloc[0])
+                token = raw.split("/")[0].split("-")[0]
+                return token.upper()
+        # Return simple name instead of strategy name to avoid complex paths
+        return "DATA"
+
+    def _ensure_indicators_and_save(self, df: pd.DataFrame) -> None:
+        """
+        Ensure required indicators are calculated via Analytic.
+        
+        Args:
+            df (pd.DataFrame): DataFrame to calculate indicators for
+        """
+        # Lazy import to avoid circular dependencies
+        from BOTS.analbot import Analytic  # type: ignore
+        
+        indicators, stratparams = self.check_indicators()
+        # Используем простой data_name, чтобы избежать сложных путей
+        data_name = "BTCUSDT"  # Простое имя для файла
+        anal = Analytic(df=df, data_name=data_name, output_file="1m_anal.csv", create_cache_dir=False)
+        anal.make_calc(indicators=indicators, stratparams=stratparams, parallel=False)
+        if self._save_after_init:
+            anal._save_results_to_csv()  # noqa: SLF001
 
     def __str__(self) -> str:
         """

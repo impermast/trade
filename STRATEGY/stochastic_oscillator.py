@@ -23,26 +23,12 @@ class StochasticOscillatorStrategy(BaseStrategy):
     иначе 'stoch_k_{k_period}_{d_period}', 'stoch_d_{k_period}_{d_period}'.
     """
     
-    def __init__(
-        self,
-        df: Optional[pd.DataFrame] = None,
-        data_name: Optional[str] = None,
-        output_file: str = "anal.csv",
-        save_after_init: bool = True,
-        **params: Any,
-    ) -> None:
-        # объявляем зависимость от Stochastic Oscillator
-        super().__init__(name="StochasticOscillator", indicators=["stochastic_oscillator"], **params)
-        
-        # Параметры для поведения "как у других стратегий"
-        self._init_df = df
-        self._init_data_name = data_name
-        self._init_output_file = output_file
-        self._save_after_init = bool(save_after_init)
-        
-        # Если передали df на вход — сразу обеспечим индикаторы
-        if self._init_df is not None:
-            self._ensure_indicators_and_save(self._init_df)
+    def __init__(self, **params: Any) -> None:
+        super().__init__(
+            name="StochasticOscillator", 
+            indicators=["stochastic_oscillator"], 
+            **params
+        )
     
     def default_params(self) -> Dict[str, Dict[str, Any]]:
         return {
@@ -54,6 +40,11 @@ class StochasticOscillatorStrategy(BaseStrategy):
             }
         }
     
+    def _ensure_orders_col(self, df: pd.DataFrame) -> None:
+        """Создаем колонку для сигналов стратегии"""
+        if "orders_stochastic" not in df.columns:
+            df.insert(len(df.columns), "orders_stochastic", pd.Series(index=df.index, dtype="float64"))
+    
     # ----- helpers -----
     @staticmethod
     def _stoch_cols(k_period: int, d_period: int) -> tuple[str, str]:
@@ -63,37 +54,6 @@ class StochasticOscillatorStrategy(BaseStrategy):
             return "stoch_k", "stoch_d"
         else:
             return f"stoch_k_{k_period}_{d_period}", f"stoch_d_{k_period}_{d_period}"
-    
-    @staticmethod
-    def _ensure_orders_col(df: pd.DataFrame) -> None:
-        """Создаем колонку для сигналов стратегии"""
-        if "orders_stochastic" not in df.columns:
-            df.insert(len(df.columns), "orders_stochastic", pd.Series(index=df.index, dtype="float64"))
-    
-    def _resolve_data_name(self, df: pd.DataFrame) -> str:
-        """Определяем имя для файла аналитики"""
-        if self._init_data_name:
-            return self._init_data_name
-        # Пытаемся вытащить symbol/asset/ticker для корректного имени файла
-        for col in ("symbol", "asset", "ticker"):
-            if col in df.columns and isinstance(df[col].iloc[0], str):
-                raw = str(df[col].iloc[0])
-                token = raw.split("/")[0].split("-")[0]
-                return token.upper()
-        return "STOCHASTIC"
-    
-    def _ensure_indicators_and_save(self, df: pd.DataFrame) -> None:
-        """Полный путь как у других стратегий: берём (indicators, stratparams) из check_indicators()
-        и просим Analytic посчитать необходимые индикаторы. При необходимости сохраняем CSV."""
-        # ленивый импорт, чтобы не словить циклический
-        from BOTS.analbot import Analytic  # type: ignore
-        
-        indicators, stratparams = self.check_indicators()
-        data_name = self._resolve_data_name(df)
-        anal = Analytic(df=df, data_name=data_name, output_file=self._init_output_file)
-        anal.make_calc(indicators=indicators, stratparams=stratparams, parallel=False)
-        if self._save_after_init:
-            anal._save_results_to_csv()  # noqa: SLF001
     
     def _ensure_required_stochastic(self, df: pd.DataFrame, k_period: int, d_period: int) -> None:
         """Узко: если нужных колонок Stochastic нет — считаем через Analytic"""

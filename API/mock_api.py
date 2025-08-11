@@ -465,3 +465,46 @@ class MockAPI(BirzaAPI):
             self.logger.info(f"state.json updated: {STATE_PATH}")
         except Exception as e:
             self.logger.error(f"Failed to update state.json: {e}")
+
+    # ---------- missing abstract methods ----------
+
+    def download_candels_to_csv(self, symbol: str, start_date: str = "2023-01-01T00:00:00Z",
+                               timeframe: str = "1h", save_folder: str = "DATA") -> pd.DataFrame:
+        """
+        Download historical candle data and save to CSV (mock implementation).
+        """
+        try:
+            self.logger.info(f"Downloading mock historical data for {symbol} from {start_date}, timeframe={timeframe}")
+            
+            # Генерируем исторические данные
+            df = self._load_or_generate(symbol, timeframe, num_candles=500)
+            
+            if save_folder is not None:
+                file_name = f'{symbol.replace("/", "")}_{timeframe}.csv'
+                save_path = f'{save_folder}/{file_name}'
+                
+                try:    
+                    os.makedirs(save_folder, exist_ok=True)
+                    df.to_csv(save_path, index=False)
+                    self.logger.info(f"Mock data saved to: {save_path}")
+                except Exception as e:
+                    return self._handle_error(f"saving mock data to {save_path}", e, df)
+            
+            return df
+        except Exception as e:
+            return self._handle_error(f"downloading mock data for {symbol}", e, pd.DataFrame())
+
+    async def download_candels_to_csv_async(self, symbol: str, start_date: str = "2023-01-01T00:00:00Z",
+                               timeframe: str = "1h", save_folder: str = "DATA") -> pd.DataFrame:
+        """
+        Asynchronously download historical candle data and save to CSV (mock implementation).
+        """
+        await asyncio.sleep(0)  # имитация I/O
+        return self.download_candels_to_csv(symbol, start_date, timeframe, save_folder)
+
+    async def close_async(self):
+        """
+        Close async connections (mock implementation - no actual connections to close).
+        """
+        self.logger.info("MockAPI async connections closed (no actual connections)")
+        pass

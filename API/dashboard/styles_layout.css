@@ -16,8 +16,7 @@ body.theme-xfade{
   box-shadow:var(--elev-1); color:var(--on-surface);
   transition:box-shadow .18s ease, background .18s ease; /* без сдвига */
 }
-.card.kpi{ box-shadow:var(--elev-2); transition:transform .18s ease, box-shadow .18s ease, background .18s ease; }
-.card.kpi:hover{ background: var(--kpi-hover-bg); transform: translateY(-1px) scale(1.005); box-shadow: 0 10px 26px rgba(0,0,0,0.28); }
+/* KPI стили перенесены в styles_kpi.css */
 
 /* Типографика KPI теперь в styles_typography.css */
 .form-label, .text-muted { color:var(--on-surface-variant)!important; }

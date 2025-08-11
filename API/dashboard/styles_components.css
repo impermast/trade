@@ -31,6 +31,25 @@
   box-shadow: 0 8px 20px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.05) inset;
 }
 
+/* Улучшенные стили для иконок в табах */
+.tab-icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.5px;
+  transition: all 0.2s ease;
+  color: currentColor;
+}
+
+.nav-tabs .nav-link:hover .tab-icon {
+  transform: scale(1.1);
+  stroke-width: 2px;
+}
+
+.nav-tabs .nav-link.active .tab-icon {
+  stroke-width: 2px;
+  filter: drop-shadow(0 1px 2px rgba(110, 70, 255, 0.3));
+}
+
 /* Усиленная «ink»-линия под вкладками */
 .tabs-ink{
   position:absolute; height:3px; bottom:-3px; background:var(--grad-1);
@@ -99,28 +118,137 @@
   background: var(--grad-2) !important;
   background-size: 200% 200%;
   animation: gradientShift 8s ease infinite;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.22);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
 }
 
-/* Специфичные стили для темной темы */
+/* Улучшенные стили для кнопок */
+.btn-icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2px;
+  transition: all 0.2s ease;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+
+.btn:hover .btn-icon {
+  transform: scale(1.1);
+  stroke-width: 2.5px;
+}
+
+.btn:active .btn-icon {
+  transform: scale(0.95);
+}
+
+/* Стили для иконок в чипах */
+.chip-icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2px;
+  margin-right: 0.5rem;
+  transition: all 0.2s ease;
+  vertical-align: middle;
+}
+
+.chip:hover .chip-icon {
+  transform: scale(1.1);
+  stroke-width: 2.5px;
+}
+
+.chip.selected .chip-icon {
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 1px 2px rgba(110, 70, 255, 0.3));
+}
+
+/* Стили для иконок в offcanvas */
+.offcanvas-icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.5px;
+  margin-right: 0.75rem;
+  color: currentColor;
+}
+
+/* Стили для иконки в navbar-brand */
+.navbar-brand-icon {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2px;
+  margin-right: 0.75rem;
+  color: var(--primary);
+  transition: all 0.3s ease;
+}
+
+.navbar-brand:hover .navbar-brand-icon {
+  transform: scale(1.1) rotate(5deg);
+  filter: drop-shadow(0 2px 4px rgba(110, 70, 255, 0.3));
+}
+
+/* Стили для иконки темы */
+.theme-icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2px;
+  margin-right: 0.5rem;
+  transition: all 0.3s ease;
+  color: currentColor;
+}
+
+.form-check-input:checked ~ .form-check-label .theme-icon {
+  transform: rotate(180deg);
+  color: var(--primary);
+}
+
+/* Стили для FAB иконки */
+.fab-icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2px;
+  color: #fff;
+  transition: all 0.3s ease;
+}
+
+.fab:hover .fab-icon {
+  transform: rotate(180deg);
+}
+
+/* Улучшенные стили для кнопок outline-light */
 [data-theme="dark"] #tailSegments .btn:hover,
-[data-theme="dark"] #tailSegments .btn:focus {
-  color: #fff !important;
-  background-color: var(--field-bg-focus) !important;
+[data-theme="dark"] #logLevelButtons .btn:hover,
+[data-theme="dark"] .btn-outline-light:hover {
+  background: var(--field-bg-focus) !important;
+  color: var(--on-surface) !important;
 }
 
-/* Кнопки уровней логов используют общие стили выше */
+[data-theme="dark"] #tailSegments .btn.active,
+[data-theme="dark"] #logLevelButtons .btn.active,
+[data-theme="dark"] .btn-outline-light.active {
+  color: #fff !important;
+  background: var(--grad-2) !important;
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease infinite;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+}
 
+/* Светлая тема */
+[data-theme="light"] #tailSegments .btn:hover,
+[data-theme="light"] #logLevelButtons .btn:hover,
+[data-theme="light"] .btn-outline-light:hover {
+  background: var(--field-bg-focus) !important;
+  color: var(--on-surface) !important;
+}
 
+[data-theme="light"] #tailSegments .btn.active,
+[data-theme="light"] #logLevelButtons .btn.active,
+[data-theme="light"] .btn-outline-light.active {
+  color: #fff !important;
+  background: var(--grad-2) !important;
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease infinite;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
 
-
-/* Общий стиль для активных outline-кнопок */
-.btn-outline-light.active,
-.btn-outline-light.show{ background:var(--grad-2)!important; color:#fff!important; border-color:transparent!important; background-size:200% 200%; animation:gradientShift 8s ease infinite; }
-[data-theme="dark"] .btn-outline-light:hover,
-[data-theme="dark"] .btn-outline-light:focus{ color:#fff !important; background:rgba(255,255,255,0.06) !important; }
-
-/* Таблица */
+/* Таблицы */
 .table-md3{ width:100%; border-collapse:separate; border-spacing:0; }
 .table-md3 thead th{ position:sticky; top:0; background:var(--surface); z-index:1; border-bottom:1px solid var(--border); padding:.5rem .6rem; }
 .table-md3 tbody td{ border-bottom:1px solid var(--border); padding:.48rem .6rem; }
@@ -128,26 +256,62 @@
 .table-md3 .num{ text-align:right; font-variant-numeric: tabular-nums; }
 .table-md3 thead th + th, .table-md3 tbody td + td{ box-shadow: inset 1px 0 0 rgba(255,255,255,0.04); }
 
-/* Подсветка строк CSV */
+/* Специальные строки таблицы */
 .table-md3 tbody tr.has-rsi { background: linear-gradient(90deg, rgba(110,70,255,0.08), rgba(110,70,255,0.00));}
 .table-md3 tbody tr.has-xgb { background: linear-gradient(90deg, rgba(32,201,195,0.07), rgba(32,201,195,0.00));}
 .table-md3 tbody tr.has-rsi td:first-child { box-shadow: inset 3px 0 0 rgba(110,70,255,0.35);}
 .table-md3 tbody tr.has-xgb td:first-child { box-shadow: inset 3px 0 0 rgba(32,201,195,0.35);}
 
-/* ===== Чипы ===== */
-/* Стили чипов перенесены в styles_forms.css для избежания дублирования */
-
-/* Toolbar */
-/* Стили toolbar перенесены в styles_forms.css для избежания дублирования */
-
-/* === Анимация контента вкладок (fade + slide) === */
+/* Анимации для табов */
 .tabs-animated .tab-pane.tab-anim{
-  opacity: 0;
-  transform: translateX(var(--tab-slide, 8px));
-  transition: opacity 220ms ease-in-out, transform 220ms ease-in-out;
-  will-change: opacity, transform;
+  animation: tabSlideIn 0.3s ease-out;
 }
+
 .tabs-animated .tab-pane.tab-anim.active.show{
-  opacity: 1;
-  transform: translateX(0);
+  animation: tabSlideIn 0.3s ease-out;
+}
+
+/* Адаптивность для иконок */
+@media (max-width: 768px) {
+  .tab-icon {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .btn-icon {
+    width: 14px;
+    height: 14px;
+    margin-right: 0.25rem;
+  }
+  
+  .chip-icon {
+    width: 12px;
+    height: 12px;
+    margin-right: 0.25rem;
+  }
+  
+  .navbar-brand-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 0.5rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .tab-icon {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .btn-icon {
+    width: 12px;
+    height: 12px;
+    margin-right: 0.25rem;
+  }
+  
+  .chip-icon {
+    width: 10px;
+    height: 10px;
+    margin-right: 0.25rem;
+  }
 }

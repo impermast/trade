@@ -3,20 +3,48 @@
   window.App = window.App || {};
   const { debounce } = window.App.util;
 
+  // Проверка загрузки Bootstrap
+  if (typeof bootstrap === 'undefined') {
+    console.error('Bootstrap не загружен! UI компоненты не могут работать корректно.');
+    return;
+  }
+
   // Bootstrap tooltips
-  document.addEventListener('DOMContentLoaded', () => {
-    const tList=[].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"],[title][data-bs-toggle2]'));
-    tList.forEach(el=> new bootstrap.Tooltip(el));
-  });
+  function initTooltips() {
+    try {
+      const tList=[].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"],[title][data-bs-toggle2]'));
+      tList.forEach(el=> {
+        try {
+          // Проверяем, не инициализирован ли уже tooltip
+          if (!el._tooltip) {
+            el._tooltip = new bootstrap.Tooltip(el);
+          }
+        } catch (e) {
+          console.warn('Ошибка создания tooltip для элемента:', el, e);
+        }
+      });
+    } catch (e) {
+      console.warn('Ошибка инициализации tooltips:', e);
+    }
+  }
+
+  // Инициализируем tooltips при готовности DOM
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTooltips);
+  } else {
+    initTooltips();
+  }
 
   // === NiceSelect / Number inputs (без изменений) ===
   function enhanceSelect(select){
-    if(select.dataset.enhanced === "1") return;
+    if(!select || select.dataset.enhanced === "1") return;
     select.dataset.enhanced = "1";
 
     const wrap = document.createElement('div');
     wrap.className = 'nselect';
     const parent = select.parentElement;
+    if (!parent) return;
+    
     parent.insertBefore(wrap, select);
     wrap.appendChild(select);
 
@@ -55,17 +83,29 @@
     }
     function updateLabel(){
       const sel = select.options[select.selectedIndex];
-      wrap.querySelector('.nselect-label').textContent = sel ? sel.textContent : '';
+      const label = wrap.querySelector('.nselect-label');
+      if (label) {
+        label.textContent = sel ? sel.textContent : '';
+      }
     }
     function openMenu(){ wrap.classList.add('is-open'); positionMenu(); document.addEventListener('click', onDocClick, {once:true}); }
     function closeMenu(){ wrap.classList.remove('is-open'); }
     function onDocClick(e){ if(!wrap.contains(e.target)) closeMenu(); }
     function positionMenu(){
-      const rect = wrap.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const desired = 280;
-      menu.style.top = ''; menu.style.bottom = '';
-      if (spaceBelow < desired){ menu.style.bottom = `calc(100% + 6px)`; } else { menu.style.top = `calc(100% + 6px)`; }
+      try {
+        const rect = wrap.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const desired = 280;
+        menu.style.top = ''; 
+        menu.style.bottom = '';
+        if (spaceBelow < desired){ 
+          menu.style.bottom = `calc(100% + 6px)`; 
+        } else { 
+          menu.style.top = `calc(100% + 6px)`; 
+        }
+      } catch (e) {
+        console.warn('Ошибка позиционирования меню:', e);
+      }
     }
 
     btn.addEventListener('click', ()=> wrap.classList.contains('is-open') ? closeMenu() : openMenu());
@@ -73,7 +113,9 @@
     const mo = new MutationObserver(()=>{ buildMenu(); updateLabel(); syncSelected(); });
     mo.observe(select, {childList:true});
     // Сохраняем MutationObserver для последующей очистки
-    window.App.ui._mutationObservers.push(mo);
+    if (window.App.ui && window.App.ui.addMutationObserver) {
+      window.App.ui.addMutationObserver(mo);
+    }
 
     buildMenu(); updateLabel(); syncSelected();
   }
@@ -90,12 +132,15 @@
   }
 
   function enhanceNumberInput(input){
-    if(input.dataset.enhanced === "1") return;
+    if(!input || input.dataset.enhanced === "1") return;
     input.dataset.enhanced = "1";
 
     const wrap = document.createElement('div');
     wrap.className = 'num-input';
-    input.parentElement.insertBefore(wrap, input);
+    const parent = input.parentElement;
+    if (!parent) return;
+    
+    parent.insertBefore(wrap, input);
     wrap.appendChild(input);
 
     const box = document.createElement('div');
@@ -198,10 +243,40 @@
 
   // Функция для очистки ресурсов
   function cleanup(){
-    // Очищаем все MutationObserver
-    if(_mutationObservers && _mutationObservers.length > 0) {
-      _mutationObservers.forEach(mo => mo.disconnect());
-      _mutationObservers.length = 0;
+    try {
+      // Очищаем все MutationObserver
+      if(_mutationObservers && _mutationObservers.length > 0) {
+        _mutationObservers.forEach(mo => {
+          try {
+            mo.disconnect();
+          } catch (e) {
+            console.warn('Ошибка при отключении MutationObserver:', e);
+          }
+        });
+        _mutationObservers.length = 0;
+      }
+      
+      // Очищаем все tooltips
+      const tooltipElements = document.querySelectorAll('[data-bs-toggle="tooltip"],[title][data-bs-toggle2]');
+      tooltipElements.forEach(el => {
+        try {
+          if (el._tooltip && typeof el._tooltip.dispose === 'function') {
+            el._tooltip.dispose();
+            delete el._tooltip;
+          }
+        } catch (e) {
+          console.warn('Ошибка при очистке tooltip:', e);
+        }
+      });
+    } catch (e) {
+      console.warn('Ошибка при очистке ресурсов UI:', e);
+    }
+  }
+
+  // Функция для добавления MutationObserver в массив
+  function addMutationObserver(mo) {
+    if (mo && typeof mo.disconnect === 'function') {
+      _mutationObservers.push(mo);
     }
   }
 
@@ -210,7 +285,7 @@
     randomizeSkeletons, // public
     // экспорт ink обновления, чтобы app_init мог вызывать
     updateTabsInk,
-    initTabAnimations, cleanup,
+    initTabAnimations, cleanup, addMutationObserver,
     _mutationObservers
   };
 })();

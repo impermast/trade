@@ -3,9 +3,53 @@
   const U = window.App.util;
   const T = window.App.theme;
 
+  // Проверка загрузки Plotly
+  if (typeof Plotly === 'undefined') {
+    console.error('Plotly не загружен! Графики не могут работать корректно.');
+    return;
+  }
+
+  // Проверка готовности DOM и зависимостей
+  if (document.readyState === 'loading' || !U || !T) {
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        if (U && T) {
+          initChart();
+        } else {
+          console.warn('Зависимости не загружены, откладываем инициализацию графика');
+        }
+      } catch (e) {
+        console.error('Ошибка инициализации графика:', e);
+      }
+    });
+    return;
+  }
+
+  // Если все готово, инициализируем сразу
+  initChart();
+
+  function initChart() {
+    console.log("Инициализация модуля графика...");
+    
+    // Проверяем наличие критических элементов
+    const criticalElements = {
+      csvFile: $("#csvFile"),
+      tailRows: $("#tailRows"),
+      tailSegments: $("#tailSegments"),
+      chart: $("#chart")
+    };
+    
+    console.log("Проверка критических элементов:");
+    Object.entries(criticalElements).forEach(([name, element]) => {
+      console.log(`${name}:`, element.length ? "найден" : "НЕ НАЙДЕН");
+    });
+
   // CSV list (без верхней полоски: plain fetch)
   async function loadCsvList(){
-    const sel = $("#csvFile"); sel.empty();
+    const sel = $("#csvFile"); 
+    if (!sel || !sel.length) return;
+    
+    sel.empty();
     try{
       const r = await fetch("/csv_list");
       let files = await r.json();
@@ -17,19 +61,40 @@
       const stored = localStorage.getItem("csv-file");
       const def = (stored && files.includes(stored)) ? stored : (files[0] || "");
       if (def) sel.val(def);
-      $("#kpi-file").text(sel.val() || "—");
+      const kpiFile = $("#kpi-file");
+      if (kpiFile && kpiFile.length) {
+        kpiFile.text(sel.val() || "—");
+      }
     } catch {
       sel.append(new Option("BTCUSDT_1m.csv","BTCUSDT_1m.csv"));
-      $("#kpi-file").text(sel.val() || "—");
+      const kpiFile = $("#kpi-file");
+      if (kpiFile && kpiFile.length) {
+        kpiFile.text(sel.val() || "—");
+      }
     }
   }
 
   // Chart helpers
-  function showRsiControls(){ $("#rsiControls").toggle($("#lowerPanel").val()==="rsi"); }
+  function showRsiControls(){ 
+    const lowerPanel = $("#lowerPanel");
+    const rsiControls = $("#rsiControls");
+    if (lowerPanel && rsiControls) {
+      rsiControls.toggle(lowerPanel.val()==="rsi"); 
+    }
+  }
 
   // Загрузка свечей без верхней полоски (оставляем только локальный спиннер #chartLoader)
   async function loadCandles(){
-    const file=$("#csvFile").val(); const tail=Math.max(50,+$("#tailRows").val()||500);
+    const csvFile = $("#csvFile");
+    const tailRows = $("#tailRows");
+    
+    if (!csvFile || !csvFile.length) {
+      throw new Error("Элемент выбора CSV файла не найден");
+    }
+    
+    const file = csvFile.val(); 
+    const tail = Math.max(50, +(tailRows ? tailRows.val() : 500) || 500);
+    
     const r = await fetch(`/api/candles?file=${encodeURIComponent(file)}&tail=${tail}`);
     if(!r.ok) throw new Error("Ошибка загрузки свечей");
     return await r.json();
@@ -44,8 +109,11 @@
     const isAuto = xa.autorange === true || typeof xa.range === "undefined";
     if (isAuto) Plotly.relayout(gd, {'xaxis.autorange': true});
   }
+  
   function renderEmpty(containerId, title="Нет данных", sub="Загрузите CSV или измените фильтры"){
     const el = document.getElementById(containerId);
+    if (!el) return;
+    
     el.innerHTML = `
       <div class="empty">
         <svg viewBox="0 0 120 120" aria-hidden="true">
@@ -65,10 +133,16 @@
   }
 
   async function drawChart(animate){
-    $("#chartLoader").show(); // локальный спиннер
+    const chartLoader = $("#chartLoader");
+    if (chartLoader && chartLoader.length) {
+      chartLoader.show(); // локальный спиннер
+    }
+    
     try{
       const rows = await loadCandles();
-      $("#chartLoader").hide();
+      if (chartLoader && chartLoader.length) {
+        chartLoader.hide();
+      }
 
       if(!rows || !rows.length){
         Plotly.purge("chart");
@@ -77,8 +151,11 @@
       }
 
       // Полный перестроение графика — чтобы обновлялись RSI/SMA/объёмы и маркеры сигналов.
-      const fileNow = $("#csvFile").val() || "";
-      const tsArr = rows.map(r=>r.ts);
+      const csvFile = $("#csvFile");
+      if (!csvFile || !csvFile.length) return;
+      
+      const fileNow = csvFile.val() || "";
+      const tsArr = rows.map(r => r.ts).filter(ts => ts != null && !isNaN(ts));
       
       // Проверяем, можно ли расширить существующий график
       const gdInc = document.getElementById('chart');
@@ -93,10 +170,10 @@
         let idx = tsArr.findIndex(t => t > _lastTs);
         if (idx > -1){
           const addX = tsArr.slice(idx);
-          const addO = rows.slice(idx).map(r=>r.open);
-          const addH = rows.slice(idx).map(r=>r.high);
-          const addL = rows.slice(idx).map(r=>r.low);
-          const addC = rows.slice(idx).map(r=>r.close);
+          const addO = rows.slice(idx).map(r => r.open).filter(v => v != null);
+          const addH = rows.slice(idx).map(r => r.high).filter(v => v != null);
+          const addL = rows.slice(idx).map(r => r.low).filter(v => v != null);
+          const addC = rows.slice(idx).map(r => r.close).filter(v => v != null);
 
           const tailMax = Math.max(50, +$("#tailRows").val()||500);
 
@@ -107,7 +184,10 @@
 
           _lastTs = tsArr[tsArr.length-1];
           keepRightEdge();
-          $("#kpi-file").text($("#csvFile").val()||"—");
+          const kpiFile = $("#kpi-file");
+          if (kpiFile && kpiFile.length) {
+            kpiFile.text($("#csvFile").val()||"—");
+          }
           return;
         }
       }
@@ -250,11 +330,29 @@
 
       _currentFile = fileNow;
       if (rows && rows.length) _lastTs = rows[rows.length-1].ts;
-      $("#kpi-file").text($("#csvFile").val()||"—");
+      const kpiFile = $("#kpi-file");
+      if (kpiFile && kpiFile.length) {
+        kpiFile.text($("#csvFile").val()||"—");
+      }
     } catch(e) {
-      console.error(e);
-      $("#chartLoader").hide();
-      renderEmpty("chart","Ошибка загрузки","Проверьте CSV и колонки (time/open/high/low/close)");
+      console.error('Ошибка при отрисовке графика:', e);
+      if (chartLoader && chartLoader.length) {
+        chartLoader.hide();
+      }
+      
+      // Более информативное сообщение об ошибке
+      let errorMessage = "Проверьте CSV и колонки (time/open/high/low/close)";
+      if (e.message) {
+        if (e.message.includes('fetch')) {
+          errorMessage = "Ошибка сети. Проверьте подключение к серверу.";
+        } else if (e.message.includes('JSON')) {
+          errorMessage = "Ошибка формата данных. Проверьте CSV файл.";
+        } else if (e.message.includes('CSV')) {
+          errorMessage = "Ошибка CSV файла. Проверьте структуру данных.";
+        }
+      }
+      
+      renderEmpty("chart", "Ошибка загрузки", errorMessage);
     }
   }
 
@@ -334,85 +432,170 @@
 
   // Controls
   function setupChartControls(){
-    $("#reloadChart").on("click", ()=>{ drawChart(false); startFabCountdown(); U.showSnack("График перестроен"); const btn=document.getElementById('reloadChart'); btn.classList.remove('pulse'); void btn.offsetWidth; btn.classList.add('pulse'); });
-    $("#resetZoom").on("click", ()=>{ Plotly.relayout('chart', {'xaxis.autorange':true,'yaxis.autorange':true,'yaxis2.autorange':true}); U.showSnack("Масштаб сброшен"); });
+    console.log("Настройка элементов управления графика...");
+    const reloadChart = $("#reloadChart");
+    if (reloadChart && reloadChart.length) {
+      reloadChart.on("click", ()=>{ drawChart(false); startFabCountdown(); U.showSnack("График перестроен"); const btn=document.getElementById('reloadChart'); btn.classList.remove('pulse'); void btn.offsetWidth; btn.classList.add('pulse'); });
+    }
+    const resetZoom = $("#resetZoom");
+    if (resetZoom && resetZoom.length) {
+      resetZoom.on("click", ()=>{ Plotly.relayout('chart', {'xaxis.autorange':true,'yaxis.autorange':true,'yaxis2.autorange':true}); U.showSnack("Масштаб сброшен"); });
+    }
 
-    $("#csvFile").on("change", ()=>{ 
-      localStorage.setItem("csv-file", $("#csvFile").val()||""); 
-      // Сбрасываем переменные оптимизации при смене файла
-      _currentFile = null;
-      _lastTs = null;
-      drawChart(true); 
-    });
-    $("#tailRows").on("change", U.debounce(()=> {
-      // Сбрасываем переменные оптимизации при изменении количества строк
-      _currentFile = null;
-      _lastTs = null;
-      drawChart(true);
-    }, 300));
-    $("#lowerPanel").on("change", ()=>{ 
-      showRsiControls(); 
-      // Сбрасываем переменные оптимизации при изменении нижней панели
-      _currentFile = null;
-      _lastTs = null;
-      drawChart(false); 
-    });
-    $("#rsiPeriod").on("change", U.debounce(()=> {
-      // Сбрасываем переменные оптимизации при изменении периода RSI
-      _currentFile = null;
-      _lastTs = null;
-      drawChart(false);
-    }, 300));
+    const csvFile = $("#csvFile");
+    if (csvFile && csvFile.length) {
+      csvFile.on("change", ()=>{ 
+        localStorage.setItem("csv-file", csvFile.val()||""); 
+        // Сбрасываем переменные оптимизации при смене файла
+        _currentFile = null;
+        _lastTs = null;
+        drawChart(true); 
+      });
+    }
+    const tailRows = $("#tailRows");
+    if (tailRows && tailRows.length) {
+      tailRows.on("change", U.debounce(()=> {
+        // Сбрасываем переменные оптимизации при изменении количества строк
+        _currentFile = null;
+        _lastTs = null;
+        drawChart(true);
+      }, 300));
+    }
+    const lowerPanel = $("#lowerPanel");
+    if (lowerPanel && lowerPanel.length) {
+      lowerPanel.on("change", ()=>{ 
+        showRsiControls(); 
+        // Сбрасываем переменные оптимизации при изменении нижней панели
+        _currentFile = null;
+        _lastTs = null;
+        drawChart(false); 
+      });
+    }
+    const rsiPeriod = $("#rsiPeriod");
+    if (rsiPeriod && rsiPeriod.length) {
+      rsiPeriod.on("change", U.debounce(()=> {
+        // Сбрасываем переменные оптимизации при изменении периода RSI
+        _currentFile = null;
+        _lastTs = null;
+        drawChart(false);
+      }, 300));
+    }
 
     U.bindChip("#chipSMA20", "#sma20");
     U.bindChip("#chipSMA50", "#sma50");
     U.bindChip("#chipSigRSI", "#signals_rsi");
     U.bindChip("#chipSigXGB", "#signals_xgb");
 
-    $("#tailSegments .btn").on("click", function(){
-      $("#tailSegments .btn").removeClass("active");
-      $(this).addClass("active");
-      const val=+$(this).data("tail"); $("#tailRows").val(val);
-      // Сбрасываем переменные оптимизации при изменении сегмента
-      _currentFile = null;
-      _lastTs = null;
-      drawChart(true);
-    });
+    const tailSegments = $("#tailSegments");
+    if (tailSegments && tailSegments.length) {
+      console.log("Настройка обработчиков для кнопок быстрого хвоста");
+      // Используем делегирование событий для кнопок внутри контейнера
+      tailSegments.on("click", ".btn", function(e){
+        e.preventDefault();
+        console.log("Кнопка быстрого хвоста нажата:", $(this).data("tail"));
+        
+        const clickedBtn = $(this);
+        const val = +clickedBtn.data("tail");
+        
+        // Убираем активный класс со всех кнопок и добавляем к нажатой
+        tailSegments.find(".btn").removeClass("active");
+        clickedBtn.addClass("active");
+        
+        // Устанавливаем значение в поле tailRows
+        const tailRows = $("#tailRows");
+        if (tailRows && tailRows.length) {
+          tailRows.val(val);
+          console.log("Установлено значение tailRows:", val);
+        } else {
+          console.warn("Поле tailRows не найдено");
+        }
+        
+        // Сбрасываем переменные оптимизации при изменении сегмента
+        _currentFile = null;
+        _lastTs = null;
+        
+        // Перерисовываем график
+        console.log("Запуск перерисовки графика");
+        drawChart(true);
+      });
+      
+      // Проверяем, что обработчики привязаны
+      const buttons = tailSegments.find(".btn");
+      console.log(`Привязано ${buttons.length} кнопок быстрого хвоста`);
+    } else {
+      console.warn("Контейнер tailSegments не найден");
+    }
     showRsiControls();
   }
 
   // Advanced controls
   function setupAdvancedControls(){
+    console.log("Настройка расширенных элементов управления...");
     // лог масштаб визуально связан со скрытым чекбоксом
-    $("#logScaleSwitch").prop("checked", $("#logScale").is(":checked"));
-    $("#logScaleSwitch").on("change", ()=>{ 
-      $("#logScale").prop("checked", $("#logScaleSwitch").is(":checked")); 
-      // Сбрасываем переменные оптимизации при изменении масштаба
-      _currentFile = null;
-      _lastTs = null;
-      drawChart(false); 
-    });
+    const logScaleSwitch = $("#logScaleSwitch");
+    if (logScaleSwitch && logScaleSwitch.length) {
+      logScaleSwitch.prop("checked", $("#logScale").is(":checked"));
+      logScaleSwitch.on("change", ()=>{ 
+        $("#logScale").prop("checked", logScaleSwitch.is(":checked")); 
+        // Сбрасываем переменные оптимизации при изменении масштаба
+        _currentFile = null;
+        _lastTs = null;
+        drawChart(false); 
+      });
+    }
 
     // Добавляем обработчик для скрытого чекбокса logScale
-    $("#logScale").on("change", ()=>{
-      // Сбрасываем переменные оптимизации при изменении масштаба
-      _currentFile = null;
-      _lastTs = null;
-      drawChart(false);
-    });
+    const logScale = $("#logScale");
+    if (logScale && logScale.length) {
+      logScale.on("change", ()=>{
+        // Сбрасываем переменные оптимизации при изменении масштаба
+        _currentFile = null;
+        _lastTs = null;
+        drawChart(false);
+      });
+    }
 
     // persist & timer controls for auto-refresh
     const saveAuto = ()=> localStorage.setItem(CHART_AUTO_KEY, $("#autoRefreshChart").is(":checked") ? "1" : "0");
     const saveIv   = ()=> localStorage.setItem(CHART_INTERVAL_KEY, String(getChartInterval()));
 
-    $("#autoRefreshChart").on("change", ()=>{ saveAuto(); startChartTimer(); updateFabRing(); U.showSnack($("#autoRefreshChart").is(":checked")?"Автообновление включено":"Автообновление выключено"); });
-    $("#chartInterval").on("change", U.debounce(()=>{ saveIv(); startChartTimer(); updateFabCountdown(); updateFabRing(); U.showSnack(`Интервал: ${getChartInterval()} с`); }, 300));
+    const autoRefreshChart = $("#autoRefreshChart");
+    if (autoRefreshChart && autoRefreshChart.length) {
+      autoRefreshChart.on("change", ()=>{ saveAuto(); startChartTimer(); updateFabRing(); U.showSnack($("#autoRefreshChart").is(":checked")?"Автообновление включено":"Автообновление выключено"); });
+    }
+    const chartInterval = $("#chartInterval");
+    if (chartInterval && chartInterval.length) {
+      chartInterval.on("change", U.debounce(()=>{ saveIv(); startChartTimer(); updateFabCountdown(); updateFabRing(); U.showSnack(`Интервал: ${getChartInterval()} с`); }, 300));
+    }
   }
 
   // Функция для очистки ресурсов
   function cleanup(){
-    if(chartTimer){ clearInterval(chartTimer); chartTimer=null; }
-    if(fabRAF){ cancelAnimationFrame(fabRAF); fabRAF=null; }
+    try {
+      if(chartTimer){ 
+        clearInterval(chartTimer); 
+        chartTimer=null; 
+      }
+      if(fabRAF){ 
+        cancelAnimationFrame(fabRAF); 
+        fabRAF=null; 
+      }
+      // Очищаем переменные оптимизации
+      _currentFile = null;
+      _lastTs = null;
+      
+      // Очищаем график если он существует
+      const gd = document.getElementById('chart');
+      if (gd && gd.data) {
+        try {
+          Plotly.purge('chart');
+        } catch (e) {
+          console.warn('Ошибка при очистке графика:', e);
+        }
+      }
+    } catch (e) {
+      console.warn('Ошибка при очистке ресурсов графика:', e);
+    }
   }
 
   // Expose
@@ -422,6 +605,25 @@
     applyAutoControlsFromStorage, getChartInterval, cleanup,
     // Экспортируем геттеры для доступа к переменным из других модулей
     get _currentFile() { return _currentFile; },
-    get _lastTs() { return _lastTs; }
+    get _lastTs() { return _lastTs; },
+    // Функция для проверки состояния кнопок быстрого хвоста
+    checkTailSegments: function() {
+      const tailSegments = $("#tailSegments");
+      const tailRows = $("#tailRows");
+      console.log("Проверка кнопок быстрого хвоста:");
+      console.log("tailSegments:", tailSegments.length ? "найден" : "не найден");
+      console.log("tailRows:", tailRows.length ? "найден" : "не найден");
+      if (tailSegments.length) {
+        const buttons = tailSegments.find(".btn");
+        console.log("Кнопки найдены:", buttons.length);
+        buttons.each(function(i, btn) {
+          const $btn = $(btn);
+          const tail = $btn.data("tail");
+          const isActive = $btn.hasClass("active");
+          console.log(`Кнопка ${i+1}: tail=${tail}, active=${isActive}`);
+        });
+      }
+    }
   };
+  } // закрываем initChart
 })();

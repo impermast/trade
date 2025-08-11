@@ -3,6 +3,31 @@
   window.App = window.App || {};
   const util = {};
 
+  // Проверка загрузки jQuery
+  const $ = window.jQuery || window.$;
+  if (!$) {
+    console.error('jQuery не загружен! Дашборд не может работать корректно.');
+    return;
+  }
+
+  // Проверка готовности DOM
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        initCore();
+      } catch (e) {
+        console.error('Ошибка инициализации core:', e);
+      }
+    });
+    return;
+  }
+
+  // Если DOM уже готов, инициализируем сразу
+  initCore();
+
+  function initCore() {
+    console.log("Инициализация core модуля...");
+
   // bootstrap tooltips init lives in ui.js (visual)
   // Debounce
   util.debounce = (fn,ms=250)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}};
@@ -13,7 +38,8 @@
   // CSS var
   util.cssVar = (name)=> {
     try {
-      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return value || '';
     } catch (e) {
       console.warn('Ошибка получения CSS переменной:', name, e);
       return '';
@@ -30,23 +56,30 @@
   const pad2 = n => String(n).padStart(2,"0");
   util.humanizeUpdated = (iso)=>{
     if(!iso) return "—";
-    const dt = new Date(iso); if(isNaN(+dt)) return "—";
-    const now = new Date(); const diffSec = Math.max(0, Math.floor((now - dt)/1000));
-    let rel;
-    if (diffSec < 30) rel = "только что";
-    else if (diffSec < 60) rel = `${diffSec} сек назад`;
-    else if (diffSec < 3600) rel = `${Math.floor(diffSec/60)} мин назад`;
-    else if (diffSec < 86400) rel = `${Math.floor(diffSec/3600)} ч назад`;
-    else rel = `${Math.floor(diffSec/86400)} дн назад`;
+    try {
+      const dt = new Date(iso); 
+      if(isNaN(+dt)) return "—";
+      const now = new Date(); 
+      const diffSec = Math.max(0, Math.floor((now - dt)/1000));
+      let rel;
+      if (diffSec < 30) rel = "недавно";
+      else if (diffSec < 60) rel = `${diffSec} сек назад`;
+      else if (diffSec < 3600) rel = `${Math.floor(diffSec/60)} мин назад`;
+      else if (diffSec < 86400) rel = `${Math.floor(diffSec/3600)} ч назад`;
+      else rel = `${Math.floor(diffSec/86400)} дн назад`;
 
-    const isSameDay=(a,b)=> a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
-    const yest = new Date(now.getFullYear(), now.getMonth(), now.getDate()-1);
-    const timeStr = `${pad2(dt.getHours())}:${pad2(dt.getMinutes())}:${pad2(dt.getSeconds())}`;
-    let main;
-    if (isSameDay(dt, now))       main = `сегодня, ${timeStr}`;
-    else if (isSameDay(dt, yest)) main = `вчера, ${timeStr}`;
-    else                          main = `${dt.getDate()} ${RU_MONTHS[dt.getMonth()]} ${dt.getFullYear()}, ${timeStr}`;
-    return `${main} · ${rel}`;
+      const isSameDay=(a,b)=> a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+      const yest = new Date(now.getFullYear(), now.getMonth(), now.getDate()-1);
+      const timeStr = `${pad2(dt.getHours())}:${pad2(dt.getMinutes())}:${pad2(dt.getSeconds())}`;
+      let main;
+      if (isSameDay(dt, now))       main = `сегодня, ${timeStr}`;
+      else if (isSameDay(dt, yest)) main = `вчера, ${timeStr}`;
+      else                          main = `${dt.getDate()} ${RU_MONTHS[dt.getMonth()]} ${dt.getFullYear()}, ${timeStr}`;
+      return `${main} · ${rel}`;
+    } catch (e) {
+      console.warn('Ошибка в humanizeUpdated:', e);
+      return "—";
+    }
   };
 
   // Top progress & snack
@@ -75,9 +108,11 @@
   };
   util.showSnack = (msg, timeout=2200)=>{ 
     try {
-      $("#snackbarMsg").text(msg); 
-      $("#snackbar").fadeIn(120); 
-      setTimeout(()=>$("#snackbar").fadeOut(180), timeout); 
+      if ($ && $("#snackbarMsg").length && $("#snackbar").length) {
+        $("#snackbarMsg").text(msg); 
+        $("#snackbar").fadeIn(120); 
+        setTimeout(()=>$("#snackbar").fadeOut(180), timeout); 
+      }
     } catch (e) {
       console.warn('Ошибка в showSnack:', e);
     }
@@ -96,11 +131,15 @@
     try{
       const r = await fetch("/api/health",{cache:"no-store"});
       const ok = r.ok;
-      $("#statusDot").toggleClass("status-ok", ok).toggleClass("status-warn", !ok);
-      $("#statusText").text(ok ? "online" : "offline");
-    }catch{
-      $("#statusDot").removeClass("status-ok").addClass("status-warn");
-      $("#statusText").text("offline");
+      if ($ && $("#statusDot").length && $("#statusText").length) {
+        $("#statusDot").toggleClass("status-ok", ok).toggleClass("status-warn", !ok);
+        $("#statusText").text(ok ? "online" : "offline");
+      }
+    } catch (e) {
+      if ($ && $("#statusDot").length && $("#statusText").length) {
+        $("#statusDot").removeClass("status-ok").addClass("status-warn");
+        $("#statusText").text("offline");
+      }
     }
   };
 
@@ -159,5 +198,22 @@
       if(i>=period-1) res[i]=sum/period; } return res;
   };
 
+  // Функция для очистки ресурсов
+  util.cleanup = function(){
+    try {
+      if(topProgTimer){ 
+        clearTimeout(topProgTimer); 
+        topProgTimer=null; 
+      }
+      // Очищаем скрытые контролы
+      if(hiddenControls && hiddenControls.length) {
+        hiddenControls.remove();
+      }
+    } catch (e) {
+      console.warn('Ошибка при очистке ресурсов util:', e);
+    }
+  };
+
   window.App.util = util;
+  } // закрываем initCore
 })();

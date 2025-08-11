@@ -1,21 +1,22 @@
 /* График/контейнер */
 #chart{ height:560px; position:relative; }
 .loading-overlay{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.14); border-radius:10px; z-index:5; }
-.log-box{ height:420px; overflow-y:auto; white-space:pre-wrap; background:#0b0e14; color:#e0e0e0; padding:10px; border:1px solid var(--border); border-radius:10px; line-height: var(--line-height-normal); }
+.log-box{ height:420px; overflow-y:auto; white-space:pre-wrap; background:#0b0e14; color:#e0e0e0; padding:10px; border:1px solid var(--border); border-radius:10px; line-height: var(--line-height-normal); font-family: var(--font-family-mono); }
 
 /* Подсветка уровней логов */
 .log-info  { color: rgba(255,255,255,0.85); }
 .log-warn  { color: #f4b942; }
 .log-error { color: #ff6b6b; }
 .log-debug { color: #7eb6ff; }
-.log-ts    { color: rgba(255,255,255,0.55); }
-.log-src   { color: rgba(255,255,255,0.60); }
+.log-ts    { color: rgba(255,255,255,0.55); font-family: var(--font-family-mono); }
+.log-src   { color: rgba(255,255,255,0.60); font-family: var(--font-family-mono); }
 
 /* Скелетоны */
 .skeleton{
   display:inline-block;width:100%;height:1.2rem;border-radius:8px; position:relative; overflow:hidden;
   background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.12), rgba(255,255,255,0.06));
   background-size:200% 100%; animation:shimmer 1.1s infinite;
+  font-family: var(--font-family-primary);
 }
 .skeleton::after{
   content:""; position:absolute; inset:-30% -40%;
@@ -40,6 +41,7 @@
   border-radius:999px; box-shadow:var(--elev-2); z-index:6; line-height: var(--line-height-tight); font-weight: var(--font-weight-bold);
   background-size:200% 200%; animation:gradientShift 10s ease infinite;
   transition: filter .15s ease, box-shadow .2s ease, transform .15s ease;
+  font-family: var(--font-family-ui);
 }
 .fab:hover{ filter:brightness(.98); box-shadow:0 14px 28px rgba(0,0,0,0.28), 0 0 0 2px rgba(255,255,255,0.06) inset; }
 .fab:active{ transform: translateY(1px) scale(.997); }
@@ -52,8 +54,8 @@
 .fab .fab-ico-wrap .bi{ font-size: var(--font-size-sm); }
 .fab .fab-ring{ position:absolute; inset:-4px; pointer-events:none; }
 .fab .fab-ring svg{ width:30px; height:30px; transform:rotate(-90deg); display:block; }
-.fab .ring-bg{ stroke:rgba(255,255,255,0.28); stroke-width:3.5; fill:none; }
-.fab .ring{ stroke:rgba(255,255,255,0.95); stroke-width:3.5; fill:none; stroke-linecap:round; transition:opacity .2s ease; }
+.fab .fab-ring .ring-bg{ stroke:rgba(255,255,255,0.28); stroke-width:3.5; fill:none; }
+.fab .fab-ring .ring{ stroke:rgba(255,255,255,0.95); stroke-width:3.5; fill:none; stroke-linecap:round; transition:opacity .2s ease; }
 .fab.disabled .ring{ opacity:.35; }
 
 /* Анимация gradientShift для FAB и прогресс-бара */
@@ -61,4 +63,85 @@
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
+}
+
+/* ===== УЛУЧШЕННЫЕ СТИЛИ ДЛЯ ГРАФИКА ===== */
+/* Числовые значения на графике */
+.chart-number, .plot-number {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1, "ordn" 1;
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+/* Подписи осей */
+.chart-axis-label, .plot-axis-label {
+  font-family: var(--font-family-ui);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  letter-spacing: var(--letter-spacing-wide);
+  color: var(--on-surface-variant);
+}
+
+/* Заголовки графиков */
+.chart-title, .plot-title {
+  font-family: var(--font-family-display);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-lg);
+  letter-spacing: var(--letter-spacing-tight);
+  color: var(--on-surface);
+}
+
+/* Легенда */
+.chart-legend, .plot-legend {
+  font-family: var(--font-family-ui);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  letter-spacing: var(--letter-spacing-wide);
+  color: var(--on-surface-variant);
+}
+
+/* Инструменты графика */
+.chart-tooltip, .plot-tooltip {
+  font-family: var(--font-family-ui);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-snug);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  box-shadow: var(--elev-2);
+  color: var(--on-surface);
+}
+
+.chart-tooltip .value, .plot-tooltip .value {
+  font-family: var(--font-family-mono);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1, "ordn" 1;
+  color: var(--primary);
+}
+
+/* Кнопки управления графиком */
+.chart-controls .btn, .plot-controls .btn {
+  font-family: var(--font-family-ui);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  letter-spacing: var(--letter-spacing-wide);
+}
+
+/* Адаптивность для графика */
+@media (max-width: 768px) {
+  .chart-title, .plot-title {
+    font-size: var(--font-size-base);
+  }
+  
+  .chart-axis-label, .plot-axis-label {
+    font-size: var(--font-size-xs);
+  }
+  
+  .chart-tooltip, .plot-tooltip {
+    font-size: var(--font-size-xs);
+    padding: 0.5rem;
+  }
 }

@@ -34,7 +34,16 @@
       startUpdatedTicker();
       $("#state-balance").text(total?`${fmtNumber(total,2)} ${cur}`:"—");
       renderPositions(s?.positions||[]);
-    }catch{}
+    }catch(e){
+      console.warn('Ошибка при загрузке состояния:', e);
+      // Показываем пользователю, что данные не загружены
+      $("#kpi-balance").text("—");
+      $("#kpi-balance-cur").text("—");
+      $("#kpi-positions").text("—");
+      $("#kpi-updated").text("—");
+      $("#state-balance").text("—");
+      renderPositions([]);
+    }
   }
 
   // Positions export / refresh hooks
@@ -65,8 +74,18 @@
 
   // Функция для очистки ресурсов
   function cleanup(){
-    if(stateTimer){ clearInterval(stateTimer); stateTimer=null; }
-    if(updatedTicker){ clearInterval(updatedTicker); updatedTicker=null; }
+    try {
+      if(stateTimer){ 
+        clearInterval(stateTimer); 
+        stateTimer=null; 
+      }
+      if(updatedTicker){ 
+        clearInterval(updatedTicker); 
+        updatedTicker=null; 
+      }
+    } catch (e) {
+      console.warn('Ошибка при очистке ресурсов состояния:', e);
+    }
   }
 
   window.App.state = { loadState, startStateTimer, exportPositionsCsv, cleanup };

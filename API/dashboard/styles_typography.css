@@ -29,74 +29,102 @@
   --font-weight-bold: 700;
 }
 
-/* ===== УЛУЧШЕННЫЕ KPI ПАНЕЛИ ===== */
-.kpi {
-  position: relative;
-  overflow: hidden;
+/* ===== БАЗОВЫЕ СТИЛИ ШРИФТОВ ===== */
+body {
+  font-family: var(--font-family-primary);
+  font-weight: var(--font-weight-normal);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  letter-spacing: var(--letter-spacing-normal);
+  color: var(--on-surface);
 }
 
-.kpi::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--grad-1);
-  background-size: 200% 200%;
-  animation: gradientShift 8s ease-in-out infinite;
+/* ===== МОНОШИРИННЫЕ ШРИФТЫ ДЛЯ ЧИСЕЛ И КОДА ===== */
+.mono, .mono-font {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
 }
 
-.kpi-sub {
-  font: var(--font-weight-semibold) var(--font-size-sm) / var(--line-height-snug) "Roboto Flex", sans-serif;
-  letter-spacing: var(--letter-spacing-wide);
-  color: var(--on-surface-variant) !important;
-  text-transform: uppercase;
-  margin-bottom: 0.5rem;
-  opacity: 0.85;
+.mono-alt {
+  font-family: var(--font-family-mono-alt);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
 }
 
-.kpi-value {
-  font: var(--font-weight-bold) var(--font-size-3xl) / var(--line-height-tight) "Roboto Flex", sans-serif;
-  color: var(--on-surface) !important;
-  margin-bottom: 0.25rem;
+/* Специальные стили для чисел */
+.number, .numeric {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1, "ordn" 1;
   letter-spacing: var(--letter-spacing-tight);
-  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
-.kpi-value .skeleton {
-  font-size: var(--font-size-2xl);
-  opacity: 0.6;
+/* Стили для кода */
+.code, .code-block {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  background: rgba(0, 0, 0, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
 }
 
-.kpi .text-muted {
-  font: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-normal) "Roboto Flex", sans-serif;
-  color: var(--on-surface-variant) !important;
-  opacity: 0.7;
-  letter-spacing: var(--letter-spacing-wide);
+.code-inline {
+  font-family: var(--font-family-mono);
+  font-size: 0.9em;
+  background: rgba(0, 0, 0, 0.1);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
 }
 
 /* ===== УЛУЧШЕННЫЕ ЗАГОЛОВКИ ===== */
 .navbar-brand {
-  font: var(--font-weight-bold) var(--font-size-xl) / var(--line-height-tight) "Roboto Flex", sans-serif;
+  font: var(--font-weight-bold) var(--font-size-xl) / var(--line-height-tight) var(--font-family-display);
   letter-spacing: var(--letter-spacing-tight);
   color: var(--on-surface) !important;
+}
+
+h1, .h1 {
+  font: var(--font-weight-bold) var(--font-size-3xl) / var(--line-height-tight) var(--font-family-display);
+  letter-spacing: var(--letter-spacing-tight);
+  color: var(--on-surface);
+}
+
+h2, .h2 {
+  font: var(--font-weight-semibold) var(--font-size-2xl) / var(--line-height-snug) var(--font-family-display);
+  letter-spacing: var(--letter-spacing-wide);
+  color: var(--on-surface);
+}
+
+h3, .h3 {
+  font: var(--font-weight-semibold) var(--font-size-xl) / var(--line-height-snug) var(--font-family-display);
+  letter-spacing: var(--letter-spacing-wide);
+  color: var(--on-surface);
+}
+
+h4, .h4 {
+  font: var(--font-weight-medium) var(--font-size-lg) / var(--line-height-snug) var(--font-family-display);
+  letter-spacing: var(--letter-spacing-wide);
+  color: var(--on-surface);
 }
 
 /* ===== УЛУЧШЕННЫЕ ПОЛЯ ВВОДА ===== */
 .form-control,
 .form-select {
-  font: var(--font-weight-normal) var(--font-size-sm) / var(--line-height-normal) "Roboto Flex", sans-serif;
+  font: var(--font-weight-normal) var(--font-size-sm) / var(--line-height-normal) var(--font-family-ui);
   letter-spacing: var(--letter-spacing-normal);
 }
 
 .form-control::placeholder {
   font-weight: var(--font-weight-medium);
   letter-spacing: var(--letter-spacing-wide);
+  font-family: var(--font-family-ui);
 }
 
 .form-label {
-  font: var(--font-weight-semibold) var(--font-size-sm) / var(--line-height-snug) "Roboto Flex", sans-serif;
+  font: var(--font-weight-semibold) var(--font-size-sm) / var(--line-height-snug) var(--font-family-ui);
   letter-spacing: var(--letter-spacing-wide);
   color: var(--on-surface);
   margin-bottom: 0.5rem;
@@ -104,25 +132,27 @@
 
 /* ===== УЛУЧШЕННЫЕ ТАБЛИЦЫ ===== */
 .table-md3 thead th {
-  font: var(--font-weight-bold) var(--font-size-sm) / var(--line-height-snug) "Roboto Flex", sans-serif;
+  font: var(--font-weight-bold) var(--font-size-sm) / var(--line-height-snug) var(--font-family-ui);
   letter-spacing: var(--letter-spacing-wide);
   text-transform: uppercase;
   color: var(--on-surface-variant);
 }
 
 .table-md3 tbody td {
-  font: var(--font-weight-normal) var(--font-size-sm) / var(--line-height-normal) "Roboto Flex", sans-serif;
+  font: var(--font-weight-normal) var(--font-size-sm) / var(--line-height-normal) var(--font-family-ui);
   letter-spacing: var(--letter-spacing-normal);
 }
 
 .table-md3 .num {
-  font: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-snug) ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-snug) var(--font-family-mono);
   letter-spacing: var(--letter-spacing-tight);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
 }
 
 /* ===== УЛУЧШЕННЫЕ ЧИПЫ ===== */
 .chip {
-  font: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-snug) "Roboto Flex", sans-serif;
+  font: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-snug) var(--font-family-ui);
   letter-spacing: var(--letter-spacing-wide);
 }
 
@@ -133,14 +163,14 @@
 
 /* ===== УЛУЧШЕННЫЕ СТАТУСЫ ===== */
 .status-pill {
-  font: var(--font-weight-medium) var(--font-size-xs) / var(--line-height-snug) "Roboto Flex", sans-serif;
+  font: var(--font-weight-medium) var(--font-size-xs) / var(--line-height-snug) var(--font-family-ui);
   letter-spacing: var(--letter-spacing-wide);
   text-transform: uppercase;
 }
 
 /* ===== УЛУЧШЕННЫЕ СЕГМЕНТИРОВАННЫЕ КОНТРОЛЫ ===== */
 .segmented-wrap .btn {
-  font: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-snug) "Roboto Flex", sans-serif;
+  font: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-snug) var(--font-family-ui);
   letter-spacing: var(--letter-spacing-wide);
 }
 
@@ -151,12 +181,12 @@
 
 /* ===== УЛУЧШЕННЫЕ SELECT ===== */
 .nselect-toggle {
-  font: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-snug) "Roboto Flex", sans-serif;
+  font: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-snug) var(--font-family-ui);
   letter-spacing: var(--letter-spacing-wide);
 }
 
 .nselect-option {
-  font: var(--font-weight-normal) var(--font-size-sm) / var(--line-height-normal) "Roboto Flex", sans-serif;
+  font: var(--font-weight-normal) var(--font-size-sm) / var(--line-height-normal) var(--font-family-ui);
   letter-spacing: var(--letter-spacing-normal);
 }
 
@@ -167,7 +197,7 @@
 
 /* ===== УЛУЧШЕННЫЕ СКЕЛЕТОНЫ ===== */
 .skeleton {
-  font-family: "Roboto Flex", sans-serif;
+  font-family: var(--font-family-primary);
   font-weight: var(--font-weight-normal);
   letter-spacing: var(--letter-spacing-normal);
 }
@@ -193,6 +223,45 @@
   transition: transform 0.2s ease;
 }
 
+/* ===== СПЕЦИАЛЬНЫЕ СТИЛИ ДЛЯ ТОРГОВЫХ ДАННЫХ ===== */
+.trade-amount, .balance-value, .price-value {
+  font-family: var(--font-family-mono);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1, "ordn" 1;
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.currency-symbol {
+  font-family: var(--font-family-mono);
+  font-weight: var(--font-weight-medium);
+  font-size: 0.9em;
+  opacity: 0.8;
+}
+
+.percentage-change {
+  font-family: var(--font-family-mono);
+  font-weight: var(--font-weight-medium);
+  font-size: 0.85em;
+  letter-spacing: var(--letter-spacing-wide);
+}
+
+/* ===== УЛУЧШЕННАЯ ПОДДЕРЖКА КИРИЛЛИЦЫ ===== */
+.cyrillic-text, [lang="ru"] {
+  font-family: var(--font-family-primary);
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "locl" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Оптимизация для кириллических заголовков */
+.cyrillic-text h1, .cyrillic-text h2, .cyrillic-text h3,
+[lang="ru"] h1, [lang="ru"] h2, [lang="ru"] h3 {
+  font-family: var(--font-family-display);
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "locl" 1;
+}
+
 /* ===== АДАПТИВНАЯ ТИПОГРАФИКА ===== */
 @media (max-width: 768px) {
   .kpi-value {
@@ -201,6 +270,16 @@
   
   .navbar-brand {
     font-size: var(--font-size-lg);
+  }
+  
+  /* Улучшенная читаемость на мобильных */
+  body {
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-relaxed);
+  }
+  
+  .mono, .number {
+    font-size: var(--font-size-sm);
   }
 }
 
@@ -212,7 +291,49 @@
   .kpi-sub {
     font-size: var(--font-size-xs);
   }
+  
+  /* Оптимизация для маленьких экранов */
+  .code, .code-block {
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-loose);
+  }
 }
+
+/* ===== ДОПОЛНИТЕЛЬНЫЕ УТИЛИТЫ ===== */
+.text-display {
+  font-family: var(--font-family-display);
+}
+
+.text-ui {
+  font-family: var(--font-family-ui);
+}
+
+.text-mono {
+  font-family: var(--font-family-mono);
+}
+
+.text-mono-alt {
+  font-family: var(--font-family-mono-alt);
+}
+
+/* Веса шрифтов */
+.font-thin { font-weight: var(--font-weight-thin); }
+.font-extralight { font-weight: var(--font-weight-extralight); }
+.font-light { font-weight: var(--font-weight-light); }
+.font-normal { font-weight: var(--font-weight-normal); }
+.font-medium { font-weight: var(--font-weight-medium); }
+.font-semibold { font-weight: var(--font-weight-semibold); }
+.font-bold { font-weight: var(--font-weight-bold); }
+.font-extrabold { font-weight: var(--font-weight-extrabold); }
+.font-black { font-weight: var(--font-weight-black); }
+
+/* Межбуквенные интервалы */
+.tracking-tighter { letter-spacing: var(--letter-spacing-tighter); }
+.tracking-tight { letter-spacing: var(--letter-spacing-tight); }
+.tracking-normal { letter-spacing: var(--letter-spacing-normal); }
+.tracking-wide { letter-spacing: var(--letter-spacing-wide); }
+.tracking-wider { letter-spacing: var(--letter-spacing-wider); }
+.tracking-widest { letter-spacing: var(--letter-spacing-widest); }
 
 /* Анимация gradientShift для KPI */
 @keyframes gradientShift {

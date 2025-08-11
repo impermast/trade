@@ -1,0 +1,537 @@
+/* === УЛУЧШЕННЫЕ KPI ПАНЕЛИ === */
+
+/* Базовые стили KPI карточек */
+.kpi {
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+  border: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--surface), rgba(110, 70, 255, 0.02));
+}
+
+.kpi::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--grad-1);
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease-in-out infinite;
+  z-index: 1;
+}
+
+.kpi::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 20% 80%, rgba(110, 70, 255, 0.03) 0%, transparent 50%),
+              radial-gradient(circle at 80% 20%, rgba(32, 201, 195, 0.03) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.kpi:hover::after {
+  opacity: 1;
+}
+
+/* Hover эффекты */
+.kpi:hover:not(.kpi-clicked) {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: var(--kpi-shadow-hover), 
+              0 0 0 1px rgba(110, 70, 255, 0.1) inset;
+  border-color: rgba(110, 70, 255, 0.3);
+}
+
+/* Отключаем все hover эффекты во время анимации клика */
+.kpi.kpi-clicked:hover {
+  transform: none !important;
+  box-shadow: var(--kpi-shadow) !important;
+  border-color: var(--border) !important;
+}
+
+/* Убираем :active состояние чтобы избежать конфликта с анимацией клика */
+/* .kpi:active {
+  transform: translateY(-2px) scale(1.01);
+  transition: all 0.1s ease;
+} */
+
+/* Заголовок KPI с иконкой */
+.kpi-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: 2;
+}
+
+.kpi-icon {
+  width: var(--kpi-icon-size);
+  height: var(--kpi-icon-size);
+  border-radius: var(--kpi-border-radius);
+  background: var(--grad-2);
+  background-size: 200% 200%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: var(--kpi-shadow);
+  animation: gradientShift 8s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.kpi-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.2), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.kpi:hover .kpi-icon::before {
+  opacity: 1;
+}
+
+/* Стили для SVG иконок в KPI */
+.kpi-icon-svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2px;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+  transition: all 0.3s ease;
+}
+
+.kpi:hover .kpi-icon-svg {
+  transform: scale(1.1);
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+
+/* Подзаголовок KPI */
+.kpi-sub {
+  font: var(--font-weight-semibold) var(--font-size-sm) / var(--line-height-snug) var(--font-family-ui);
+  letter-spacing: var(--letter-spacing-wide);
+  color: var(--on-surface-variant) !important;
+  text-transform: uppercase;
+  opacity: 0.85;
+  flex: 1;
+}
+
+/* Основное значение KPI - теперь с моноширинным шрифтом */
+.kpi-value {
+  font: var(--font-weight-bold) var(--font-size-3xl) / var(--line-height-tight) var(--font-family-mono);
+  color: var(--on-surface) !important;
+  margin-bottom: 1rem;
+  letter-spacing: var(--letter-spacing-tight);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 2;
+  transition: transform 0.2s ease;
+  transform-origin: left center; /* Фиксируем точку масштабирования слева */
+  will-change: transform; /* Оптимизация производительности */
+  
+  /* Улучшенная поддержка чисел */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1, "ordn" 1;
+}
+
+.kpi:hover .kpi-value {
+  transform: scale(1.05);
+  transform-origin: left center; /* Фиксируем точку масштабирования слева */
+}
+
+.kpi-value .skeleton {
+  font-size: var(--font-size-2xl);
+  opacity: 0.6;
+  font-family: var(--font-family-mono);
+}
+
+/* Футер KPI */
+.kpi-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  position: relative;
+  z-index: 2;
+}
+
+.kpi-footer .text-muted {
+  font: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-normal) var(--font-family-ui);
+  color: var(--on-surface-variant) !important;
+  opacity: 0.7;
+  letter-spacing: var(--letter-spacing-wide);
+}
+
+/* Дополнительные элементы KPI */
+.kpi-trend,
+.kpi-badge,
+.kpi-status,
+.kpi-indicator {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold);
+  transition: all 0.3s ease;
+}
+
+/* Тренд баланса */
+.kpi-trend {
+  background: rgba(33, 208, 156, 0.15);
+  color: #21d09c;
+  border: 1px solid rgba(33, 208, 156, 0.3);
+}
+
+.kpi-trend.positive {
+  background: rgba(33, 208, 156, 0.2);
+  color: #21d09c;
+  border-color: rgba(33, 208, 156, 0.4);
+}
+
+.kpi-trend.negative {
+  background: rgba(240, 104, 95, 0.2);
+  color: #f0685f;
+  border-color: rgba(240, 104, 95, 0.4);
+}
+
+/* Бейдж позиций */
+.kpi-badge {
+  background: rgba(110, 70, 255, 0.15);
+  color: var(--primary);
+  border: 1px solid rgba(110, 70, 255, 0.3);
+  font-size: 0.625rem;
+}
+
+/* Статус обновления */
+.kpi-status {
+  background: rgba(244, 185, 66, 0.15);
+  color: #f4b942;
+  border: 1px solid rgba(244, 185, 66, 0.3);
+}
+
+.kpi-status.fresh {
+  background: rgba(33, 208, 156, 0.15);
+  color: #21d09c;
+  border-color: rgba(33, 208, 156, 0.4);
+}
+
+.kpi-status.stale {
+  background: rgba(240, 104, 95, 0.15);
+  color: #f0685f;
+  border-color: rgba(240, 104, 95, 0.4);
+}
+
+/* Индикатор файла */
+.kpi-indicator {
+  background: rgba(32, 201, 195, 0.15);
+  color: var(--secondary);
+  border: 1px solid rgba(32, 201, 195, 0.3);
+}
+
+/* Специфичные стили для каждого типа KPI */
+.kpi-balance .kpi-icon {
+  background: linear-gradient(135deg, #21d09c, #16a6a1);
+  background-size: 200% 200%;
+}
+
+.kpi-positions .kpi-icon {
+  background: linear-gradient(135deg, #6e46ff, #5634ca);
+  background-size: 200% 200%;
+}
+
+.kpi-updated .kpi-icon {
+  background: linear-gradient(135deg, #f4b942, #e6a23c);
+  background-size: 200% 200%;
+}
+
+.kpi-file .kpi-icon {
+  background: linear-gradient(135deg, #20c9c3, #1aafaa);
+  background-size: 200% 200%;
+}
+
+/* Анимации для KPI */
+@keyframes kpiPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+@keyframes kpiFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Анимации для иконок */
+.kpi-icon {
+  animation: kpiFloat 3s ease-in-out infinite;
+}
+
+.kpi-balance .kpi-icon {
+  animation-delay: 0s;
+}
+
+.kpi-positions .kpi-icon {
+  animation-delay: 0.5s;
+}
+
+.kpi-updated .kpi-icon {
+  animation-delay: 1s;
+}
+
+.kpi-file .kpi-icon {
+  animation-delay: 1.5s;
+}
+
+/* Анимация появления KPI */
+.kpi {
+  animation: kpiSlideIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.kpi:nth-child(1) { animation-delay: 0.1s; }
+.kpi:nth-child(2) { animation-delay: 0.2s; }
+.kpi:nth-child(3) { animation-delay: 0.3s; }
+.kpi:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes kpiSlideIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Дополнительные анимации для интерактивности */
+.kpi-clicked {
+  animation: kpiClick 0.2s ease-out;
+  will-change: transform; /* Оптимизация производительности анимации */
+  pointer-events: none; /* Отключаем hover во время анимации */
+  /* Отключаем все другие трансформации во время анимации клика */
+  transform: none !important;
+  /* Отключаем все CSS transitions во время анимации */
+  transition: none !important;
+}
+
+.kpi-hovered {
+  transform: translateY(-6px) scale(1.01);
+}
+
+.kpi-touched {
+  animation: kpiTouch 0.3s ease-out;
+}
+
+.kpi-highlight {
+  animation: kpiHighlight 1s ease-in-out;
+}
+
+.kpi-value-updating {
+  animation: kpiValueUpdate 0.6s ease-in-out;
+  transform-origin: left center; /* Фиксируем точку масштабирования слева */
+}
+
+.kpi-trend-pulse {
+  animation: kpiTrendPulse 1s ease-in-out;
+}
+
+.kpi-status-fresh {
+  animation: kpiStatusFresh 0.8s ease-in-out;
+}
+
+.kpi-status-stale {
+  animation: kpiStatusStale 0.8s ease-in-out;
+}
+
+.kpi-badge-update {
+  animation: kpiBadgeUpdate 0.6s ease-in-out;
+}
+
+.kpi-indicator-active {
+  animation: kpiIndicatorActive 0.5s ease-in-out;
+}
+
+/* Ключевые кадры для анимаций */
+@keyframes kpiClick {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.99); }
+  100% { transform: scale(1); }
+  /* Анимация только масштабирования без движения */
+}
+
+/* Устанавливаем точку масштабирования для анимации клика */
+.kpi-clicked {
+  transform-origin: center center;
+  /* Приоритет анимации клика над всеми другими трансформациями */
+  animation-fill-mode: both;
+}
+
+@keyframes kpiTouch {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.99); }
+  100% { transform: scale(1); }
+}
+
+@keyframes kpiHighlight {
+  0% { transform: scale(1); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3); }
+  50% { transform: scale(1.01); box-shadow: 0 25px 50px rgba(110, 70, 255, 0.4); }
+  100% { transform: scale(1); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3); }
+}
+
+@keyframes kpiValueUpdate {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.01); color: var(--primary); }
+  100% { transform: scale(1); }
+}
+
+@keyframes kpiTrendPulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.01); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes kpiStatusFresh {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.01); background: rgba(33, 208, 156, 0.3); }
+  100% { transform: scale(1); }
+}
+
+@keyframes kpiStatusStale {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.01); background: rgba(240, 104, 95, 0.3); }
+  100% { transform: scale(1); }
+}
+
+@keyframes kpiBadgeUpdate {
+  0% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.01) rotate(180deg); }
+  100% { transform: scale(1) rotate(360deg); }
+}
+
+@keyframes kpiIndicatorActive {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.01); opacity: 0.7; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Состояния для анимаций */
+.kpi-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.kpi-animate {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kpi-value-animate {
+  transition: transform 0.2s ease, color 0.3s ease;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+  .kpi-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .kpi-icon {
+    width: var(--kpi-icon-size-mobile);
+    height: var(--kpi-icon-size-mobile);
+  }
+  
+  .kpi-icon-svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .kpi-value {
+    font-size: var(--font-size-2xl);
+    transform-origin: left center; /* Фиксируем точку масштабирования слева */
+  }
+  
+  .kpi-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .kpi {
+    padding: 1rem !important;
+  }
+  
+  .kpi-value {
+    font-size: var(--font-size-xl);
+    transform-origin: left center; /* Фиксируем точку масштабирования слева */
+  }
+  
+  .kpi-sub {
+    font-size: var(--font-size-xs);
+  }
+  
+  .kpi-icon-svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* Светлая тема */
+[data-theme="light"] .kpi {
+  background: linear-gradient(135deg, var(--surface), rgba(94, 88, 255, 0.02));
+  border-color: var(--border);
+}
+
+[data-theme="light"] .kpi::after {
+  background: radial-gradient(circle at 20% 80%, rgba(94, 88, 255, 0.05) 0%, transparent 50%),
+              radial-gradient(circle at 80% 20%, rgba(30, 193, 187, 0.05) 0%, transparent 50%);
+}
+
+[data-theme="light"] .kpi:hover {
+  box-shadow: var(--kpi-shadow-light), 
+              0 0 0 1px rgba(94, 88, 255, 0.15) inset;
+  border-color: rgba(94, 88, 255, 0.4);
+}
+
+/* Улучшенные тени для светлой темы */
+[data-theme="light"] .kpi-icon {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .kpi:hover {
+  box-shadow: var(--kpi-shadow-light), 
+              0 0 0 1px rgba(94, 88, 255, 0.15) inset;
+}
+
+/* Дополнительные эффекты для иконок в светлой теме */
+[data-theme="light"] .kpi-icon-svg {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+[data-theme="light"] .kpi:hover .kpi-icon-svg {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}

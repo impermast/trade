@@ -58,7 +58,19 @@
 
   // Функция для очистки ресурсов
   theme.cleanup = function(){
-    // В данном модуле нет таймеров или других ресурсов для очистки
+    try {
+      // Очищаем все активные анимации смены темы
+      document.body.classList.remove('theme-xfade');
+      document.body.style.opacity = '';
+      
+      // Сбрасываем состояние переключателя темы
+      const themeToggle = document.getElementById('themeToggle');
+      if (themeToggle) {
+        themeToggle.checked = document.documentElement.getAttribute('data-theme') === 'dark';
+      }
+    } catch (e) {
+      console.warn('Ошибка при очистке ресурсов темы:', e);
+    }
   };
 
   window.App.theme = theme;

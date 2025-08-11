@@ -1,35 +1,51 @@
 :root{
-  /* Палитра v2 */
-  --primary:#6E46FF;
-  --primary-variant:#5634CA;
-  --secondary:#20C9C3;
-  --secondary-variant:#1AAFAA;
+  /* Палитра v2 - улучшенные контрасты */
+  --primary:#7B5AFF;
+  --primary-variant:#6B4AFF;
+  --secondary:#25D4CC;
+  --secondary-variant:#1FC1BB;
 
-  --bg:#101115;
-  --surface:#171A1F;
-  --on-surface:rgba(255,255,255,0.92);
-  --on-surface-variant:rgba(255,255,255,0.70);
+  --bg:#0A0C10;
+  --surface:#11141A;
+  --on-surface:rgba(255,255,255,0.95);
+  --on-surface-variant:rgba(255,255,255,0.78);
   --muted:var(--on-surface-variant);
-  --border:#242834;
-  --error:#F0685F;
-  --grid:rgba(255,255,255,0.05);
+  --border:#2A2F3A;
+  --error:#FF6B6B;
+  --grid:rgba(255,255,255,0.06);
 
-  --field-bg:#14171d;
-  --field-bg-focus:#1d2129;
+  --field-bg:#0F1218;
+  --field-bg-focus:#1A1F28;
 
-  --elev-1:0 2px 6px rgba(0,0,0,0.28);
-  --elev-2:0 8px 18px rgba(0,0,0,0.28);
+  --elev-1:0 2px 8px rgba(0,0,0,0.35);
+  --elev-2:0 10px 24px rgba(0,0,0,0.35);
 
-  --radius:14px;
-  --focus:0 0 0 .2rem rgba(110,70,255,0.20);
+  --radius:16px;
+  --focus:0 0 0 .25rem rgba(123,90,255,0.25);
 
-  /* Общая высота мелких контролов */
-  --ctl-h: 38px;
+  /* Общая высота мелких контролов - увеличена */
+  --ctl-h: 42px;
+  
+  /* === РАСШИРЕННАЯ СИСТЕМА ШРИФТОВ === */
+  
+  /* Основные шрифты с поддержкой кириллицы */
+  --font-family-primary: "Roboto Flex", "Inter", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans", "Liberation Sans", sans-serif;
+  --font-family-secondary: "Inter", "Roboto Flex", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", sans-serif;
+  
+  /* Моноширинные шрифты для чисел, кода и данных */
+  --font-family-mono: "JetBrains Mono", "Fira Code", "Consolas", "Monaco", "Andale Mono", "Ubuntu Mono", "Liberation Mono", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Courier New", monospace;
+  --font-family-mono-alt: "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Source Code Pro", monospace;
+  
+  /* Альтернативные шрифты для лучшей читаемости */
+  --font-family-display: "Inter", "Roboto Flex", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", sans-serif;
+  --font-family-ui: "Segoe UI", "Roboto", "Helvetica Neue", "Arial", sans-serif;
   
   /* Высота строк для типографики */
   --line-height-tight: 1.1;
   --line-height-snug: 1.25;
   --line-height-normal: 1.4;
+  --line-height-relaxed: 1.6;
+  --line-height-loose: 1.8;
   
   /* Размеры шрифтов */
   --font-size-xs: 0.75rem;    /* 12px */
@@ -38,38 +54,76 @@
   --font-size-lg: 1.125rem;   /* 18px */
   --font-size-xl: 1.25rem;    /* 20px */
   --font-size-2xl: 1.5rem;    /* 24px */
-  --font-size-3xl: 1.875rem;  /* 30px */
+  --font-size-3xl: 1.75rem;   /* 28px - уменьшен для компактности */
   
-  /* Веса шрифтов */
+  /* Расширенные веса шрифтов */
+  --font-weight-thin: 100;
+  --font-weight-extralight: 200;
   --font-weight-light: 300;
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  --font-weight-black: 900;
 
   /* Межбуквенные интервалы */
+  --letter-spacing-tighter: -0.05em;
   --letter-spacing-tight: -0.025em;
   --letter-spacing-normal: 0;
   --letter-spacing-wide: 0.025em;
+  --letter-spacing-wider: 0.05em;
+  --letter-spacing-widest: 0.1em;
 
-  /* Динамические градиенты */
+  /* Динамические градиенты - улучшенные контрасты */
   --grad-1: linear-gradient(90deg, var(--primary), var(--secondary));
   --grad-2: linear-gradient(135deg, var(--primary-variant), var(--secondary-variant));
 
   /* Тон подсветок */
-  --ink-active-bg: linear-gradient(90deg, rgba(110,70,255,0.10), rgba(32,201,195,0.08));
-  --kpi-hover-bg: linear-gradient(135deg, rgba(110,70,255,0.10), rgba(32,201,195,0.08));
+  --ink-active-bg: linear-gradient(90deg, rgba(123,90,255,0.12), rgba(37,212,204,0.10));
+  --kpi-hover-bg: linear-gradient(135deg, rgba(123,90,255,0.12), rgba(37,212,204,0.10));
+  
+  /* KPI дополнительные переменные - компактные размеры */
+  --kpi-icon-size: 36px;
+  --kpi-icon-size-mobile: 28px;
+  --kpi-border-radius: 14px;
+  --kpi-padding: 1rem;
+  --kpi-margin-bottom: 0.75rem;
+  --kpi-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --kpi-shadow-hover: 0 16px 32px rgba(0, 0, 0, 0.35);
+  --kpi-shadow-light: 0 16px 32px rgba(0, 0, 0, 0.18);
+  
+  /* Высота графика - увеличена */
+  --chart-height-desktop: 600px;
+  --chart-height-tablet: 500px;
+  --chart-height-mobile: 400px;
 }
 
 /* Fallback значения для критических переменных */
 html {
-  --bg: #101115;
-  --surface: #171A1F;
-  --on-surface: rgba(255,255,255,0.92);
-  --on-surface-variant: rgba(255,255,255,0.70);
-  --border: #242834;
-  --primary: #6E46FF;
-  --secondary: #20C9C3;
+  --bg: #0A0C10;
+  --surface: #11141A;
+  --on-surface: rgba(255,255,255,0.95);
+  --on-surface-variant: rgba(255,255,255,0.78);
+  --border: #2A2F3A;
+  --primary: #7B5AFF;
+  --secondary: #25D4CC;
+}
+
+/* === УЛУЧШЕННАЯ ПОДДЕРЖКА КИРИЛЛИЦЫ === */
+/* Оптимизация рендеринга для кириллических символов */
+body {
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-ligatures: common-ligatures;
+}
+
+/* Специальные настройки для кириллицы */
+[lang="ru"], .cyrillic {
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "locl" 1;
+  text-rendering: optimizeLegibility;
 }
 
 @keyframes gradientShift {
@@ -79,28 +133,28 @@ html {
 }
 
 [data-theme="light"]{
-  --primary:#5E58FF;
-  --primary-variant:#4B43D1;
+  --primary:#6B5AFF;
+  --primary-variant:#5B4AFF;
   --secondary:#1EC1BB;
   --secondary-variant:#16A6A1;
 
-  --bg:#F6F7FB;
+  --bg:#F8F9FC;
   --surface:#FFFFFF;
-  --on-surface:rgba(0,0,0,0.90);
-  --on-surface-variant:rgba(0,0,0,0.66);
+  --on-surface:rgba(0,0,0,0.92);
+  --on-surface-variant:rgba(0,0,0,0.72);
   --muted:var(--on-surface-variant);
-  --border:#E5E7EF;
+  --border:#E1E5ED;
   --error:#E65C53;
-  --grid:rgba(0,0,0,0.06);
+  --grid:rgba(0,0,0,0.08);
 
   --field-bg:#ffffff;
-  --field-bg-focus:#f3f4f8;
+  --field-bg-focus:#f5f6fa;
 
-  --elev-1:0 1px 2px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
-  --elev-2:0 6px 16px rgba(0,0,0,0.10), 0 2px 22px rgba(0,0,0,0.06);
+  --elev-1:0 2px 4px rgba(0,0,0,0.12), 0 1px 6px rgba(0,0,0,0.06);
+  --elev-2:0 8px 20px rgba(0,0,0,0.15), 0 4px 28px rgba(0,0,0,0.08);
 
-  --ink-active-bg: linear-gradient(90deg, rgba(94,88,255,0.08), rgba(30,193,187,0.06));
-  --kpi-hover-bg: linear-gradient(135deg, rgba(94,88,255,0.06), rgba(30,193,187,0.05));
+  --ink-active-bg: linear-gradient(90deg, rgba(107,90,255,0.10), rgba(30,193,187,0.08));
+  --kpi-hover-bg: linear-gradient(135deg, rgba(107,90,255,0.08), rgba(30,193,187,0.06));
 }
 
 /* Light theme fixes for .navbar-dark */
@@ -114,6 +168,6 @@ html {
 [data-theme="light"] .navbar.navbar-dark .btn.btn-outline-light.show { color: #fff !important; }
 /* Light: outline-light readability */
 [data-theme="light"] .btn-outline-light { color: var(--on-surface) !important; border-color: var(--border) !important; }
-[data-theme="light"] .btn-outline-light:hover { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .btn-outline-light:hover { background-color: rgba(0,0,0,0.06) !important; }
 [data-theme="light"] .btn-outline-light.active,
 [data-theme="light"] .btn-outline-light.show { color: #fff !important; border-color: transparent !important; }

@@ -25,11 +25,8 @@ logger = None  # будет установлен ниже
 from API.bybit_api import BybitAPI  # оставляем на всякий случай
 from API.mock_api import MockAPI
 from API.dashboard_api import run_flask_in_new_terminal, stop_flask
-from BOTS.analbot import Analytic
 from BOTS.loggerbot import Logger
 from BOTS.PLOTBOTS.plotbot import PlotBot
-from STRATEGY.rsi import RSIonly_Strategy
-from STRATEGY.XGBstrategy import XGBStrategy
 
 stop_event = asyncio.Event()
 
@@ -56,33 +53,6 @@ from CORE.dashboard_manager import DashboardManager, write_state_fallback
 dashboard_manager = DashboardManager()
 
 
-def _resolve_rsi_column(df: pd.DataFrame, period: int) -> str:
-    col = "rsi" if period == 14 else f"rsi_{period}"
-    if col not in df.columns:
-        raise ValueError(f"Не найден столбец '{col}' с рассчитанным RSI(period={period}).")
-    return col
-
-def _apply_rsi_orders_series(df: pd.DataFrame, period: int, lower: float, upper: float, out_col: str = "orders_rsi") -> None:
-    """
-    Векторно проставляет сигналы по всей истории:
-      +1 BUY  при пересечении уровня lower (30) снизу вверх
-      -1 SELL при пересечении уровня upper (70) снизу вверх
-    """
-    rsi_col = _resolve_rsi_column(df, period)
-    rsi = pd.to_numeric(df[rsi_col], errors="coerce")
-
-    prev = rsi.shift(1)
-    cross_buy  = (prev < lower) & (rsi >= lower)
-    cross_sell = (prev < upper) & (rsi >= upper)
-
-    orders = np.zeros(len(df), dtype=int)
-    orders[cross_sell.fillna(False).to_numpy()] = -1
-    only_buy = cross_buy.fillna(False) & ~cross_sell.fillna(False)
-    orders[only_buy.to_numpy()] = 1
-
-    df[out_col] = orders
-
-
 # ------------ Plot (опционально) ------------
 async def plot_loop(use_plot: bool) -> None:
     if not use_plot:
@@ -95,129 +65,28 @@ async def plot_loop(use_plot: bool) -> None:
     await loop.run_in_executor(None, _start)
 
 
-# ------------ Торговый цикл RSI ------------
-async def trading_loop_rsi(bot) -> None:
-    logger.info(f"[RSI] Запущен торговый цикл {type(bot).__name__}")
-    period = TradingConfig.RSI_PERIOD
-    lower, upper = TradingConfig.RSI_LOWER, TradingConfig.RSI_UPPER
+# ------------ Унифицированный торговый движок ------------
+from CORE.trading_engine import TradingEngineFactory
 
-    # внутреннее состояние цикла
-    last_action = 0
-    position_size = 0.0
-
+async def unified_trading_loop(bot) -> None:
+    """Унифицированный торговый цикл для всех стратегий"""
+    logger.info(f"Запущен унифицированный торговый цикл {type(bot).__name__}")
+    
     try:
-        while not stop_event.is_set():
-            # 1) Данные
-            df = await bot.get_ohlcv_async(TradingConfig.SYMBOL, timeframe=TradingConfig.TIMEFRAME, limit=200)
-            if "timestamp" in df.columns and "time" not in df.columns:
-                df = df.rename(columns={"timestamp": "time"})
-            df.to_csv(CSV_RAW_PATH, index=False)
-
-            # 2) Аналитика
-            data_name = f"{TradingConfig.get_symbol_name()}_{TradingConfig.TIMEFRAME}"
-            analytic = Analytic(df.copy(), data_name=data_name, output_file="rsi.csv")
-
-            _ = analytic.make_strategy(
-                RSIonly_Strategy,
-                inplace=False,
-                rsi={"period": period, "lower": lower, "upper": upper},
-            )
-
-            # 3) Векторная разметка сигналов
-            try:
-                _apply_rsi_orders_series(analytic.df, period=period, lower=lower, upper=upper)
-            except Exception as e:
-                logger.warning(f"[RSI] Повторный расчёт RSI через Analytic.make_calc после ошибки: {e}")
-                try:
-                    analytic.make_calc(indicators=["rsi"], stratparams={"rsi": {"period": period}}, parallel=False)
-                    _apply_rsi_orders_series(analytic.df, period=period, lower=lower, upper=upper)
-                except Exception as e2:
-                    logger.error(f"[RSI] Не удалось обеспечить RSI: {e2}")
-                    if "orders_rsi" not in analytic.df.columns:
-                        analytic.df["orders_rsi"] = 0
-
-            # 4) Торговое действие (упрощённо)
-            last_sig = int(analytic.df["orders_rsi"].iloc[-1])
-            price = float(df["close"].iloc[-1])
-            bal = await bot.get_balance_async()
-            usdt = float(bal.get("USDT", 0.0))
-            target_frac = TradingConfig.TARGET_FRACTION
-            max_qty = (usdt * target_frac) / price if price > 0 else 0.0
-
-            if last_sig == 1 and last_action != 1:
-                qty = max(0.0, min(max_qty, TradingConfig.MIN_QUANTITY + max_qty * 0.5))
-                if qty > 0:
-                    await bot.place_order_async(TradingConfig.SYMBOL, "buy", qty=qty)
-                    position_size += qty
-                    last_action = 1
-            elif last_sig == -1 and last_action != -1:
-                pos = await bot.get_positions_async(TradingConfig.SYMBOL)
-                have = float(pos.get("size", 0.0)) if isinstance(pos, dict) else 0.0
-                qty = have
-                if qty > 0:
-                    await bot.place_order_async(TradingConfig.SYMBOL, "sell", qty=qty)
-                    position_size = 0.0
-                    last_action = -1
-
-            # 5) Сохранение аналитики
-            analytic._save_results_to_csv()
-
-            # 6) Обновляем состояние для дашборда
-            if hasattr(bot, "update_state"):
-                try:
-                    await bot.update_state(TradingConfig.SYMBOL, STATE_PATH)
-                except Exception as e:
-                    logger.error(f"update_state упал: {e}")
-                    await write_state_fallback(STATE_PATH)
-            else:
-                await write_state_fallback(STATE_PATH)
-
-            await asyncio.sleep(TradingConfig.UPDATE_INTERVAL)
+        # Создаем торговый движок с адаптивным агрегатором
+        trading_engine = TradingEngineFactory.create_standard_engine(bot, logger)
+        
+        # Запускаем торговый цикл
+        await trading_engine.start_trading_loop(stop_event)
+        
     except asyncio.CancelledError:
-        logger.info("[RSI] Торговый цикл отменён")
+        logger.info("Унифицированный торговый цикл отменён")
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка в унифицированном торговом цикле: {e}", exc_info=True)
         raise
     finally:
-        if hasattr(bot, "close_async"):
-            try:
-                await bot.close_async()
-            except Exception:
-                pass
-        logger.info("[RSI] Торговый цикл завершён")
-
-
-# ------------ Торговый цикл XGB (сигнал в колонку) ------------
-async def trading_loop_xgb(bot) -> None:
-    logger.info(f"[XGB] Запущен торговый цикл {type(bot).__name__}")
-    try:
-        while not stop_event.is_set():
-            df = await bot.get_ohlcv_async(TradingConfig.SYMBOL, timeframe=TradingConfig.TIMEFRAME, limit=200)
-            if "timestamp" in df.columns and "time" not in df.columns:
-                df = df.rename(columns={"timestamp": "time"})
-
-            data_name = f"{TradingConfig.get_symbol_name()}_{TradingConfig.TIMEFRAME}"
-            analytic = Analytic(df.copy(), data_name=data_name, output_file="xgb.csv")
-
-            signal = analytic.make_strategy(
-                XGBStrategy,
-                inplace=False,
-                use_cache=True,
-                parallel=True
-            )
-
-            if "orders_xgb" not in analytic.df.columns:
-                analytic.df["orders_xgb"] = 0
-            if len(analytic.df) > 0:
-                last_idx = analytic.df.index[-1]
-                analytic.df.loc[last_idx, "orders_xgb"] = 1 if signal == 1 else (-1 if signal == -1 else 0)
-
-            analytic._save_results_to_csv()
-
-            await asyncio.sleep(TradingConfig.UPDATE_INTERVAL)
-    except asyncio.CancelledError:
-        logger.info("[XGB] Торговый цикл отменён")
-        raise
-    finally:
-        logger.info("[XGB] Торговый цикл завершён")
+        logger.info("Унифицированный торговый цикл завершён")
 
 
 # ------------ main ------------
@@ -243,8 +112,7 @@ async def main() -> None:
 
     try:
         await asyncio.gather(
-            trading_loop_rsi(botapi),
-            trading_loop_xgb(botapi),
+            unified_trading_loop(botapi),
             plot_loop(DashboardConfig.USE_PLOT),
         )
     except KeyboardInterrupt:

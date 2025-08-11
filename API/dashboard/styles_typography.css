@@ -1,0 +1,222 @@
+/* === УЛУЧШЕННАЯ ТИПОГРАФИКА ДАШБОРДА === */
+
+/* ===== ИЕРАРХИЯ ШРИФТОВ ===== */
+:root {
+  /* Размеры шрифтов */
+  --font-size-xs: 0.75rem;    /* 12px */
+  --font-size-sm: 0.875rem;   /* 14px */
+  --font-size-base: 1rem;     /* 16px */
+  --font-size-lg: 1.125rem;   /* 18px */
+  --font-size-xl: 1.25rem;    /* 20px */
+  --font-size-2xl: 1.5rem;    /* 24px */
+  --font-size-3xl: 1.875rem;  /* 30px */
+  
+  /* Высота строк */
+  --line-height-tight: 1.1;
+  --line-height-snug: 1.25;
+  --line-height-normal: 1.4;
+  
+  /* Межбуквенные интервалы */
+  --letter-spacing-tight: -0.025em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.025em;
+  
+  /* Веса шрифтов */
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+}
+
+/* ===== УЛУЧШЕННЫЕ KPI ПАНЕЛИ ===== */
+.kpi {
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--grad-1);
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease-in-out infinite;
+}
+
+.kpi-sub {
+  font: var(--font-weight-semibold) var(--font-size-sm) / var(--line-height-snug) "Roboto Flex", sans-serif;
+  letter-spacing: var(--letter-spacing-wide);
+  color: var(--on-surface-variant) !important;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  opacity: 0.85;
+}
+
+.kpi-value {
+  font: var(--font-weight-bold) var(--font-size-3xl) / var(--line-height-tight) "Roboto Flex", sans-serif;
+  color: var(--on-surface) !important;
+  margin-bottom: 0.25rem;
+  letter-spacing: var(--letter-spacing-tight);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.kpi-value .skeleton {
+  font-size: var(--font-size-2xl);
+  opacity: 0.6;
+}
+
+.kpi .text-muted {
+  font: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-normal) "Roboto Flex", sans-serif;
+  color: var(--on-surface-variant) !important;
+  opacity: 0.7;
+  letter-spacing: var(--letter-spacing-wide);
+}
+
+/* ===== УЛУЧШЕННЫЕ ЗАГОЛОВКИ ===== */
+.navbar-brand {
+  font: var(--font-weight-bold) var(--font-size-xl) / var(--line-height-tight) "Roboto Flex", sans-serif;
+  letter-spacing: var(--letter-spacing-tight);
+  color: var(--on-surface) !important;
+}
+
+/* ===== УЛУЧШЕННЫЕ ПОЛЯ ВВОДА ===== */
+.form-control,
+.form-select {
+  font: var(--font-weight-normal) var(--font-size-sm) / var(--line-height-normal) "Roboto Flex", sans-serif;
+  letter-spacing: var(--letter-spacing-normal);
+}
+
+.form-control::placeholder {
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-wide);
+}
+
+.form-label {
+  font: var(--font-weight-semibold) var(--font-size-sm) / var(--line-height-snug) "Roboto Flex", sans-serif;
+  letter-spacing: var(--letter-spacing-wide);
+  color: var(--on-surface);
+  margin-bottom: 0.5rem;
+}
+
+/* ===== УЛУЧШЕННЫЕ ТАБЛИЦЫ ===== */
+.table-md3 thead th {
+  font: var(--font-weight-bold) var(--font-size-sm) / var(--line-height-snug) "Roboto Flex", sans-serif;
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+}
+
+.table-md3 tbody td {
+  font: var(--font-weight-normal) var(--font-size-sm) / var(--line-height-normal) "Roboto Flex", sans-serif;
+  letter-spacing: var(--letter-spacing-normal);
+}
+
+.table-md3 .num {
+  font: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-snug) ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+/* ===== УЛУЧШЕННЫЕ ЧИПЫ ===== */
+.chip {
+  font: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-snug) "Roboto Flex", sans-serif;
+  letter-spacing: var(--letter-spacing-wide);
+}
+
+.chip.selected {
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+/* ===== УЛУЧШЕННЫЕ СТАТУСЫ ===== */
+.status-pill {
+  font: var(--font-weight-medium) var(--font-size-xs) / var(--line-height-snug) "Roboto Flex", sans-serif;
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+/* ===== УЛУЧШЕННЫЕ СЕГМЕНТИРОВАННЫЕ КОНТРОЛЫ ===== */
+.segmented-wrap .btn {
+  font: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-snug) "Roboto Flex", sans-serif;
+  letter-spacing: var(--letter-spacing-wide);
+}
+
+.segmented-wrap .btn.active {
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+/* ===== УЛУЧШЕННЫЕ SELECT ===== */
+.nselect-toggle {
+  font: var(--font-weight-medium) var(--font-size-sm) / var(--line-height-snug) "Roboto Flex", sans-serif;
+  letter-spacing: var(--letter-spacing-wide);
+}
+
+.nselect-option {
+  font: var(--font-weight-normal) var(--font-size-sm) / var(--line-height-normal) "Roboto Flex", sans-serif;
+  letter-spacing: var(--letter-spacing-normal);
+}
+
+.nselect-option.is-selected {
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wide);
+}
+
+/* ===== УЛУЧШЕННЫЕ СКЕЛЕТОНЫ ===== */
+.skeleton {
+  font-family: "Roboto Flex", sans-serif;
+  font-weight: var(--font-weight-normal);
+  letter-spacing: var(--letter-spacing-normal);
+}
+
+.skeleton.lg {
+  font-size: var(--font-size-2xl);
+  line-height: var(--line-height-tight);
+}
+
+.skeleton.md {
+  font-size: var(--font-size-lg);
+  line-height: var(--line-height-snug);
+}
+
+.skeleton.sm {
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+}
+
+/* ===== УЛУЧШЕННЫЕ HOVER ЭФФЕКТЫ ===== */
+.kpi:hover .kpi-value {
+  transform: scale(1.02);
+  transition: transform 0.2s ease;
+}
+
+/* ===== АДАПТИВНАЯ ТИПОГРАФИКА ===== */
+@media (max-width: 768px) {
+  .kpi-value {
+    font-size: var(--font-size-2xl);
+  }
+  
+  .navbar-brand {
+    font-size: var(--font-size-lg);
+  }
+}
+
+@media (max-width: 576px) {
+  .kpi-value {
+    font-size: var(--font-size-xl);
+  }
+  
+  .kpi-sub {
+    font-size: var(--font-size-xs);
+  }
+}
+
+/* Анимация gradientShift для KPI */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}

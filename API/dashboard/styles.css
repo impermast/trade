@@ -1,8 +1,0 @@
-/* Агрегатор: оставлен для обратной совместимости.
-   Основные стили разнесены по отдельным файлам. */
-@import url("styles_variables.css");
-@import url("styles_layout.css");
-@import url("styles_forms.css");
-@import url("styles_components.css");
-@import url("styles_plot.css");
-@import url("styles_states.css");

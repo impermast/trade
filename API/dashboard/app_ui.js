@@ -72,6 +72,8 @@
     select.addEventListener('change', ()=>{ updateLabel(); syncSelected(); });
     const mo = new MutationObserver(()=>{ buildMenu(); updateLabel(); syncSelected(); });
     mo.observe(select, {childList:true});
+    // Сохраняем MutationObserver для последующей очистки
+    window.App.ui._mutationObservers.push(mo);
 
     buildMenu(); updateLabel(); syncSelected();
   }
@@ -191,11 +193,24 @@
     }
   });
 
+  // Массив для хранения MutationObserver
+  const _mutationObservers = [];
+
+  // Функция для очистки ресурсов
+  function cleanup(){
+    // Очищаем все MutationObserver
+    if(_mutationObservers && _mutationObservers.length > 0) {
+      _mutationObservers.forEach(mo => mo.disconnect());
+      _mutationObservers.length = 0;
+    }
+  }
+
   window.App.ui = {
     enhanceSelect, refreshNiceSelect, enhanceNumberInput, initEnhancers,
     randomizeSkeletons, // public
     // экспорт ink обновления, чтобы app_init мог вызывать
     updateTabsInk,
-    initTabAnimations
+    initTabAnimations, cleanup,
+    _mutationObservers
   };
 })();

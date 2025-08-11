@@ -53,11 +53,21 @@
   let stateTimer=null;
   const STATE_INTERVAL_KEY="state-interval-seconds";
   function startStateTimer(){
-    const seconds=Math.max(5, +(localStorage.getItem(STATE_INTERVAL_KEY)||15));
+    // Очищаем предыдущий таймер
     if(stateTimer) clearInterval(stateTimer);
-    stateTimer=setInterval(()=>{ if(document.visibilityState==="visible") loadState(); }, seconds*1000);
+    
+    const seconds=Math.max(5, +(localStorage.getItem(STATE_INTERVAL_KEY)||15));
+    stateTimer=setInterval(()=>{ 
+      if(document.visibilityState==="visible") loadState(); 
+    }, seconds*1000);
   }
   document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") loadState(); });
 
-  window.App.state = { loadState, startStateTimer, exportPositionsCsv };
+  // Функция для очистки ресурсов
+  function cleanup(){
+    if(stateTimer){ clearInterval(stateTimer); stateTimer=null; }
+    if(updatedTicker){ clearInterval(updatedTicker); updatedTicker=null; }
+  }
+
+  window.App.state = { loadState, startStateTimer, exportPositionsCsv, cleanup };
 })();

@@ -78,6 +78,39 @@
 
       // Полный перестроение графика — чтобы обновлялись RSI/SMA/объёмы и маркеры сигналов.
       const fileNow = $("#csvFile").val() || "";
+      const tsArr = rows.map(r=>r.ts);
+      
+      // Проверяем, можно ли расширить существующий график
+      const gdInc = document.getElementById('chart');
+      const canExtend = (
+        !animate &&
+        gdInc && gdInc.data && gdInc.data.length > 0 &&
+        (_currentFile === fileNow) &&
+        _lastTs && tsArr.length && tsArr[tsArr.length-1] > _lastTs
+      );
+
+      if (canExtend){
+        let idx = tsArr.findIndex(t => t > _lastTs);
+        if (idx > -1){
+          const addX = tsArr.slice(idx);
+          const addO = rows.slice(idx).map(r=>r.open);
+          const addH = rows.slice(idx).map(r=>r.high);
+          const addL = rows.slice(idx).map(r=>r.low);
+          const addC = rows.slice(idx).map(r=>r.close);
+
+          const tailMax = Math.max(50, +$("#tailRows").val()||500);
+
+          Plotly.extendTraces(gdInc,
+            { x:[addX], open:[addO], high:[addH], low:[addL], close:[addC] },
+            [0], tailMax
+          );
+
+          _lastTs = tsArr[tsArr.length-1];
+          keepRightEdge();
+          $("#kpi-file").text($("#csvFile").val()||"—");
+          return;
+        }
+      }
 
       const ts    = rows.map(r=>r.ts);
       const open  = rows.map(r=>r.open);
@@ -265,7 +298,10 @@
     const progress = 1 - (remain/iv);
     ring.style.strokeDashoffset = (C*(1-progress)).toFixed(1);
 
-    fabRAF = requestAnimationFrame(updateFabRing);
+    // Останавливаем анимацию, если до следующего обновления меньше 100мс
+    if (remain > 100) {
+      fabRAF = requestAnimationFrame(updateFabRing);
+    }
   }
   function startFabCountdown(){
     if (fabRAF) cancelAnimationFrame(fabRAF);
@@ -273,18 +309,25 @@
     fabRAF = requestAnimationFrame(updateFabRing);
   }
   function startChartTimer(){
+    // Очищаем предыдущий таймер
     if(chartTimer){ clearInterval(chartTimer); chartTimer=null; }
+    
     const auto = $("#autoRefreshChart").is(":checked");
     if(!auto){
+      // Очищаем RAF если автообновление выключено
       if (fabRAF) { cancelAnimationFrame(fabRAF); fabRAF=null; }
       updateFabRing();
       return;
     }
+    
     const iv = getChartInterval()*1000;
     startFabCountdown();
+    
+    // Создаем новый таймер с проверкой видимости
     chartTimer = setInterval(()=>{
       if(document.visibilityState==="visible" && $("#chart-pane").hasClass("active")){
-        drawChart(false); startFabCountdown();
+        drawChart(false); 
+        startFabCountdown();
       }
     }, iv);
   }
@@ -294,10 +337,32 @@
     $("#reloadChart").on("click", ()=>{ drawChart(false); startFabCountdown(); U.showSnack("График перестроен"); const btn=document.getElementById('reloadChart'); btn.classList.remove('pulse'); void btn.offsetWidth; btn.classList.add('pulse'); });
     $("#resetZoom").on("click", ()=>{ Plotly.relayout('chart', {'xaxis.autorange':true,'yaxis.autorange':true,'yaxis2.autorange':true}); U.showSnack("Масштаб сброшен"); });
 
-    $("#csvFile").on("change", ()=>{ localStorage.setItem("csv-file", $("#csvFile").val()||""); drawChart(true); });
-    $("#tailRows").on("change", ()=> drawChart(true));
-    $("#lowerPanel").on("change", ()=>{ showRsiControls(); drawChart(false); });
-    $("#rsiPeriod").on("change", ()=> drawChart(false));
+    $("#csvFile").on("change", ()=>{ 
+      localStorage.setItem("csv-file", $("#csvFile").val()||""); 
+      // Сбрасываем переменные оптимизации при смене файла
+      _currentFile = null;
+      _lastTs = null;
+      drawChart(true); 
+    });
+    $("#tailRows").on("change", U.debounce(()=> {
+      // Сбрасываем переменные оптимизации при изменении количества строк
+      _currentFile = null;
+      _lastTs = null;
+      drawChart(true);
+    }, 300));
+    $("#lowerPanel").on("change", ()=>{ 
+      showRsiControls(); 
+      // Сбрасываем переменные оптимизации при изменении нижней панели
+      _currentFile = null;
+      _lastTs = null;
+      drawChart(false); 
+    });
+    $("#rsiPeriod").on("change", U.debounce(()=> {
+      // Сбрасываем переменные оптимизации при изменении периода RSI
+      _currentFile = null;
+      _lastTs = null;
+      drawChart(false);
+    }, 300));
 
     U.bindChip("#chipSMA20", "#sma20");
     U.bindChip("#chipSMA50", "#sma50");
@@ -308,6 +373,9 @@
       $("#tailSegments .btn").removeClass("active");
       $(this).addClass("active");
       const val=+$(this).data("tail"); $("#tailRows").val(val);
+      // Сбрасываем переменные оптимизации при изменении сегмента
+      _currentFile = null;
+      _lastTs = null;
       drawChart(true);
     });
     showRsiControls();
@@ -317,20 +385,43 @@
   function setupAdvancedControls(){
     // лог масштаб визуально связан со скрытым чекбоксом
     $("#logScaleSwitch").prop("checked", $("#logScale").is(":checked"));
-    $("#logScaleSwitch").on("change", ()=>{ $("#logScale").prop("checked", $("#logScaleSwitch").is(":checked")); drawChart(false); });
+    $("#logScaleSwitch").on("change", ()=>{ 
+      $("#logScale").prop("checked", $("#logScaleSwitch").is(":checked")); 
+      // Сбрасываем переменные оптимизации при изменении масштаба
+      _currentFile = null;
+      _lastTs = null;
+      drawChart(false); 
+    });
+
+    // Добавляем обработчик для скрытого чекбокса logScale
+    $("#logScale").on("change", ()=>{
+      // Сбрасываем переменные оптимизации при изменении масштаба
+      _currentFile = null;
+      _lastTs = null;
+      drawChart(false);
+    });
 
     // persist & timer controls for auto-refresh
     const saveAuto = ()=> localStorage.setItem(CHART_AUTO_KEY, $("#autoRefreshChart").is(":checked") ? "1" : "0");
     const saveIv   = ()=> localStorage.setItem(CHART_INTERVAL_KEY, String(getChartInterval()));
 
     $("#autoRefreshChart").on("change", ()=>{ saveAuto(); startChartTimer(); updateFabRing(); U.showSnack($("#autoRefreshChart").is(":checked")?"Автообновление включено":"Автообновление выключено"); });
-    $("#chartInterval").on("change", ()=>{ saveIv(); startChartTimer(); updateFabRing(); U.showSnack(`Интервал: ${getChartInterval()} с`); });
+    $("#chartInterval").on("change", U.debounce(()=>{ saveIv(); startChartTimer(); updateFabCountdown(); updateFabRing(); U.showSnack(`Интервал: ${getChartInterval()} с`); }, 300));
+  }
+
+  // Функция для очистки ресурсов
+  function cleanup(){
+    if(chartTimer){ clearInterval(chartTimer); chartTimer=null; }
+    if(fabRAF){ cancelAnimationFrame(fabRAF); fabRAF=null; }
   }
 
   // Expose
   window.App.chart = {
     loadCsvList, drawChart, setupChartControls, setupAdvancedControls,
     startChartTimer, startFabCountdown, updateFabRing,
-    applyAutoControlsFromStorage, getChartInterval
+    applyAutoControlsFromStorage, getChartInterval, cleanup,
+    // Экспортируем геттеры для доступа к переменным из других модулей
+    get _currentFile() { return _currentFile; },
+    get _lastTs() { return _lastTs; }
   };
 })();

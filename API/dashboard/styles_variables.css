@@ -25,6 +25,32 @@
 
   /* Общая высота мелких контролов */
   --ctl-h: 38px;
+  
+  /* Высота строк для типографики */
+  --line-height-tight: 1.1;
+  --line-height-snug: 1.25;
+  --line-height-normal: 1.4;
+  
+  /* Размеры шрифтов */
+  --font-size-xs: 0.75rem;    /* 12px */
+  --font-size-sm: 0.875rem;   /* 14px */
+  --font-size-base: 1rem;     /* 16px */
+  --font-size-lg: 1.125rem;   /* 18px */
+  --font-size-xl: 1.25rem;    /* 20px */
+  --font-size-2xl: 1.5rem;    /* 24px */
+  --font-size-3xl: 1.875rem;  /* 30px */
+  
+  /* Веса шрифтов */
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Межбуквенные интервалы */
+  --letter-spacing-tight: -0.025em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.025em;
 
   /* Динамические градиенты */
   --grad-1: linear-gradient(90deg, var(--primary), var(--secondary));
@@ -35,10 +61,21 @@
   --kpi-hover-bg: linear-gradient(135deg, rgba(110,70,255,0.10), rgba(32,201,195,0.08));
 }
 
+/* Fallback значения для критических переменных */
+html {
+  --bg: #101115;
+  --surface: #171A1F;
+  --on-surface: rgba(255,255,255,0.92);
+  --on-surface-variant: rgba(255,255,255,0.70);
+  --border: #242834;
+  --primary: #6E46FF;
+  --secondary: #20C9C3;
+}
+
 @keyframes gradientShift {
   0% { background-position: 0% 50%; }
-  50%{ background-position: 100% 50%; }
-  100%{ background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 [data-theme="light"]{
@@ -65,6 +102,7 @@
   --ink-active-bg: linear-gradient(90deg, rgba(94,88,255,0.08), rgba(30,193,187,0.06));
   --kpi-hover-bg: linear-gradient(135deg, rgba(94,88,255,0.06), rgba(30,193,187,0.05));
 }
+
 /* Light theme fixes for .navbar-dark */
 [data-theme="light"] .navbar.navbar-dark .navbar-brand,
 [data-theme="light"] .navbar.navbar-dark .nav-link,

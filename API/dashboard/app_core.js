@@ -11,7 +11,14 @@
   util.fmtNumber = (x,d=2)=>{ if(x==null||isNaN(x)) return "—"; return Number(x).toLocaleString("ru-RU",{maximumFractionDigits:d}); };
 
   // CSS var
-  util.cssVar = (name)=> getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  util.cssVar = (name)=> {
+    try {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    } catch (e) {
+      console.warn('Ошибка получения CSS переменной:', name, e);
+      return '';
+    }
+  };
 
   // HTML escape
   util.escapeHtml = (s)=> (s??"").toString()
@@ -44,10 +51,45 @@
 
   // Top progress & snack
   let topProgTimer=null;
-  util.topProgressStart = function(){ const el=document.getElementById("topProgress"); if(!el) return; el.style.width="0"; el.style.display="block"; requestAnimationFrame(()=>{ el.style.width="65%"; }); };
-  util.topProgressDone  = function(){ const el=document.getElementById("topProgress"); if(!el) return; el.style.width="100%"; clearTimeout(topProgTimer); topProgTimer=setTimeout(()=>{ el.style.display="none"; el.style.width="0"; }, 250); };
-  util.showSnack = (msg, timeout=2200)=>{ $("#snackbarMsg").text(msg); $("#snackbar").fadeIn(120); setTimeout(()=>$("#snackbar").fadeOut(180), timeout); };
-  util.withProgress = async (promise)=>{ try{ util.topProgressStart(); return await promise; } finally{ util.topProgressDone(); } };
+  util.topProgressStart = function(){ 
+    try {
+      const el=document.getElementById("topProgress"); 
+      if(!el) return; 
+      el.style.width="0"; 
+      el.style.display="block"; 
+      requestAnimationFrame(()=>{ el.style.width="65%"; }); 
+    } catch (e) {
+      console.warn('Ошибка в topProgressStart:', e);
+    }
+  };
+  util.topProgressDone  = function(){ 
+    try {
+      const el=document.getElementById("topProgress"); 
+      if(!el) return; 
+      el.style.width="100%"; 
+      clearTimeout(topProgTimer); 
+      topProgTimer=setTimeout(()=>{ el.style.display="none"; el.style.width="0"; }, 250); 
+    } catch (e) {
+      console.warn('Ошибка в topProgressDone:', e);
+    }
+  };
+  util.showSnack = (msg, timeout=2200)=>{ 
+    try {
+      $("#snackbarMsg").text(msg); 
+      $("#snackbar").fadeIn(120); 
+      setTimeout(()=>$("#snackbar").fadeOut(180), timeout); 
+    } catch (e) {
+      console.warn('Ошибка в showSnack:', e);
+    }
+  };
+  util.withProgress = async (promise)=>{ 
+    try{ 
+      util.topProgressStart(); 
+      return await promise; 
+    } finally{ 
+      util.topProgressDone(); 
+    } 
+  };
 
   // Health ping
   util.pingHealth = async function(){
@@ -62,28 +104,25 @@
     }
   };
 
-  // Tabs ink
-  util.updateTabsInk = function(){
-    const nav = document.getElementById('viewTabs');
-    const ink = document.getElementById('tabsInk');
-    if(!nav || !ink) return;
-    const active = nav.querySelector('.nav-link.active');
-    if(!active){ ink.style.width='0'; return; }
-    const navRect = nav.getBoundingClientRect();
-    const rect = active.getBoundingClientRect();
-    const scrollX = nav.scrollLeft || 0;
-    const pad = 12;
-    const left = Math.max(0, rect.left - navRect.left + scrollX + pad);
-    const width = Math.max(24, rect.width - pad*2);
-    ink.style.transform = `translateX(${left}px)`; ink.style.width = width + 'px';
-  };
+
 
   // Chips binding + hidden checkboxes state
   util.bindChip = function(id, checkboxSel){
     const chip=$(id), cb=$(checkboxSel);
     chip.on("pointerdown", e=>{ chip[0].style.setProperty('--x', e.offsetX+'px'); chip[0].style.setProperty('--y', e.offsetY+'px'); });
     function sync(){ chip.toggleClass("selected", cb.is(":checked")); }
-    chip.on("click", ()=>{ cb.prop("checked", !cb.is(":checked")); sync(); if(window.App.chart) window.App.chart.drawChart(false); });
+    chip.on("click", ()=>{ 
+      cb.prop("checked", !cb.is(":checked")); 
+      sync(); 
+      // Сбрасываем переменные оптимизации при изменении чекбоксов
+      if(window.App.chart && window.App.chart._currentFile !== undefined) {
+        window.App.chart._currentFile = null;
+        window.App.chart._lastTs = null;
+      }
+      if(window.App.chart && window.App.chart.drawChart) {
+        window.App.chart.drawChart(false);
+      } 
+    });
     sync();
   };
   const hiddenControls = $('<div style="display:none"></div>').appendTo(document.body);
@@ -92,6 +131,15 @@
   hiddenControls.append('<input type="checkbox" id="signals_rsi" checked>');
   hiddenControls.append('<input type="checkbox" id="signals_xgb" checked>');
   hiddenControls.append('<input type="checkbox" id="logScale">');
+
+  // Добавляем обработчики для скрытых чекбоксов, чтобы сбрасывать переменные оптимизации
+  $("#sma20, #sma50, #signals_rsi, #signals_xgb, #logScale").on("change", function() {
+    // Сбрасываем переменные оптимизации при изменении любых чекбоксов
+    if(window.App.chart && window.App.chart._currentFile !== undefined) {
+      window.App.chart._currentFile = null;
+      window.App.chart._lastTs = null;
+    }
+  });
 
   // Indicators (client)
   util.rsi = function(prices, period=14){

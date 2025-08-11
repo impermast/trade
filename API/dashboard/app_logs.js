@@ -33,7 +33,7 @@
   }
   function setupLogsControls(){
     $("#reloadLogs").on("click", ()=>{ loadLogTail(); U.showSnack("Лог обновлён"); });
-    $("#logFile, #logTail").on("change", loadLogTail);
+    $("#logFile, #logTail").on("change", debounce(loadLogTail, 300));
     $("#logsInterval, #autoRefreshLogs").on("change", ()=>{ if(logsTimer){ clearInterval(logsTimer); logsTimer=null; } if($("#autoRefreshLogs").is(":checked")){ const iv=Math.max(5, +$("#logsInterval").val()||15)*1000; logsTimer=setInterval(loadLogTail, iv); } });
   }
 
@@ -69,8 +69,14 @@
     $("#logsAllInterval, #autoRefreshLogsAll").on("change", ()=>{ if(logsAllTimer){ clearInterval(logsAllTimer); logsAllTimer=null; } if($("#autoRefreshLogsAll").is(":checked")){ const iv=Math.max(5, +$("#logsAllInterval").val()||15)*1000; logsAllTimer=setInterval(loadLogsAll, iv); } });
   }
 
+  // Функция для очистки ресурсов
+  function cleanup(){
+    if(logsTimer){ clearInterval(logsTimer); logsTimer=null; }
+    if(logsAllTimer){ clearInterval(logsAllTimer); logsAllTimer=null; }
+  }
+
   window.App.logs = {
     loadLogFiles, loadLogTail, setupLogsControls,
-    loadLogsAll, setupLogsAllControls
+    loadLogsAll, setupLogsAllControls, cleanup
   };
 })();

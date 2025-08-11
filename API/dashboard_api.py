@@ -22,10 +22,6 @@ app = Flask(__name__)
 def index():
     return send_file(os.path.join(DASHBOARD_DIR, "index.html"))
 
-@app.route("/styles.css")
-def serve_styles():
-    return send_from_directory(DASHBOARD_DIR, "styles.css")
-
 @app.route("/main.js")
 def serve_main_js():
     return send_from_directory(DASHBOARD_DIR, "main.js")

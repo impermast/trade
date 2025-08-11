@@ -9,7 +9,7 @@
 }
 [data-theme="dark"] .nav-tabs .nav-link.active{
   position:relative;
-  color: var(--on-surface) !important; font-weight: 700;
+  color: var(--on-surface) !important;
   background: linear-gradient(135deg, rgba(110,70,255,0.14), rgba(32,201,195,0.12));
   border:1px solid var(--border) !important; border-bottom-color: transparent !important;
   border-top-left-radius: 12px; border-top-right-radius: 12px;
@@ -24,7 +24,7 @@
 }
 [data-theme="light"] .nav-tabs .nav-link.active{
   position:relative;
-  color: var(--on-surface) !important; font-weight: 700;
+  color: var(--on-surface) !important;
   background-image: var(--ink-active-bg) !important; background-size: 200% 200%; animation: gradientShift 10s ease infinite;
   border:1px solid var(--border) !important; border-bottom-color: transparent !important;
   border-top-left-radius: 12px; border-top-right-radius: 12px;
@@ -36,7 +36,7 @@
   position:absolute; height:3px; bottom:-3px; background:var(--grad-1);
   border-radius:3px; pointer-events:none; width:0; transform:translateX(0);
   transition: width .28s cubic-bezier(0.2,0.8,0.2,1.6), transform .28s cubic-bezier(0.2,0.8,0.2,1.6);
-  background-size: 200% 200%; animation: gradientShift 7s ease infinite;
+  background-size: 200% 200%; animation: gradientShift 12s ease-in-out infinite;
   filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25));
 }
 
@@ -51,7 +51,6 @@
   border: none !important;
   border-radius: 8px !important;
   padding: .35rem .9rem;
-  line-height: 1;
   color: var(--on-surface-variant);
   background: transparent;
 }
@@ -63,51 +62,57 @@
   box-shadow:0 4px 12px rgba(0,0,0,0.22);
 }
 
-/* Применение к конкретным блокам */
-#tailSegments {
-  display:inline-flex; align-items:center; height: var(--ctl-h);
-  background: var(--field-bg); border:1px solid var(--border);
-  border-radius: 10px; padding: 2px;
+/* Применение базовых стилей к конкретным блокам */
+#tailSegments,
+#logLevelButtons {
+  display: inline-flex;
+  align-items: center;
+  height: var(--ctl-h);
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px;
 }
-#tailSegments .btn{
+#tailSegments .btn,
+#logLevelButtons .btn {
   height: calc(var(--ctl-h) - 6px);
   border: none !important;
   border-radius: 8px !important;
   padding: .35rem .9rem;
-  line-height: 1;
   color: var(--on-surface-variant);
   background: transparent;
 }
-#tailSegments .btn + .btn{ margin-left: 2px; }
-[data-theme="dark"] #tailSegments .btn:hover,
-[data-theme="dark"] #tailSegments .btn:focus{ color:#fff !important; background-color: var(--field-bg-focus) !important; }
-#tailSegments .btn-outline-light.active{
-  color:#fff!important; border-color:transparent!important;
-  background:var(--grad-2)!important; background-size:200% 200%; animation:gradientShift 8s ease infinite;
-  box-shadow:0 4px 12px rgba(0,0,0,0.22);
+#tailSegments .btn + .btn,
+#logLevelButtons .btn + .btn {
+  margin-left: 2px;
+}
+#tailSegments .btn:hover,
+#logLevelButtons .btn:hover {
+  background: var(--field-bg-focus) !important;
+  color: var(--on-surface) !important;
 }
 
-/* Кнопки уровней логов */
-#logLevelButtons{
-  display:inline-flex; align-items:center; height: var(--ctl-h);
-  background: var(--field-bg); border:1px solid var(--border);
-  border-radius: 10px; padding: 2px;
+#tailSegments .btn.active,
+#logLevelButtons .btn.active,
+#tailSegments .btn-outline-light.active {
+  color: #fff !important;
+  background: var(--grad-2) !important;
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease infinite;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.22);
 }
-#logLevelButtons .btn{
-  height: calc(var(--ctl-h) - 6px);
-  border: none !important;
-  border-radius: 8px !important;
-  padding: .35rem .75rem;
-  line-height: 1;
-  color: var(--on-surface-variant);
-  background: transparent;
+
+/* Специфичные стили для темной темы */
+[data-theme="dark"] #tailSegments .btn:hover,
+[data-theme="dark"] #tailSegments .btn:focus {
+  color: #fff !important;
+  background-color: var(--field-bg-focus) !important;
 }
-#logLevelButtons .btn + .btn{ margin.left: 2px; }
-#logLevelButtons .btn:hover{ background:var(--field-bg-focus) !important; color: var(--on-surface) !important; }
-#logLevelButtons .btn.active{
-  color:#fff!important; background: var(--grad-2) !important; background-size:200% 200%; animation: gradientShift 8s ease infinite;
-  box-shadow:0 4px 12px rgba(0,0,0,0.22);
-}
+
+/* Кнопки уровней логов используют общие стили выше */
+
+
+
 
 /* Общий стиль для активных outline-кнопок */
 .btn-outline-light.active,
@@ -117,10 +122,10 @@
 
 /* Таблица */
 .table-md3{ width:100%; border-collapse:separate; border-spacing:0; }
-.table-md3 thead th{ position:sticky; top:0; background:var(--surface); z-index:1; border-bottom:1px solid var(--border); padding:.5rem .6rem; font-weight:700; }
+.table-md3 thead th{ position:sticky; top:0; background:var(--surface); z-index:1; border-bottom:1px solid var(--border); padding:.5rem .6rem; }
 .table-md3 tbody td{ border-bottom:1px solid var(--border); padding:.48rem .6rem; }
 .table-md3 tbody tr:nth-child(even){ background:rgba(255,255,255,0.02); }
-.table-md3 .num{ text-align:right; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+.table-md3 .num{ text-align:right; font-variant-numeric: tabular-nums; }
 .table-md3 thead th + th, .table-md3 tbody td + td{ box-shadow: inset 1px 0 0 rgba(255,255,255,0.04); }
 
 /* Подсветка строк CSV */
@@ -130,33 +135,10 @@
 .table-md3 tbody tr.has-xgb td:first-child { box-shadow: inset 3px 0 0 rgba(32,201,195,0.35);}
 
 /* ===== Чипы ===== */
-.chips{ display:flex; gap:.5rem; overflow-x:auto; overflow-y:hidden; white-space:nowrap; scrollbar-width:none; }
-.chips::-webkit-scrollbar{ display:none; }
-.chip{
-  flex:0 0 auto; display:inline-flex; align-items:center; gap:.35rem; padding:.42rem .8rem;
-  border:1px solid var(--border); border-radius:999px; background:rgba(255,255,255,0.02); color:var(--on-surface);
-  cursor:pointer; user-select:none; position:relative; overflow:hidden; line-height:1.05;
-  transition:background .15s ease, border-color .15s ease, transform .12s ease, box-shadow .18s ease;
-}
-.chip .bi{ font-size:1rem; }
-.chip:hover{ transform: translateY(-1px); }
-.chip.selected{
-  background:var(--grad-2); border-color:transparent; color:#fff;
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.06) inset, 0 6px 14px rgba(0,0,0,0.22);
-  background-size:200% 200%; animation:gradientShift 10s ease infinite;
-}
-.chip.selected::before{
-  content:""; position:absolute; inset:-20% -30%;
-  background: radial-gradient(60% 60% at 30% 30%, rgba(255,255,255,0.20), rgba(255,255,255,0));
-  filter: blur(6px); pointer-events:none;
-}
-.chip::after{ content:""; position:absolute; inset:auto; width:0; height:0; border-radius:50%; background:rgba(255,255,255,0.18); transform:translate(-50%,-50%); transition:width .35s,height .35s; }
-.chip:active::after{ left:var(--x); top:var(--y); width:220%; height:220%; }
+/* Стили чипов перенесены в styles_forms.css для избежания дублирования */
 
 /* Toolbar */
-.toolbar{ display:flex; flex-wrap:wrap; gap:.75rem 1rem; align-items:end; }
-.toolbar .group{ display:flex; flex-direction:column; gap:.25rem; min-width:140px; }
-.toolbar .group.narrow{ min-width:110px; }
+/* Стили toolbar перенесены в styles_forms.css для избежания дублирования */
 
 /* === Анимация контента вкладок (fade + slide) === */
 .tabs-animated .tab-pane.tab-anim{

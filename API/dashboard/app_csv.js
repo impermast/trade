@@ -33,18 +33,25 @@
     const cols = Object.keys(rows[0]);
     thead.append(`<tr>${cols.map(c => `<th>${c}</th>`).join("")}</tr>`);
 
-    const frag = document.createDocumentFragment();
-    rows.forEach(r => {
-      const tr = document.createElement("tr");
+    // Оптимизация: создаем HTML строку вместо множественных DOM операций
+    const rowsHtml = rows.map(r => {
       const hasRsi = Number(r["orders_rsi"] ?? 0) !== 0;
       const hasXgb = Number(r["orders_xgb"] ?? 0) !== 0 || Number(r["orders"] ?? 0) !== 0;
-      if (hasRsi) tr.classList.add("has-rsi");
-      if (hasXgb) tr.classList.add("has-xgb");
-      tr.innerHTML = cols.map(c => `<td class="${/^(open|high|low|close|volume|orders|orders_rsi|orders_xgb)$/i.test(c)?'num':''}">${r[c] ?? ""}</td>`).join("");
-      frag.appendChild(tr);
-    });
-    tbody[0].innerHTML = "";
-    tbody[0].appendChild(frag);
+      const classes = [];
+      if (hasRsi) classes.push("has-rsi");
+      if (hasXgb) classes.push("has-xgb");
+      
+      const classAttr = classes.length > 0 ? ` class="${classes.join(' ')}"` : '';
+      const cells = cols.map(c => {
+        const cellClass = /^(open|high|low|close|volume|orders|orders_rsi|orders_xgb)$/i.test(c) ? 'num' : '';
+        const cellClassAttr = cellClass ? ` class="${cellClass}"` : '';
+        return `<td${cellClassAttr}>${r[c] ?? ""}</td>`;
+      }).join("");
+      
+      return `<tr${classAttr}>${cells}</tr>`;
+    }).join("");
+
+    tbody.html(rowsHtml);
   }
 
   function downloadCsvFromPreview(){
@@ -61,10 +68,15 @@
   function setupCsvPreviewControls(){
     $("#csvReload").on("click", ()=>{ loadCsvPreview(); U.showSnack("CSV обновлен"); });
     $("#csvDownload").on("click", downloadCsvFromPreview);
-    $("#csvViewTail").on("change", loadCsvPreview);
+    $("#csvViewTail").on("change", U.debounce(loadCsvPreview, 300));
     $("#csvFile").on("change", loadCsvPreview);
     document.getElementById("csv-tab").addEventListener("shown.bs.tab", loadCsvPreview);
   }
 
-  window.App.csv = { loadCsvPreview, setupCsvPreviewControls };
+  // Функция для очистки ресурсов
+  function cleanup(){
+    // В данном модуле нет таймеров или других ресурсов для очистки
+  }
+
+  window.App.csv = { loadCsvPreview, setupCsvPreviewControls, cleanup };
 })();

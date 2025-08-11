@@ -6,10 +6,8 @@
   height: var(--ctl-h);
   padding-top: 0.38rem !important;
   padding-bottom: 0.38rem !important;
-  line-height: calc(var(--ctl-h) - 2px - 0.76rem);
   border-radius:10px;
 }
-.btn.btn-sm{ display:inline-flex; align-items:center; }
 
 /* Базовые поля */
 .form-control, .form-select {
@@ -75,14 +73,14 @@ input[type=number]::-webkit-inner-spin-button{ -webkit-appearance: none; margin:
 input[type=number]{ -moz-appearance:textfield; }
 
 .num-input{ position:relative; display:block; }
-.num-input .form-control{ padding-right:2.2rem !important; height: var(--ctl-h); }
+.num-input .form-control{ padding-right:2.2rem !important; }
 .num-step{
   position:absolute; top:2px; bottom:2px; right:2px; width:26px;
   display:flex; flex-direction:column; gap:2px;
 }
 .num-step button{
   flex:1; border:1px solid var(--border); background:var(--field-bg);
-  color:var(--on-surface-variant); border-radius:8px; font-size:12px; line-height:1;
+  color:var(--on-surface-variant); border-radius:8px;
   display:flex; align-items:center; justify-content:center; cursor:pointer;
   transition: background .15s ease, border-color .15s ease, color .15s ease, transform .05s ease;
 }
@@ -99,10 +97,10 @@ input[type=number]{ -moz-appearance:textfield; }
 .chip{
   flex:0 0 auto; display:inline-flex; align-items:center; gap:.35rem; padding:.42rem .8rem;
   border:1px solid var(--border); border-radius:999px; background:rgba(255,255,255,0.02); color:var(--on-surface);
-  cursor:pointer; user-select:none; position:relative; overflow:hidden; line-height:1.05;
+  cursor:pointer; user-select:none; position:relative; overflow:hidden;
   transition:background .15s ease, border-color .15s ease, transform .12s ease, box-shadow .18s ease;
 }
-.chip .bi{ font-size:1rem; }
+/* Иконки чипов теперь в styles_typography.css */
 .chip:hover{ transform: translateY(-1px); }
 .chip.selected{
   background:var(--grad-2); border-color:transparent; color:#fff;
@@ -121,3 +119,10 @@ input[type=number]{ -moz-appearance:textfield; }
 .toolbar{ display:flex; flex-wrap:wrap; gap:.75rem 1rem; align-items:end; }
 .toolbar .group{ display:flex; flex-direction:column; gap:.25rem; min-width:140px; }
 .toolbar .group.narrow{ min-width:110px; }
+
+/* Анимация gradientShift для чипов */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}

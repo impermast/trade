@@ -19,9 +19,7 @@ body.theme-xfade{
 .card.kpi{ box-shadow:var(--elev-2); transition:transform .18s ease, box-shadow .18s ease, background .18s ease; }
 .card.kpi:hover{ background: var(--kpi-hover-bg); transform: translateY(-1px) scale(1.005); box-shadow: 0 10px 26px rgba(0,0,0,0.28); }
 
-/* Типографика */
-.kpi-sub{ font:600 0.95rem/1.25 "Roboto Flex", sans-serif; letter-spacing:.015em; color:var(--on-surface-variant)!important; }
-.kpi-value{ font:700 1.6rem/1.15 "Roboto Flex", sans-serif; color:var(--on-surface)!important; }
+/* Типографика KPI теперь в styles_typography.css */
 .form-label, .text-muted { color:var(--on-surface-variant)!important; }
 
 /* Глобальный стиль скроллбаров */
@@ -34,11 +32,20 @@ body.theme-xfade{
 
 /* Медиа-запросы */
 @media (max-width: 576px){
-  --ctl-h: 36px;
-  #chart{ height:360px; } .kpi-value{ font-size:1.35rem; } .fab{ right:10px; bottom:10px; }
+  .content { padding: 12px; }
+  #chart{ height:360px; } 
+  .fab{ right:10px; bottom:10px; }
 }
 @media (max-width: 768px){
-  #chart{ height:420px; } .toolbar{ gap:.6rem .8rem; } .nav-tabs .nav-link{ padding:.5rem .6rem; }
+  #chart{ height:420px; } 
+  .toolbar{ gap:.6rem .8rem; } 
+  .nav-tabs .nav-link{ padding:.5rem .6rem; }
 }
-@media (max-width: 992px){ #chart{ height:480px; } .toolbar .group{ min-width: 46%; } .toolbar .group.narrow{ min-width: 30%; } }
-@media (max-width: 1200px){ #chart{ height:520px; } }
+@media (max-width: 992px){ 
+  #chart{ height:480px; } 
+  .toolbar .group{ min-width: 46%; } 
+  .toolbar .group.narrow{ min-width: 30%; } 
+}
+@media (max-width: 1200px){ 
+  #chart{ height:520px; } 
+}

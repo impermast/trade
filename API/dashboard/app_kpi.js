@@ -311,6 +311,9 @@
       
       // Обновление трендов баланса
       this.updateBalanceTrends();
+      
+      // Обновление анимации голосования стратегий
+      this.updateStrategyVoting();
     },
 
     // Обновление статуса последнего обновления
@@ -351,6 +354,13 @@
         $trend.removeClass('positive negative').addClass(
           isPositive ? 'positive' : 'negative'
         );
+      }
+    },
+
+    // Обновление анимации голосования стратегий
+    updateStrategyVoting: function() {
+      if (window.App.strategyVoting) {
+        window.App.strategyVoting.refresh();
       }
     },
 

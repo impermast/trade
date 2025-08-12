@@ -49,6 +49,7 @@
   <script defer src="app_csv.js"></script>
   <script defer src="app_init.js"></script>
   <script defer src="app_kpi.js"></script>
+  <script defer src="app_strategy_voting.js"></script>
 </head>
 <body class="cyrillic-text">
   <!-- Содержимое страницы без изменений -->
@@ -122,12 +123,21 @@
             </div>
             <div class="kpi-sub">Позиции</div>
           </div>
-          <div class="kpi-value" id="kpi-positions">
-            <span class="skeleton lg"></span>
-          </div>
-          <div class="kpi-footer">
-            <span class="text-muted">Открытые позиции</span>
-            <div class="kpi-badge" id="kpi-positions-badge"></div>
+          <div class="kpi-content">
+            <div class="kpi-left">
+              <div class="kpi-value" id="kpi-positions">
+                <span class="skeleton lg"></span>
+              </div>
+              <div class="kpi-footer">
+                <span class="text-muted">Открытые позиции</span>
+                <div class="kpi-badge" id="kpi-positions-badge"></div>
+              </div>
+            </div>
+            <div class="kpi-right">
+              <div class="strategy-voting-animation" id="strategy-voting">
+                <!-- Анимация будет добавлена через JavaScript -->
+              </div>
+            </div>
           </div>
         </div>
       </div>

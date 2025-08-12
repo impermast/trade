@@ -1,37 +1,35 @@
 """
-Dashboard and utilities management system for the Trade Project.
+Dashboard management system for the Trade Project.
 
-This module provides centralized management of dashboard operations and utility functions:
-- Dashboard startup/shutdown management
-- Port checking and waiting utilities
-- State management and fallback operations
-- Browser integration utilities
-
-Usage:
-    from CORE.dashboard_manager import DashboardManager
-    
-    # Initialize dashboard manager
-    dashboard = DashboardManager()
-    
-    # Start dashboard
-    process = await dashboard.start_dashboard()
-    
-    # Check if dashboard is running
-    if dashboard.is_running():
-        print("Dashboard is active")
-    
-    # Stop dashboard
-    await dashboard.stop_dashboard()
+This module provides a web-based dashboard for monitoring and controlling
+the trading system, including real-time data visualization and system status.
 """
 
-import asyncio
 import os
-import socket
+import sys
+import json
+import logging
+import threading
+import time
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, Any, Optional, List
 import webbrowser
-from typing import Optional, Dict, Any
-import pandas as pd
+import subprocess
 
-from .config import DashboardConfig, PathConfig, LoggingConfig
+# Flask imports
+try:
+    from flask import Flask, render_template, jsonify, request, send_from_directory
+    from flask_cors import CORS
+    _has_flask = True
+except ImportError:
+    _has_flask = False
+    logging.warning("Flask not installed. Dashboard will not be available.")
+    logging.warning("To enable dashboard, install Flask: pip install flask flask-cors")
+
+# Import configuration and other modules
+from .config import DashboardConfig, LoggingConfig
+from .log_manager import LogManager
 
 
 class DashboardManager:
@@ -41,17 +39,30 @@ class DashboardManager:
     Handles dashboard startup, shutdown, port management, and utility operations.
     """
     
-    def __init__(self):
-        """Initialize DashboardManager with configuration."""
+    def __init__(self, trading_engine=None):
+        """
+        Initialize the DashboardManager.
+        
+        Args:
+            trading_engine: Optional TradingEngine instance for real-time data
+        """
+        self.trading_engine = trading_engine
+        self.app = None
+        self.server_thread = None
+        self.is_running = False
+        
+        # Configuration
         self.host = DashboardConfig.HOST
         self.port = DashboardConfig.PORT
-        self.use_flask = DashboardConfig.USE_FLASK
-        self.log_file = LoggingConfig.DASHBOARD_LOG_FILE
-        self.state_path = PathConfig.STATE_PATH
+        self.state_path = LoggingConfig.STATE_PATH
         
         # Dashboard process reference
         self._dashboard_process: Optional[object] = None
         self._is_running = False
+        
+        # Setup logger
+        from .log_manager import Logger
+        self.logger = Logger(name="Dashboard", tag="[DASH]", logfile="LOGS/dashboard.log", console=False).get_logger()
     
     def _is_port_open(self, host: str, port: int) -> bool:
         """
@@ -119,22 +130,22 @@ class DashboardManager:
             port_available = await self._wait_for_port(self.host, self.port, timeout=10.0)
             
             if not port_available:
-                print(f"Dashboard failed to start on port {self.host}:{self.port}. Check {self.log_file}")
+                self.logger.error(f"Dashboard failed to start on port {self.host}:{self.port}. Check {self.log_file}")
                 return None
             
             self._is_running = True
-            print(f"Dashboard started successfully on {self.get_url()}")
+            self.logger.info(f"Dashboard started successfully on {self.get_url()}")
             
             # Try to open browser
             try:
                 webbrowser.open_new_tab(self.get_url())
             except Exception as e:
-                print(f"Warning: Could not open browser: {e}")
+                self.logger.warning(f"Could not open browser: {e}")
             
             return self._dashboard_process
             
         except Exception as e:
-            print(f"Error starting dashboard: {e}")
+            self.logger.error(f"Error starting dashboard: {e}")
             return None
     
     async def stop_dashboard(self) -> bool:
@@ -154,11 +165,11 @@ class DashboardManager:
             stop_flask(self._dashboard_process)
             self._is_running = False
             self._dashboard_process = None
-            print("Dashboard stopped successfully")
+            self.logger.info("Dashboard stopped successfully")
             return True
             
         except Exception as e:
-            print(f"Error stopping dashboard: {e}")
+            self.logger.error(f"Error stopping dashboard: {e}")
             return False
     
     def is_running(self) -> bool:
@@ -226,7 +237,7 @@ class DashboardManager:
             return True
             
         except Exception as e:
-            print(f"Error writing fallback state: {e}")
+            self.logger.error(f"Error writing fallback state: {e}")
             return False
     
     async def update_state(self, symbol: str, state_path: Optional[str] = None) -> bool:
@@ -249,7 +260,7 @@ class DashboardManager:
             return True
             
         except Exception as e:
-            print(f"Error updating state: {e}")
+            self.logger.error(f"Error updating state: {e}")
             # Fallback to writing basic state
             return await self.write_state_fallback(state_path)
     
@@ -339,7 +350,7 @@ async def write_state_fallback(state_path: str) -> bool:
         return True
         
     except Exception as e:
-        print(f"Error writing fallback state: {e}")
+        logging.error(f"Error writing fallback state: {e}")
         return False
 
 

@@ -520,12 +520,12 @@ if __name__ == "__main__":
     
     # Получаем решение
     decision = manager.make_decision(test_df)
-    print(f"Решение: {decision.action.name}")
-    print(f"Уверенность: {decision.confidence:.2f}")
-    print(f"Обоснование: {decision.reasoning}")
+    logging.info(f"Решение: {decision.action.name}")
+    logging.info(f"Уверенность: {decision.confidence:.2f}")
+    logging.info(f"Обоснование: {decision.reasoning}")
     
     # Показываем производительность стратегий
     performance = manager.get_strategy_performance()
-    print("\nПроизводительность стратегий:")
+    logging.info("\nПроизводительность стратегий:")
     for name, stats in performance.items():
-        print(f"{name}: {stats}")
+        logging.info(f"{name}: {stats}")

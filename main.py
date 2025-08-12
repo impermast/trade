@@ -1,21 +1,22 @@
 import asyncio
 import os
-import re
-import webbrowser
-from typing import Optional, Iterable
-
-import numpy as np
-import pandas as pd
+import sys
+import time
 from datetime import datetime, timedelta
+import json
+import logging
+from pathlib import Path
 
-# ------------ Конфиг ------------
-from CORE.config import TradingConfig, DashboardConfig, PathConfig, LoggingConfig, APIConfig
+# Add the project root to the Python path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Получаем пути к CSV файлам
-csv_paths = TradingConfig.get_csv_paths()
-CSV_RAW_PATH = csv_paths['raw']
-CSV_ANAL_PATH = csv_paths['anal']  # единый файл для всех стратегий
-STATE_PATH = PathConfig.STATE_PATH
+from CORE.config import TradingConfig, DashboardConfig, LoggingConfig, APIConfig
+from CORE.dashboard_manager import DashboardManager
+from CORE.trading_engine import TradingEngine
+from CORE.log_manager import LogManager
+
+# Configuration
+STATE_PATH = LoggingConfig.STATE_PATH
 
 # === ВАЖНО: логгер инициализируем ПОСЛЕ чистки логов в __main__ ===
 logger = None  # будет установлен ниже
@@ -24,7 +25,7 @@ logger = None  # будет установлен ниже
 from API.bybit_api import BybitAPI  # оставляем на всякий случай
 from API.mock_api import MockAPI
 from API.dashboard_api import run_flask_in_new_terminal, stop_flask
-from BOTS.loggerbot import Logger
+from CORE.log_manager import Logger
 from BOTS.PLOTBOTS.plotbot import PlotBot
 
 stop_event = asyncio.Event()
@@ -129,9 +130,7 @@ async def main() -> None:
 if __name__ == "__main__":
     # 1) Трим логов ПО ПАТТЕРНУ ТАЙМСТАМПА — только при ручном запуске
     stats = log_manager.clean_old_logs()
-    print(f"[INIT] Trim logs: processed={stats['processed']} changed={stats['changed']} "
-          f"saved_bytes={stats['saved_bytes']} (cutoff {LoggingConfig.CLEAN_LOGS_MAX_AGE_HOURS}h)")
-
+    
     # 2) Теперь поднимаем логгер — безопасно, файлы уже подготовлены
     logger = Logger(
         name=LoggingConfig.MAIN_LOGGER_NAME,
@@ -139,6 +138,10 @@ if __name__ == "__main__":
         logfile=LoggingConfig.MAIN_LOGGER_FILE,
         console=False
     ).get_logger()
+    
+    # Логируем информацию о тримминге
+    logger.info(f"[INIT] Trim logs: processed={stats['processed']} changed={stats['changed']} "
+                f"saved_bytes={stats['saved_bytes']} (cutoff {LoggingConfig.CLEAN_LOGS_MAX_AGE_HOURS}h)")
 
     try:
         asyncio.run(main())

@@ -14,21 +14,17 @@ from STRATEGY.base import BaseStrategy  # type: ignore
 
 class MACDCrossoverStrategy(BaseStrategy):
     """
-    MACD Crossover Strategy:
-      • BUY  (+1) при пересечении MACD линии ВВЕРХ сигнальной линии (снизу вверх);
-      • SELL (-1) при пересечении MACD линии ВНИЗ сигнальной линии (сверху вниз);
-      • При одновременном пересечении — приоритет SELL.
-      
-    Колонки MACD: 'macd', 'macd_signal', 'macd_histogram' при стандартных параметрах,
-    иначе 'macd_{fast}_{slow}', 'macd_signal_{fast}_{slow}_{signal}', 'macd_histogram_{fast}_{slow}_{signal}'.
+    Стратегия на основе пересечений MACD.
+    
+    Генерирует сигналы на покупку при пересечении MACD выше сигнальной линии снизу вверх,
+    и сигналы на продажу при пересечении MACD ниже сигнальной линии сверху вниз.
     """
     
-    def __init__(self, **params: Any) -> None:
-        super().__init__(
-            name="MACDCrossover", 
-            indicators=["macd"], 
-            **params
-        )
+    def __init__(self, df: pd.DataFrame, params: Dict[str, Any] = None):
+        super().__init__(df, params)
+        # Setup logger
+        from CORE.log_manager import Logger
+        self.logger = Logger(name="MACD", tag="[MACD]", logfile="LOGS/macd.log", console=False).get_logger()
     
     def default_params(self) -> Dict[str, Dict[str, Any]]:
         return {
@@ -80,7 +76,7 @@ class MACDCrossoverStrategy(BaseStrategy):
                 self._ensure_required_macd(df, fast, slow, signal_period)
             except Exception as e:
                 # не роняем пайплайн
-                print(f"[MACD] Failed to ensure indicators via Analytic: {e}")
+                self.logger.error(f"[MACD] Failed to ensure indicators via Analytic: {e}")
         
         if not all(col in df.columns for col in [macd_col, signal_col]):
             # всё ещё нет — отдаём 0 и заполняем orders_macd нулями
@@ -127,4 +123,6 @@ class MACDCrossoverStrategy(BaseStrategy):
 
 
 if __name__ == "__main__":
-    print("MACDCrossoverStrategy module OK")
+    from CORE.log_manager import Logger
+    logger = Logger(name="MACD", tag="[MACD]", logfile="LOGS/macd.log", console=True).get_logger()
+    logger.info("MACDCrossoverStrategy module OK")

@@ -8,7 +8,7 @@ from datetime import datetime
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 
-from BOTS.loggerbot import Logger
+from CORE.log_manager import Logger
 
 
 class BasePlotBot:

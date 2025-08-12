@@ -6,7 +6,7 @@ It loads configuration values from environment variables or .env file and provid
 default values for missing configurations.
 
 Usage:
-    from CORE.config import Config, TradingConfig, DashboardConfig
+    from CORE.config import Config
     
     # Get configuration values
     api_key = Config.API_KEY
@@ -16,8 +16,8 @@ Usage:
     log_level = Config.get('LOG_LEVEL', 'INFO')
     
     # Get trading configuration
-    symbol = TradingConfig.SYMBOL
-    timeframe = TradingConfig.TIMEFRAME
+    symbol = Config.TRADING.SYMBOL
+    timeframe = Config.TRADING.TIMEFRAME
 """
 
 import os
@@ -31,8 +31,8 @@ try:
     _has_dotenv = True
 except ImportError:
     _has_dotenv = False
-    print("python-dotenv not installed. Environment variables will be loaded from OS only.")
-    print("To enable .env file support, install python-dotenv: pip install python-dotenv")
+    logging.warning("python-dotenv not installed. Environment variables will be loaded from OS only.")
+    logging.warning("To enable .env file support, install python-dotenv: pip install python-dotenv")
 
 
 class _ConfigMeta(type):
@@ -56,6 +56,11 @@ class Config(metaclass=_ConfigMeta):
     
     # Flag indicating whether .env file has been loaded
     _env_loaded: bool = False
+    
+    # Base directories (defined once)
+    DATA_DIR = "DATA"
+    LOGS_DIR = "LOGS"
+    STATIC_DIR = os.path.join(DATA_DIR, "static")
     
     @classmethod
     def _load_env(cls) -> None:
@@ -127,6 +132,13 @@ class Config(metaclass=_ConfigMeta):
         """Clear the configuration cache."""
         cls._config_cache.clear()
         cls._env_loaded = False
+    
+    @classmethod
+    def ensure_directories(cls) -> None:
+        """Create necessary directories if they don't exist."""
+        os.makedirs(cls.DATA_DIR, exist_ok=True)
+        os.makedirs(cls.LOGS_DIR, exist_ok=True)
+        os.makedirs(cls.STATIC_DIR, exist_ok=True)
 
 
 class TradingConfig:
@@ -154,8 +166,8 @@ class TradingConfig:
         """Get CSV file paths for different data types."""
         symbol_name = cls.get_symbol_name()
         return {
-            'raw': f"DATA/{symbol_name}_{cls.TIMEFRAME}.csv",
-            'anal': f"DATA/{symbol_name}_{cls.TIMEFRAME}_anal.csv",  # единый файл для всех стратегий
+            'raw': f"{Config.DATA_DIR}/{symbol_name}_{cls.TIMEFRAME}.csv",
+            'anal': f"{Config.DATA_DIR}/{symbol_name}_{cls.TIMEFRAME}_anal.csv",
         }
 
 
@@ -176,25 +188,6 @@ class DashboardConfig:
         return f"http://{cls.HOST}:{cls.PORT}"
 
 
-class PathConfig:
-    """Configuration for file paths and directories."""
-    
-    # Base directories
-    DATA_DIR = "DATA"
-    LOGS_DIR = "LOGS"
-    STATIC_DIR = os.path.join(DATA_DIR, "static")
-    
-    # State file
-    STATE_PATH = os.path.join(STATIC_DIR, "state.json")
-    
-    @classmethod
-    def ensure_directories(cls) -> None:
-        """Create necessary directories if they don't exist."""
-        os.makedirs(cls.DATA_DIR, exist_ok=True)
-        os.makedirs(cls.LOGS_DIR, exist_ok=True)
-        os.makedirs(cls.STATIC_DIR, exist_ok=True)
-
-
 class LoggingConfig:
     """Configuration for logging system."""
     
@@ -204,10 +197,13 @@ class LoggingConfig:
     # Logger names
     MAIN_LOGGER_NAME = "MainBot"
     MAIN_LOGGER_TAG = "[MAIN]"
-    MAIN_LOGGER_FILE = os.path.join(PathConfig.LOGS_DIR, "mainbot.log")
+    MAIN_LOGGER_FILE = os.path.join(Config.LOGS_DIR, "mainbot.log")
     
     # Dashboard logging
-    DASHBOARD_LOG_FILE = os.path.join(PathConfig.LOGS_DIR, "dashboard.out.log")
+    DASHBOARD_LOG_FILE = os.path.join(Config.LOGS_DIR, "dashboard.out.log")
+    
+    # State file path
+    STATE_PATH = os.path.join(Config.STATIC_DIR, "state.json")
 
 
 class APIConfig:
@@ -229,8 +225,6 @@ DEFAULT_CONFIG = {
     'API_SECRET': None,
     'TESTNET': True,
     'LOG_LEVEL': 'INFO',
-    'DATA_DIR': 'DATA',
-    'LOG_DIR': 'LOGS',
 }
 
 # Set default values in the config cache
@@ -239,4 +233,4 @@ for key, value in DEFAULT_CONFIG.items():
         Config.set(key, value)
 
 # Ensure directories exist on import
-PathConfig.ensure_directories()
+Config.ensure_directories()

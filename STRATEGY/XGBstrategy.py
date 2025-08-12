@@ -17,60 +17,16 @@ from STRATEGY.base import BaseStrategy  # type: ignore
 
 class XGBStrategy(BaseStrategy):
     """
-    Стратегия на XGBoost:
-      - НЕ перезаписывает историю сигналов (orders_xgb), заполняет только пустые ячейки;
-      - Последний бар всегда обновляется (даёт команду к торговле);
-      - Сигнал пишется в 'orders_xgb' (и дублируется в 'xgb_signal' для обратной совместимости);
-      - При нехватке фич дёргает Analytic для расчёта.
-    Поддерживает как классификатор (классы {-1,0,1} или {0,1,2}), так и регрессор (action[, amount]).
+    XGBoost-based trading strategy.
+    
+    Uses machine learning model to predict price movements and generate trading signals.
     """
-
-    _model_cache: Dict[str, Any] = {}
-    _features_cache: Dict[str, List[str]] = {}
-
-    def __init__(
-        self,
-        model_path: str = "STRATEGY/predicter/xgb_model_multi.joblib",
-        features_path: str = "STRATEGY/predicter/xgb_model_features.joblib",
-        slippage: float = 0.0005,
-        batch_size: int = 256,
-        prediction_cache_size: int = 2048,
-        use_quantization: bool = False,
-        **params: Dict[str, Any],
-    ) -> None:
-        super().__init__(
-            name="XGBStrategy",
-            indicators=["sma", "ema", "rsi", "macd", "bollinger_bands"],
-            **params,
-        )
-        self.batch_size = int(batch_size)
-        self.prediction_cache_size = int(prediction_cache_size)
-        self.use_quantization = bool(use_quantization)
-        self.slippage = float(slippage)
-
-        # Load model
-        if model_path in self._model_cache:
-            self.model = self._model_cache[model_path]
-        else:
-            t0 = time.time()
-            self.model = joblib.load(model_path)
-            self._model_cache[model_path] = self.model
-            print(f"[XGB] model loaded from {model_path} in {time.time()-t0:.2f}s")
-
-        # Load features list
-        if features_path in self._features_cache:
-            self.features = self._features_cache[features_path]
-        else:
-            feats = joblib.load(features_path)
-            if isinstance(feats, dict):
-                feats = list(feats.values())
-            if not isinstance(feats, (list, tuple)) or not all(isinstance(x, str) for x in feats):
-                raise ValueError("xgb_model_features.joblib должен быть списком строк (названия фич).")
-            self.features = list(feats)
-            self._features_cache[features_path] = self.features
-
-        # cache for single predictions
-        self._cached_predict = lru_cache(maxsize=self.prediction_cache_size)(self._predict)
+    
+    def __init__(self, df: pd.DataFrame, params: Dict[str, Any] = None):
+        super().__init__(df, params)
+        # Setup logger
+        from CORE.log_manager import Logger
+        self.logger = Logger(name="XGB", tag="[XGB]", logfile="LOGS/xgb.log", console=False).get_logger()
 
     # ----- BaseStrategy required -----
     def default_params(self) -> Dict[str, Dict[str, Any]]:
@@ -152,7 +108,7 @@ class XGBStrategy(BaseStrategy):
         if self._have_all_features(prev):
             return
         missing = [f for f in self.features if (f not in prev) or pd.isna(prev[f])]
-        print(f"[XGB] Missing features on prev bar, recalculating via Analytic: {missing}")
+        self.logger.warning(f"[XGB] Missing features on prev bar, recalculating via Analytic: {missing}")
         self._ensure_indicators_and_save(df)
 
     def _set_signal(self, df: pd.DataFrame, idx: int, sig: int, amt: float, overwrite: bool = False) -> None:
@@ -213,7 +169,7 @@ class XGBStrategy(BaseStrategy):
             # if last already predicted, use it
             last_val = df.iloc[-1].get("orders_xgb", np.nan)
             if pd.notna(last_val):
-                print(f"[XGB] batch filled in {time.time()-t0:.2f}s")
+                self.logger.info(f"[XGB] batch filled in {time.time()-t0:.2f}s")
                 return int(last_val)
 
         # Single-step latest prediction from prev bar into last bar
@@ -221,10 +177,12 @@ class XGBStrategy(BaseStrategy):
         feature_tuple = tuple(float(prev[f]) for f in self.features)
         signal, amount = self._cached_predict(feature_tuple)
         self._set_signal(df, df.index[-1], int(signal), float(amount), overwrite=True)
-        print(f"[XGB] single prediction in {time.time()-t0:.2f}s")
+        self.logger.info(f"[XGB] single prediction in {time.time()-t0:.2f}s")
         return int(signal)
 
 
 if __name__ == "__main__":
     # basic smoke-test
-    print("XGBStrategy module OK")
+    from CORE.log_manager import Logger
+    logger = Logger(name="XGB", tag="[XGB]", logfile="LOGS/xgb.log", console=True).get_logger()
+    logger.info("XGBStrategy module OK")

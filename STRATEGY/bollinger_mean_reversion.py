@@ -14,21 +14,17 @@ from STRATEGY.base import BaseStrategy  # type: ignore
 
 class BollingerMeanReversionStrategy(BaseStrategy):
     """
-    Bollinger Bands Mean Reversion Strategy:
-      • BUY  (+1) при касании или пробитии нижней полосы Боллинджера (перепроданность);
-      • SELL (-1) при касании или пробитии верхней полосы Боллинджера (перекупленность);
-      • При одновременном касании обеих полос — приоритет SELL.
-      
-    Колонки Bollinger Bands: 'bb_h', 'bb_m', 'bb_l' при стандартных параметрах,
-    иначе 'bb_h_{period}', 'bb_m_{period}', 'bb_l_{period}'.
+    Стратегия на основе отскока от полос Боллинджера.
+    
+    Генерирует сигналы на покупку при касании нижней полосы (перепроданность),
+    и сигналы на продажу при касании верхней полосы (перекупленность).
     """
     
-    def __init__(self, **params: Any) -> None:
-        super().__init__(
-            name="BollingerMeanReversion", 
-            indicators=["bollinger_bands"], 
-            **params
-        )
+    def __init__(self, df: pd.DataFrame, params: Dict[str, Any] = None):
+        super().__init__(df, params)
+        # Setup logger
+        from CORE.log_manager import Logger
+        self.logger = Logger(name="BOLLINGER", tag="[BOLLINGER]", logfile="LOGS/bollinger.log", console=False).get_logger()
     
     def default_params(self) -> Dict[str, Dict[str, Any]]:
         return {
@@ -86,7 +82,7 @@ class BollingerMeanReversionStrategy(BaseStrategy):
                 self._ensure_required_bollinger(df, period)
             except Exception as e:
                 # не роняем пайплайн
-                print(f"[BOLLINGER] Failed to ensure indicators via Analytic: {e}")
+                self.logger.error(f"[BOLLINGER] Failed to ensure indicators via Analytic: {e}")
         
         if not all(col in df.columns for col in [bb_h_col, bb_m_col, bb_l_col]):
             # всё ещё нет — отдаём 0 и заполняем orders_bollinger нулями
@@ -151,4 +147,6 @@ class BollingerMeanReversionStrategy(BaseStrategy):
 
 
 if __name__ == "__main__":
-    print("BollingerMeanReversionStrategy module OK")
+    from CORE.log_manager import Logger
+    logger = Logger(name="BOLLINGER", tag="[BOLLINGER]", logfile="LOGS/bollinger.log", console=True).get_logger()
+    logger.info("BollingerMeanReversionStrategy module OK")

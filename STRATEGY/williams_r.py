@@ -14,21 +14,17 @@ from STRATEGY.base import BaseStrategy  # type: ignore
 
 class WilliamsRStrategy(BaseStrategy):
     """
-    Williams %R Strategy:
-      • BUY  (+1) при выходе из зоны перепроданности (>-80);
-      • SELL (-1) при входе в зону перекупленности (<-20);
-      • При одновременном сигнале — приоритет SELL.
-      
-    Колонка Williams %R: 'williams_r' при стандартных параметрах,
-    иначе 'williams_r_{period}'.
+    Стратегия на основе Williams %R.
+    
+    Генерирует сигналы на покупку при перепроданности (Williams %R < -80),
+    и сигналы на продажу при перекупленности (Williams %R > -20).
     """
     
-    def __init__(self, **params: Any) -> None:
-        super().__init__(
-            name="WilliamsR", 
-            indicators=["williams_r"], 
-            **params
-        )
+    def __init__(self, df: pd.DataFrame, params: Dict[str, Any] = None):
+        super().__init__(df, params)
+        # Setup logger
+        from CORE.log_manager import Logger
+        self.logger = Logger(name="WILLIAMS_R", tag="[WILLIAMS_R]", logfile="LOGS/williams_r.log", console=False).get_logger()
     
     def default_params(self) -> Dict[str, Dict[str, Any]]:
         return {
@@ -72,7 +68,7 @@ class WilliamsRStrategy(BaseStrategy):
                 self._ensure_required_williams_r(df, period)
             except Exception as e:
                 # не роняем пайплайн
-                print(f"[WILLIAMS_R] Failed to ensure indicators via Analytic: {e}")
+                self.logger.error(f"[WILLIAMS_R] Failed to ensure indicators via Analytic: {e}")
         
         if want_col not in df.columns:
             # всё ещё нет — отдаём 0 и заполняем orders_williams_r нулями
@@ -117,4 +113,6 @@ class WilliamsRStrategy(BaseStrategy):
 
 
 if __name__ == "__main__":
-    print("WilliamsRStrategy module OK")
+    from CORE.log_manager import Logger
+    logger = Logger(name="WILLIAMS_R", tag="[WILLIAMS_R]", logfile="LOGS/williams_r.log", console=True).get_logger()
+    logger.info("WilliamsRStrategy module OK")

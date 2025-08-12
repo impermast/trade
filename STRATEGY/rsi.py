@@ -14,21 +14,17 @@ from STRATEGY.base import BaseStrategy  # type: ignore
 
 class RSIonly_Strategy(BaseStrategy):
     """
-    RSI-only:
-      • SELL (-1) при пересечении ВВЕРХ уровня upper (например, 70) — снизу вверх;
-      • BUY  (+1) при пересечении ВНИЗ уровня lower (например, 30) — сверху вниз;
-      • При «телепорте» одновременно — приоритет SELL.
-
-    Колонка RSI: 'rsi' при period=14, иначе 'rsi_{period}'.
-    Если нужных колонок нет — стратегия сама запросит их расчёт у Analytic (как XGB).
+    Стратегия на основе RSI.
+    
+    Генерирует сигналы на покупку при перепроданности (RSI < 30),
+    и сигналы на продажу при перекупленности (RSI > 70).
     """
-
-    def __init__(self, **params: Any) -> None:
-        super().__init__(
-            name="RSIOnly", 
-            indicators=["rsi"], 
-            **params
-        )
+    
+    def __init__(self, df: pd.DataFrame, params: Dict[str, Any] = None):
+        super().__init__(df, params)
+        # Setup logger
+        from CORE.log_manager import Logger
+        self.logger = Logger(name="RSI", tag="[RSI]", logfile="LOGS/rsi.log", console=False).get_logger()
 
     def default_params(self) -> Dict[str, Dict[str, Any]]:
         return {"rsi": {"period": 14, "lower": 30.0, "upper": 70.0}}
@@ -67,7 +63,7 @@ class RSIonly_Strategy(BaseStrategy):
                 self._ensure_required_rsi(df, period)
             except Exception as e:
                 # не роняем пайплайн
-                print(f"[RSI] Failed to ensure indicators via Analytic: {e}")
+                self.logger.error(f"[RSI] Failed to ensure indicators via Analytic: {e}")
 
         if want_col not in df.columns:
             # всё ещё нет — отдаём 0 и заполняем orders_rsi нулями
@@ -104,4 +100,6 @@ class RSIonly_Strategy(BaseStrategy):
 
 
 if __name__ == "__main__":
-    print("RSIonly_Strategy module OK")
+    from CORE.log_manager import Logger
+    logger = Logger(name="RSI", tag="[RSI]", logfile="LOGS/rsi.log", console=True).get_logger()
+    logger.info("RSIonly_Strategy module OK")

@@ -88,7 +88,7 @@ class BirzaAPI(ABC):
             Logger instance
         """
         # Import here to avoid circular imports
-        from BOTS.loggerbot import Logger
+        from CORE.log_manager import Logger
         return Logger(name=name, tag=tag, logfile=logfile, console=console).get_logger()
 
     def _handle_error(self, operation: str, error: Exception, default_return: Any = None) -> Any:

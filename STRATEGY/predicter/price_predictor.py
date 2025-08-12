@@ -1,5 +1,3 @@
-import time
-
 import ccxt
 import joblib
 import matplotlib.pyplot as plt
@@ -8,12 +6,21 @@ import pandas_ta as ta
 import torch
 import torch.nn as nn
 from sklearn.preprocessing import StandardScaler
+import time
+import os
+import sys
 
+# Add parent directory to path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
+from CORE.log_manager import Logger
+
+# Setup logger
+logger = Logger(name="PricePredictor", tag="[PRED]", logfile="LOGS/price_predictor.log", console=True).get_logger()
 
 # === 1. Скачать данные с биржи через ccxt ===
 def fetch_ohlcv_to_df(exchange, symbol, timeframe='5m', limit=10000):
-    print(f"Загружаем {symbol} ({timeframe}) с биржи {exchange.id}...")
+    logger.info(f"Загружаем {symbol} ({timeframe}) с биржи {exchange.id}...")
 
     all_data = []
     since = exchange.parse8601('2024-01-01T00:00:00Z')  # старт с января 2023
@@ -27,7 +34,7 @@ def fetch_ohlcv_to_df(exchange, symbol, timeframe='5m', limit=10000):
         since = ohlcv[-1][0] + 1
         time.sleep(exchange.rateLimit / 1000.0)  # пауза, чтобы не получить бан
 
-        print(f"Загружено {len(all_data)} записей...")
+        logger.info(f"Загружено {len(all_data)} записей...")
 
         # if len(ohlcv) < 1000:
         #     break
@@ -52,7 +59,7 @@ df.ta.bbands(append=True)
 # Удалим строки с NaN
 df.dropna(inplace=True)
 
-print(df.columns.to_list())
+logger.info(f"Columns: {df.columns.to_list()}")
 # === 3. Создание фичей и таргета ===
 feature_cols = [
     'close', 'RSI_14', 'EMA_21',
@@ -103,7 +110,7 @@ for epoch in range(100):
     loss.backward()
     optimizer.step()
     if epoch % 10 == 0:
-        print(f"Epoch {epoch}: loss = {loss.item():.4f}")
+        logger.info(f"Epoch {epoch}: loss = {loss.item():.4f}")
 
 # Сохраняем модель
 torch.save(model.state_dict(), "price_predictor.pth")

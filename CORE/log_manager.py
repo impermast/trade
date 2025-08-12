@@ -1,51 +1,100 @@
 """
 Log management system for the Trade Project.
 
-This module provides centralized log management functionality including:
-- Log file cleanup by timestamp
-- Log rotation and maintenance
-- Log file parsing and filtering
-- Directory management for logs
-
-Usage:
-    from CORE.log_manager import LogManager
-    
-    # Initialize log manager
-    log_manager = LogManager(logs_dir="LOGS", max_age_hours=24)
-    
-    # Clean old logs
-    stats = log_manager.clean_old_logs()
-    print(f"Cleaned {stats['changed']} log files, saved {stats['saved_bytes']} bytes")
+This module provides centralized logging functionality with automatic log rotation,
+cleanup, and formatting for different components of the trading system.
+It combines the functionality of both loggerbot and log_manager.
 """
 
 import os
-import re
+import logging
+import logging.handlers
 from datetime import datetime, timedelta
-from typing import Dict, Iterable, Optional, Tuple
 from pathlib import Path
+from typing import Optional, Dict, Any, Iterable, Tuple
+import json
+import shutil
+import re
 
-from .config import LoggingConfig, PathConfig
+# Import configuration
+from .config import LoggingConfig, Config
+
+
+class Logger:
+    """
+    Logger class for creating and configuring loggers with multiple handlers.
+    
+    This class provides a simple interface for creating loggers with file and console output,
+    combining the functionality from the original loggerbot.
+    """
+    
+    def __init__(self, name="ALL", tag="[ALL]", logfile="LOGS/general.log", console=False):
+        """
+        Initialize a new logger.
+        
+        Args:
+            name: Name of the logger
+            tag: Tag to prepend to log messages
+            logfile: Path to the log file for this logger
+            console: Whether to output to console
+        """
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.INFO)
+
+        formatter = logging.Formatter(f"%(asctime)s {tag} [%(levelname)s] %(message)s")
+
+        if self.logger.hasHandlers():
+            self.logger.handlers.clear()
+
+        general_log = "LOGS/general.log"
+        os.makedirs(os.path.dirname(logfile), exist_ok=True)
+        os.makedirs(os.path.dirname(general_log), exist_ok=True)
+
+        # Handler для модуля
+        module_handler = logging.FileHandler(logfile, mode="a", encoding="utf-8")
+        module_handler.setFormatter(formatter)
+        self.logger.addHandler(module_handler)
+
+        # Handler для общего лога
+        general_handler = logging.FileHandler(general_log, mode="a", encoding="utf-8")
+        general_handler.setFormatter(formatter)
+        self.logger.addHandler(general_handler)
+
+        # Handler для консоли
+        if console:
+            stream_handler = logging.StreamHandler()
+            stream_handler.setFormatter(formatter)
+            self.logger.addHandler(stream_handler)
+
+    def get_logger(self):
+        """Get the configured logger instance."""
+        return self.logger
 
 
 class LogManager:
     """
-    Centralized log management system.
+    Manages logging for the trading system.
     
-    Handles log file cleanup, rotation, and maintenance operations.
+    This class provides centralized logging functionality with automatic log rotation,
+    cleanup, and formatting for different components of the trading system.
     """
     
     # Regex pattern for parsing log timestamps
     _TS_REGEX = re.compile(r"^(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+)\b")
     
-    def __init__(self, logs_dir: Optional[str] = None, max_age_hours: Optional[int] = None):
+    def __init__(self, 
+                 logs_dir: str = None,
+                 max_age_hours: int = None,
+                 cleanup_interval_hours: int = 1):
         """
-        Initialize LogManager.
+        Initialize the LogManager.
         
         Args:
-            logs_dir: Directory containing log files (defaults to PathConfig.LOGS_DIR)
-            max_age_hours: Maximum age of logs to keep (defaults to LoggingConfig.CLEAN_LOGS_MAX_AGE_HOURS)
+            logs_dir: Directory containing log files (defaults to Config.LOGS_DIR)
+            max_age_hours: Maximum age of log files in hours (defaults to LoggingConfig.CLEAN_LOGS_MAX_AGE_HOURS)
+            cleanup_interval_hours: How often to run cleanup in hours
         """
-        self.logs_dir = logs_dir or PathConfig.LOGS_DIR
+        self.logs_dir = logs_dir or Config.LOGS_DIR
         self.max_age_hours = max_age_hours or LoggingConfig.CLEAN_LOGS_MAX_AGE_HOURS
         
         # Ensure logs directory exists
@@ -325,3 +374,19 @@ def get_log_manager() -> LogManager:
         LogManager instance with default settings
     """
     return LogManager()
+
+
+def create_logger(name="ALL", tag="[ALL]", logfile="LOGS/general.log", console=False) -> Logger:
+    """
+    Create a new logger instance.
+    
+    Args:
+        name: Name of the logger
+        tag: Tag to prepend to log messages
+        logfile: Path to the log file for this logger
+        console: Whether to output to console
+        
+    Returns:
+        Logger instance
+    """
+    return Logger(name, tag, logfile, console)

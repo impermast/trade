@@ -1,18 +1,22 @@
 """
-Trading Engine - унифицированный торговый движок для всех стратегий.
+Trading engine for the Trade Project.
 
-Этот модуль заменяет отдельные торговые циклы RSI и XGB,
-используя StrategyManager для принятия решений.
+This module provides the core trading logic and strategy execution
+for the automated trading system.
 """
 
 import asyncio
+import json
 import logging
+import time
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 import pandas as pd
 
+from CORE.config import TradingConfig, LoggingConfig
+from CORE.security import SecurityManager
+from STRATEGY.base import BaseStrategy
 from CORE.strategy_manager import StrategyManager, AggregatorFactory, SignalType
-from CORE.config import TradingConfig, PathConfig
 from CORE.dashboard_manager import write_state_fallback
 
 
@@ -24,30 +28,20 @@ class TradingEngine:
     используя StrategyManager для агрегации сигналов.
     """
     
-    def __init__(
-        self,
-        bot_api,
-        strategy_manager: Optional[StrategyManager] = None,
-        logger: Optional[logging.Logger] = None
-    ):
-        self.bot_api = bot_api
-        self.logger = logger or logging.getLogger(__name__)
+    def __init__(self, api_client=None, strategies: List[BaseStrategy] = None):
+        """
+        Initialize the TradingEngine.
         
-        # Менеджер стратегий
-        self.strategy_manager = strategy_manager or StrategyManager()
+        Args:
+            api_client: API client for exchange communication
+            strategies: List of trading strategies to use
+        """
+        self.api_client = api_client
+        self.strategies = strategies or []
+        self.is_running = False
+        self.last_update = None
         
-        # Состояние торговли
-        self.last_action = 0  # последнее действие: 1 (buy), -1 (sell), 0 (hold)
-        self.position_size = 0.0  # размер текущей позиции
-        self.last_decision_time = None  # время последнего решения
-        
-        # Статистика торговли
-        self.trade_count = 0
-        self.buy_count = 0
-        self.sell_count = 0
-        self.hold_count = 0
-        
-        # Конфигурация
+        # Configuration
         self.symbol = TradingConfig.SYMBOL
         self.timeframe = TradingConfig.TIMEFRAME
         self.update_interval = TradingConfig.UPDATE_INTERVAL
@@ -57,7 +51,7 @@ class TradingEngine:
         # Пути для сохранения данных
         self.csv_raw_path = TradingConfig.get_csv_paths()['raw']
         self.csv_anal_path = TradingConfig.get_csv_paths()['anal']  # единый файл для всех стратегий
-        self.state_path = PathConfig.STATE_PATH
+        self.state_path = LoggingConfig.STATE_PATH
         
         self.logger.info(f"TradingEngine инициализирован для {self.symbol}")
     
@@ -412,11 +406,11 @@ if __name__ == "__main__":
                 await asyncio.sleep(1)
                 stop_event.set()
         except Exception as e:
-            print(f"Ошибка тестирования: {e}")
+            logging.error(f"Ошибка тестирования: {e}")
         
         # Показываем статистику
         stats = engine.get_trading_stats()
-        print(f"Статистика: {stats}")
+        logging.info(f"Статистика: {stats}")
     
     # Запускаем тест
     asyncio.run(test_engine())

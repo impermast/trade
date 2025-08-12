@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath("."))
 import matplotlib.pyplot as plt
 import pandas as pd
 from BOTS.PLOTBOTS.BaseBot import BasePlotBot
-from BOTS.loggerbot import Logger
+from CORE.log_manager import Logger
 
 
 class MLPlotBot(BasePlotBot):

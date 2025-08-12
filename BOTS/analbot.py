@@ -13,7 +13,7 @@ from multiprocessing import cpu_count
 from typing import Dict, List, Any, Optional, Union, Type, Callable, TypeVar, cast, Tuple
 
 sys.path.append(os.path.abspath("."))
-from BOTS.loggerbot import Logger
+from CORE.log_manager import Logger
 from BOTS.indicators import Indicators
 from STRATEGY.rsi import RSIonly_Strategy
 from STRATEGY.base import BaseStrategy
@@ -410,4 +410,4 @@ if __name__ == "__main__":
     # Create an Analytic instance and run a strategy
     analyzer = Analytic(df, "BTCUSDT_1h", create_cache_dir=False)
     result = analyzer.make_strategy(RSIonly_Strategy, rsi={"period": 14, "lower": 20})
-    print(result)
+    analyzer.logger.info(f"Strategy result: {result}")

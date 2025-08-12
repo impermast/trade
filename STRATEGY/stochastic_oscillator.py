@@ -14,21 +14,17 @@ from STRATEGY.base import BaseStrategy  # type: ignore
 
 class StochasticOscillatorStrategy(BaseStrategy):
     """
-    Stochastic Oscillator Strategy:
-      • BUY  (+1) при пересечении %K выше %D в зоне перепроданности (<20);
-      • SELL (-1) при пересечении %K ниже %D в зоне перекупленности (>80);
-      • При одновременном пересечении — приоритет SELL.
-      
-    Колонки Stochastic: 'stoch_k', 'stoch_d' при стандартных параметрах,
-    иначе 'stoch_k_{k_period}_{d_period}', 'stoch_d_{k_period}_{d_period}'.
+    Стратегия на основе стохастического осциллятора.
+    
+    Генерирует сигналы на покупку при перепроданности (K < 20),
+    и сигналы на продажу при перекупленности (K > 80).
     """
     
-    def __init__(self, **params: Any) -> None:
-        super().__init__(
-            name="StochasticOscillator", 
-            indicators=["stochastic_oscillator"], 
-            **params
-        )
+    def __init__(self, df: pd.DataFrame, params: Dict[str, Any] = None):
+        super().__init__(df, params)
+        # Setup logger
+        from CORE.log_manager import Logger
+        self.logger = Logger(name="STOCHASTIC", tag="[STOCHASTIC]", logfile="LOGS/stochastic.log", console=False).get_logger()
     
     def default_params(self) -> Dict[str, Dict[str, Any]]:
         return {
@@ -78,7 +74,7 @@ class StochasticOscillatorStrategy(BaseStrategy):
                 self._ensure_required_stochastic(df, k_period, d_period)
             except Exception as e:
                 # не роняем пайплайн
-                print(f"[STOCHASTIC] Failed to ensure indicators via Analytic: {e}")
+                self.logger.error(f"[STOCHASTIC] Failed to ensure indicators via Analytic: {e}")
         
         if not all(col in df.columns for col in [stoch_k_col, stoch_d_col]):
             # всё ещё нет — отдаём 0 и заполняем orders_stochastic нулями
@@ -125,4 +121,6 @@ class StochasticOscillatorStrategy(BaseStrategy):
 
 
 if __name__ == "__main__":
-    print("StochasticOscillatorStrategy module OK")
+    from CORE.log_manager import Logger
+    logger = Logger(name="STOCHASTIC", tag="[STOCHASTIC]", logfile="LOGS/stochastic.log", console=True).get_logger()
+    logger.info("StochasticOscillatorStrategy module OK")

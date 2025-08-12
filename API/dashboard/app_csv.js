@@ -30,43 +30,103 @@
       return;
     }
 
-    const cols = Object.keys(rows[0]);
-    thead.append(`<tr>${cols.map(c => `<th>${c}</th>`).join("")}</tr>`);
+    // Фильтруем и переименовываем столбцы
+    const cols = Object.keys(rows[0]).filter(col => {
+      // Скрываем столбцы HIGH, LOW, OPEN
+      return !['high', 'low', 'open'].includes(col.toLowerCase());
+    });
+
+    // Создаем заголовки с переименованием столбцов ORDERS
+    const headerHtml = cols.map(col => {
+      let displayName = col;
+      let dataAttr = '';
+      
+      // Переименовываем столбцы ORDERS и добавляем атрибуты для стилизации
+      if (col.toLowerCase() === 'orders_rsi') {
+        displayName = 'ORDERS_RSI';
+        dataAttr = ' data-orders-type="rsi"';
+      } else if (col.toLowerCase() === 'orders_macd') {
+        displayName = 'ORDERS_MACD';
+        dataAttr = ' data-orders-type="macd"';
+      } else if (col.toLowerCase() === 'orders_bollinger') {
+        displayName = 'ORDERS_BOLL';
+        dataAttr = ' data-orders-type="bollinger"';
+      } else if (col.toLowerCase() === 'orders_stochastic') {
+        displayName = 'ORDERS_STOCH';
+        dataAttr = ' data-orders-type="stochastic"';
+      } else if (col.toLowerCase() === 'orders_williams_r') {
+        displayName = 'ORDERS_W%R';
+        dataAttr = ' data-orders-type="williams_r"';
+      } else if (col.toLowerCase() === 'orders_xgb') {
+        displayName = 'ORDERS_XGB';
+        dataAttr = ' data-orders-type="xgb"';
+      }
+      
+      return `<th${dataAttr}>${displayName}</th>`;
+    }).join("");
+    
+    thead.append(`<tr>${headerHtml}</tr>`);
 
     // Оптимизация: создаем HTML строку вместо множественных DOM операций
-          const rowsHtml = rows.map(r => {
-        const hasRsi = Number(r["orders_rsi"] ?? 0) !== 0;
-        const hasXgb = Number(r["orders_xgb"] ?? 0) !== 0 || Number(r["orders"] ?? 0) !== 0;
-        const hasMacd = Number(r["orders_macd"] ?? 0) !== 0;
-        const hasBollinger = Number(r["orders_bollinger"] ?? 0) !== 0;
-        const classes = [];
-        if (hasRsi) classes.push("has-rsi");
-        if (hasXgb) classes.push("has-xgb");
-        if (hasMacd) classes.push("has-macd");
-        if (hasBollinger) classes.push("has-bollinger");
+    const rowsHtml = rows.map(r => {
+      const hasRsi = Number(r["orders_rsi"] ?? 0) !== 0;
+      const hasXgb = Number(r["orders_xgb"] ?? 0) !== 0 || Number(r["orders"] ?? 0) !== 0;
+      const hasMacd = Number(r["orders_macd"] ?? 0) !== 0;
+      const hasBollinger = Number(r["orders_bollinger"] ?? 0) !== 0;
+      const classes = [];
+      if (hasRsi) classes.push("has-rsi");
+      if (hasXgb) classes.push("has-xgb");
+      if (hasMacd) classes.push("has-macd");
+      if (hasBollinger) classes.push("has-bollinger");
+      
+      const classAttr = classes.length > 0 ? ` class="${classes.join(' ')}"` : '';
+      const cells = cols.map(c => {
+        const cellClass = /^(close|volume|orders|orders_rsi|orders_xgb|orders_macd|orders_bollinger|orders_stochastic|orders_williams_r)$/i.test(c) ? 'num' : '';
+        const cellClassAttr = cellClass ? ` class="${cellClass}"` : '';
         
-        const classAttr = classes.length > 0 ? ` class="${classes.join(' ')}"` : '';
-        const cells = cols.map(c => {
-          const cellClass = /^(open|high|low|close|volume|orders|orders_rsi|orders_xgb|orders_macd|orders_bollinger)$/i.test(c) ? 'num' : '';
-          const cellClassAttr = cellClass ? ` class="${cellClass}"` : '';
-          return `<td${cellClassAttr}>${r[c] ?? ""}</td>`;
-        }).join("");
+        let cellValue = r[c] ?? "";
         
-        return `<tr${classAttr}>${cells}</tr>`;
+        // Округляем значения в столбце CLOSE до 2 знаков после запятой
+        if (c.toLowerCase() === 'close' && cellValue !== "") {
+          const numValue = parseFloat(cellValue);
+          if (!isNaN(numValue)) {
+            cellValue = numValue.toFixed(2);
+          }
+        }
+        
+        return `<td${cellClassAttr}>${cellValue}</td>`;
       }).join("");
+      
+      return `<tr${classAttr}>${cells}</tr>`;
+    }).join("");
 
     tbody.html(rowsHtml);
   }
 
   function downloadCsvFromPreview(){
     const rows = [];
+    
+    // Получаем заголовки из видимой таблицы (уже с переименованными столбцами)
     const ths = Array.from(document.querySelectorAll("#csvThead th")).map(th => th.textContent || "");
     if (!ths.length){ U.showSnack("Нет данных для экспорта"); return; }
+    
     rows.push(ths);
-    $("#csvTbody tr").each(function(){ const tds = $(this).find("td"); if (!tds.length) return; rows.push(tds.map((_,td)=>$(td).text()).get()); });
+    
+    // Получаем данные из видимых строк
+    $("#csvTbody tr").each(function(){ 
+      const tds = $(this).find("td"); 
+      if (!tds.length) return; 
+      rows.push(tds.map((_,td)=>$(td).text()).get()); 
+    });
+    
     const csv = rows.map(r => r.map(x => `"${(x??"").toString().replace(/"/g,'""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"}); const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = ($("#csvFile").val() || "data") + ".preview.csv"; a.click(); URL.revokeObjectURL(url);
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"}); 
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); 
+    a.href = url; 
+    a.download = ($("#csvFile").val() || "data") + ".preview.csv"; 
+    a.click(); 
+    URL.revokeObjectURL(url);
   }
 
   function setupCsvPreviewControls(){

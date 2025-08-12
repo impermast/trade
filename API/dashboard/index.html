@@ -32,6 +32,7 @@
   <link rel="stylesheet" href="styles_states.css">
   <link rel="stylesheet" href="styles_icons.css">
   <link rel="stylesheet" href="styles_fonts.css">
+  <link rel="stylesheet" href="styles_theme_animation.css">
 
   <!-- Charts + libs -->
   <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
@@ -75,7 +76,10 @@
       <div class="form-check form-switch text-nowrap" title="Переключить тему" data-bs-toggle="tooltip">
         <input class="form-check-input" type="checkbox" id="themeToggle">
         <label class="form-check-label" for="themeToggle">
-          <i data-lucide="moon" class="theme-icon"></i>
+          <div class="theme-icon-container">
+            <i data-lucide="moon" class="theme-icon theme-icon-moon"></i>
+            <i data-lucide="sun" class="theme-icon theme-icon-sun"></i>
+          </div>
           Тема
         </label>
       </div>

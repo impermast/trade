@@ -1,3 +1,16 @@
+/* === Анимация голосования === */
+/* Скрываем прогресс-бар для анимации голосования */
+.strategy-voting-container #topProgress,
+#strategy-voting ~ #topProgress {
+  display: none !important;
+}
+
+/* Стили для контейнера анимации голосования */
+#strategy-voting {
+  position: relative;
+  z-index: 1;
+}
+
 /* === Tabs + ink === */
 .nav-tabs{ border-color:transparent; position:relative; }
 
@@ -201,8 +214,8 @@
 
 /* Стили для FAB иконки */
 .fab-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   stroke-width: 2px;
   color: #fff;
   transition: all 0.3s ease;

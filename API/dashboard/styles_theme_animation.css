@@ -1,0 +1,208 @@
+/* === Анимации переключения темы === */
+
+/* Контейнер для иконки темы */
+.theme-icon-container {
+  position: relative;
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-right: 0.5rem;
+  overflow: hidden;
+}
+
+/* Базовые стили для иконок */
+.theme-icon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  stroke-width: 2px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  color: currentColor;
+}
+
+/* Иконка луны (темная тема) */
+.theme-icon-moon {
+  transform: translateY(0) rotate(0deg);
+  opacity: 1;
+}
+
+/* Иконка солнца (светлая тема) */
+.theme-icon-sun {
+  transform: translateY(20px) rotate(0deg);
+  opacity: 0;
+}
+
+/* Состояние для темной темы */
+[data-theme="dark"] .theme-icon-moon {
+  transform: translateY(0) rotate(0deg);
+  opacity: 1;
+}
+
+[data-theme="dark"] .theme-icon-sun {
+  transform: translateY(20px) rotate(0deg);
+  opacity: 0;
+}
+
+/* Состояние для светлой темы */
+[data-theme="light"] .theme-icon-moon {
+  transform: translateY(-20px) rotate(0deg);
+  opacity: 0;
+}
+
+[data-theme="light"] .theme-icon-sun {
+  transform: translateY(0) rotate(0deg);
+  opacity: 1;
+}
+
+/* Анимация при переключении */
+.theme-switching .theme-icon-moon {
+  animation: moonExit 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.theme-switching .theme-icon-sun {
+  animation: sunEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Анимация перехода от светлой к темной теме */
+.theme-switching-dark .theme-icon-sun {
+  animation: sunExit 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.theme-switching-dark .theme-icon-moon {
+  animation: moonEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Keyframes для анимаций */
+@keyframes moonExit {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-10px) rotate(0deg);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(-20px) rotate(0deg);
+    opacity: 0;
+  }
+}
+
+@keyframes sunEnter {
+  0% {
+    transform: translateY(20px) rotate(0deg);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(10px) rotate(0deg);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes sunExit {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(10px) rotate(0deg);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(20px) rotate(0deg);
+    opacity: 0;
+  }
+}
+
+@keyframes moonEnter {
+  0% {
+    transform: translateY(-20px) rotate(0deg);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(-10px) rotate(0deg);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+/* Дополнительные эффекты для иконок */
+.theme-icon:hover {
+  filter: drop-shadow(0 2px 4px rgba(110, 70, 255, 0.3));
+  transform: scale(1.1);
+}
+
+/* Плавные переходы для всех состояний */
+.theme-icon-container {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Эффект при наведении на контейнер */
+.theme-icon-container:hover {
+  transform: scale(1.05);
+}
+
+/* Анимация пульсации при переключении */
+.theme-toggle-pulse {
+  animation: themePulse 0.6s ease-in-out;
+}
+
+@keyframes themePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Плавное изменение цвета фона переключателя */
+.form-check-input {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.form-check-input:checked {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(110, 70, 255, 0.2);
+}
+
+.form-check-input:not(:checked) {
+  background-color: var(--surface-variant);
+  border-color: var(--outline);
+}
+
+/* Анимация для label при переключении */
+.form-check-label {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.form-check-input:checked ~ .form-check-label {
+  color: var(--primary);
+  transform: scale(1.02);
+}
+
+/* Эффект свечения для активной темы */
+[data-theme="dark"] .form-check-input:checked {
+  box-shadow: 0 0 0 3px rgba(110, 70, 255, 0.3), 0 0 20px rgba(110, 70, 255, 0.2);
+}
+
+[data-theme="light"] .form-check-input:checked {
+  box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.3), 0 0 20px rgba(255, 193, 7, 0.2);
+}
+
+/* Плавный переход для body при смене темы */
+body {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Кроссфейд для смены темы */
+.theme-xfade {
+  transition: opacity 0.22s ease-in-out;
+}

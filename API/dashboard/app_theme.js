@@ -9,10 +9,50 @@
   theme.applyTheme = function(t){
     document.documentElement.setAttribute("data-theme", t);
     $("#themeToggle").prop("checked", t==="dark");
+    
+    // Обновляем состояние иконок при инициализации
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+      const label = themeToggle.nextElementSibling;
+      // Убираем все классы анимации при инициализации
+      label.classList.remove('theme-switching', 'theme-switching-dark', 'theme-toggle-pulse');
+      
+      // Устанавливаем правильное начальное положение иконок
+      const moonIcon = label.querySelector('.theme-icon-moon');
+      const sunIcon = label.querySelector('.theme-icon-sun');
+      
+      if (moonIcon && sunIcon) {
+        if (t === 'dark') {
+          // Темная тема: луна видна, солнце скрыто
+          moonIcon.style.transform = 'translateY(0) rotate(0deg)';
+          moonIcon.style.opacity = '1';
+          sunIcon.style.transform = 'translateY(20px) rotate(0deg)';
+          sunIcon.style.opacity = '0';
+        } else {
+          // Светлая тема: солнце видно, луна скрыта
+          moonIcon.style.transform = 'translateY(-20px) rotate(0deg)';
+          moonIcon.style.opacity = '0';
+          sunIcon.style.transform = 'translateY(0) rotate(0deg)';
+          sunIcon.style.opacity = '1';
+        }
+      }
+    }
   };
 
   // Плавная смена темы: кроссфейд всей страницы
   function crossfadeTo(nextTheme){
+    // Добавляем класс для анимации иконки
+    const themeToggle = document.getElementById('themeToggle');
+    const label = themeToggle.nextElementSibling;
+    
+    if (nextTheme === 'light') {
+      // Переход к светлой теме: луна уходит, солнце входит
+      label.classList.add('theme-switching');
+    } else {
+      // Переход к темной теме: солнце уходит, луна входит
+      label.classList.add('theme-switching-dark');
+    }
+    
     // Включаем плавную прозрачность для <body>
     document.body.classList.add("theme-xfade");
     // Фаза 1: затемняем до 0
@@ -26,6 +66,15 @@
         setTimeout(()=>{
           document.body.classList.remove("theme-xfade");
           document.body.style.opacity = "";
+          
+          // Убираем классы анимации иконки
+          label.classList.remove('theme-switching', 'theme-switching-dark');
+          
+          // Добавляем эффект пульсации
+          label.classList.add('theme-toggle-pulse');
+          setTimeout(() => {
+            label.classList.remove('theme-toggle-pulse');
+          }, 600);
         }, XFADE_MS);
       }, Math.floor(XFADE_MS/2));
     });

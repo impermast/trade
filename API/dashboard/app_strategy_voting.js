@@ -116,6 +116,8 @@
 
     // Обновление анимации голосования
     updateVotingAnimation: function() {
+      // Убираем вызов прогресс-бара для анимации голосования
+      // чтобы не показывать полоску обновления сверху
       this.fetchStrategySignals().then((signals) => {
         this.updateBars(signals);
       }).catch((error) => {
@@ -126,8 +128,11 @@
     // Получение сигналов стратегий
     fetchStrategySignals: async function() {
       try {
-        // Получаем последние данные из CSV
-        const response = await fetch('/api/candles?file=BTCUSDT_1m_anal.csv&tail=1');
+        // Получаем последние данные из CSV без показа прогресс-бара
+        // чтобы анимация голосования не вызывала полоску обновления сверху
+        const response = await fetch('/api/candles?file=BTCUSDT_1m_anal.csv&tail=1', {
+          cache: 'no-store' // Отключаем кэширование для получения свежих данных
+        });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

@@ -49,13 +49,47 @@
 .fab.pulse{ animation: fabPulse .16s ease-out; }
 @keyframes fabPulse{ 0%{ transform:scale(1)} 50%{ transform:scale(1.008)} 100%{ transform:scale(1)} }
 
-.fab .fab-ico-wrap{ position:relative; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; }
-.fab .fab-ico-wrap::after{ content:""; position:absolute; inset:-3px; border-radius:50%; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.28); }
-.fab .fab-ico-wrap .bi{ font-size: var(--font-size-sm); }
-.fab .fab-ring{ position:absolute; inset:-4px; pointer-events:none; }
-.fab .fab-ring svg{ width:30px; height:30px; transform:rotate(-90deg); display:block; }
-.fab .fab-ring .ring-bg{ stroke:rgba(255,255,255,0.28); stroke-width:3.5; fill:none; }
-.fab .fab-ring .ring{ stroke:rgba(255,255,255,0.95); stroke-width:3.5; fill:none; stroke-linecap:round; transition:opacity .2s ease; }
+.fab .fab-ico-wrap{ 
+  position:relative; 
+  width:24px; 
+  height:24px; 
+  display:inline-flex; 
+  align-items:center; 
+  justify-content:center; 
+}
+.fab .fab-ico-wrap::after{ 
+  content:""; 
+  position:absolute; 
+  inset:-2px; 
+  border-radius:50%; 
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28); 
+}
+.fab .fab-ico-wrap .bi{ 
+  font-size: var(--font-size-sm); 
+}
+.fab .fab-ring{ 
+  position:absolute; 
+  inset:-6px; 
+  pointer-events:none; 
+}
+.fab .fab-ring svg{ 
+  width:36px; 
+  height:36px; 
+  transform:rotate(-90deg); 
+  display:block; 
+}
+.fab .fab-ring .ring-bg{ 
+  stroke:rgba(255,255,255,0.28); 
+  stroke-width:2.5; 
+  fill:none; 
+}
+.fab .fab-ring .ring{ 
+  stroke:rgba(255,255,255,0.95); 
+  stroke-width:2.5; 
+  fill:none; 
+  stroke-linecap:round; 
+  transition:opacity .2s ease; 
+}
 .fab.disabled .ring{ opacity:.35; }
 
 /* Анимация gradientShift для FAB и прогресс-бара */

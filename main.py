@@ -6,17 +6,20 @@ from datetime import datetime, timedelta
 import json
 import logging
 from pathlib import Path
+import webbrowser
+from typing import Optional
 
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from CORE.config import TradingConfig, DashboardConfig, LoggingConfig, APIConfig
-from CORE.dashboard_manager import DashboardManager
-from CORE.trading_engine import TradingEngine
-from CORE.log_manager import LogManager
+from CORE.dashboard_manager import DashboardManager, write_state_fallback
+from CORE.trading_engine import TradingEngine, TradingEngineFactory
+from CORE.log_manager import LogManager, Logger, clean_logs_by_age
 
 # Configuration
 STATE_PATH = LoggingConfig.STATE_PATH
+CSV_ANAL_PATH = TradingConfig.get_csv_paths()['anal'] if hasattr(TradingConfig, 'get_csv_paths') else 'DATA/anal.csv'
 
 # === ВАЖНО: логгер инициализируем ПОСЛЕ чистки логов в __main__ ===
 logger = None  # будет установлен ниже
@@ -25,7 +28,6 @@ logger = None  # будет установлен ниже
 from API.bybit_api import BybitAPI  # оставляем на всякий случай
 from API.mock_api import MockAPI
 from API.dashboard_api import run_flask_in_new_terminal, stop_flask
-from CORE.log_manager import Logger
 from BOTS.PLOTBOTS.plotbot import PlotBot
 
 stop_event = asyncio.Event()
@@ -40,15 +42,11 @@ else:
 
 
 # ------------ Управление логами ------------
-from CORE.log_manager import LogManager, clean_logs_by_age
-
 # Создаем экземпляр менеджера логов
 log_manager = LogManager()
 
 
 # ------------ Управление дашбордом и утилиты ------------
-from CORE.dashboard_manager import DashboardManager, write_state_fallback
-
 # Создаем экземпляр менеджера дашборда
 dashboard_manager = DashboardManager()
 
@@ -66,8 +64,6 @@ async def plot_loop(use_plot: bool) -> None:
 
 
 # ------------ Унифицированный торговый движок ------------
-from CORE.trading_engine import TradingEngineFactory
-
 async def unified_trading_loop(bot) -> None:
     """Унифицированный торговый цикл для всех стратегий"""
     logger.info(f"Запущен унифицированный торговый цикл {type(bot).__name__}")

@@ -14,7 +14,7 @@ from typing import Dict, Any, Optional, List
 import pandas as pd
 
 from CORE.config import TradingConfig, LoggingConfig
-from CORE.security import SecurityManager
+# from CORE.security import Security
 from STRATEGY.base import BaseStrategy
 from CORE.strategy_manager import StrategyManager, AggregatorFactory, SignalType
 from CORE.dashboard_manager import write_state_fallback
@@ -52,6 +52,23 @@ class TradingEngine:
         self.csv_raw_path = TradingConfig.get_csv_paths()['raw']
         self.csv_anal_path = TradingConfig.get_csv_paths()['anal']  # единый файл для всех стратегий
         self.state_path = LoggingConfig.STATE_PATH
+        
+        # Инициализация логгера
+        from .log_manager import Logger
+        self.logger = Logger(name="TradingEngine", tag="[ENGINE]", logfile="LOGS/trading_engine.log", console=False).get_logger()
+        
+        # Инициализация менеджера стратегий
+        from .strategy_manager import StrategyManager
+        self.strategy_manager = StrategyManager()
+        
+        # Инициализация статистики
+        self.position_size = 0.0
+        self.last_action = 0
+        self.buy_count = 0
+        self.sell_count = 0
+        self.hold_count = 0
+        self.trade_count = 0
+        self.last_decision_time = None
         
         self.logger.info(f"TradingEngine инициализирован для {self.symbol}")
     
@@ -112,7 +129,7 @@ class TradingEngine:
     async def _get_market_data(self) -> Optional[pd.DataFrame]:
         """Получает рыночные данные"""
         try:
-            df = await self.bot_api.get_ohlcv_async(
+            df = await self.api_client.get_ohlcv_async(
                 self.symbol,
                 timeframe=self.timeframe,
                 limit=200
@@ -156,7 +173,7 @@ class TradingEngine:
         """Выполняет покупку"""
         try:
             # Получаем баланс
-            balance = await self.bot_api.get_balance_async()
+            balance = await self.api_client.get_balance_async()
             usdt_balance = float(balance.get("USDT", 0.0))
             
             # Вычисляем размер позиции
@@ -165,7 +182,7 @@ class TradingEngine:
             
             if quantity > 0:
                 # Размещаем ордер
-                order_result = await self.bot_api.place_order_async(
+                order_result = await self.api_client.place_order_async(
                     self.symbol, "buy", qty=quantity
                 )
                 
@@ -194,7 +211,7 @@ class TradingEngine:
         """Выполняет продажу"""
         try:
             # Получаем текущие позиции
-            positions = await self.bot_api.get_positions_async(self.symbol)
+            positions = await self.api_client.get_positions_async(self.symbol)
             
             if isinstance(positions, dict):
                 position_size = float(positions.get("size", 0.0))
@@ -206,7 +223,7 @@ class TradingEngine:
             
             if quantity > 0:
                 # Размещаем ордер
-                order_result = await self.bot_api.place_order_async(
+                order_result = await self.api_client.place_order_async(
                     self.symbol, "sell", qty=quantity
                 )
                 
@@ -260,8 +277,8 @@ class TradingEngine:
     async def _update_dashboard_state(self) -> None:
         """Обновляет состояние для дашборда"""
         try:
-            if hasattr(self.bot_api, "update_state"):
-                await self.bot_api.update_state(self.symbol, self.state_path)
+            if hasattr(self.api_client, "update_state"):
+                await self.api_client.update_state(self.symbol, self.state_path)
             else:
                 await write_state_fallback(self.state_path)
                 
@@ -283,8 +300,8 @@ class TradingEngine:
     async def _cleanup(self) -> None:
         """Очистка ресурсов при завершении"""
         try:
-            if hasattr(self.bot_api, "close_async"):
-                await self.bot_api.close_async()
+            if hasattr(self.api_client, "close_async"):
+                await self.api_client.close_async()
         except Exception as e:
             self.logger.error(f"Ошибка при закрытии API: {e}")
     
@@ -337,7 +354,7 @@ class TradingEngineFactory:
         logger: Optional[logging.Logger] = None
     ) -> TradingEngine:
         """Создает стандартный торговый движок"""
-        return TradingEngine(bot_api, logger=logger)
+        return TradingEngine(bot_api)
     
     @staticmethod
     def create_engine_with_custom_aggregator(
@@ -347,7 +364,7 @@ class TradingEngineFactory:
         **aggregator_kwargs
     ) -> TradingEngine:
         """Создает движок с пользовательским агрегатором"""
-        engine = TradingEngine(bot_api, logger=logger)
+        engine = TradingEngine(bot_api)
         engine.set_aggregator(aggregator_type, **aggregator_kwargs)
         return engine
     
@@ -358,7 +375,7 @@ class TradingEngineFactory:
         logger: Optional[logging.Logger] = None
     ) -> TradingEngine:
         """Создает движок с пользовательскими стратегиями"""
-        engine = TradingEngine(bot_api, logger=logger)
+        engine = TradingEngine(bot_api)
         
         for name, strategy in custom_strategies.items():
             engine.add_custom_strategy(name, strategy)

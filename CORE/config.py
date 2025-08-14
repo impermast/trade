@@ -144,17 +144,45 @@ class Config(metaclass=_ConfigMeta):
 class TradingConfig:
     """Configuration for trading operations."""
     
-    # Trading parameters
+    # ==================== TRADING PARAMETERS ====================
     SYMBOL = "BTC/USDT"
     TIMEFRAME = "1m"
     UPDATE_INTERVAL = 10  # seconds between ticks for simulation
     
-    # Strategy parameters
+    # ==================== STRATEGY PARAMETERS ====================
+    # RSI Strategy
     RSI_PERIOD = 14
     RSI_LOWER = 30.0
     RSI_UPPER = 70.0
+    
+    # MACD Strategy
+    MACD_FAST = 12
+    MACD_SLOW = 26
+    MACD_SIGNAL = 9
+    
+    # Bollinger Bands Strategy
+    BB_PERIOD = 20
+    BB_STD_DEV = 2.0
+    
+    # Stochastic Strategy
+    STOCH_K_PERIOD = 14
+    STOCH_D_PERIOD = 3
+    STOCH_OVERSOLD = 20.0
+    STOCH_OVERBOUGHT = 80.0
+    
+    # Williams %R Strategy
+    WILLIAMS_R_PERIOD = 14
+    WILLIAMS_R_OVERSOLD = -80.0
+    WILLIAMS_R_OVERBOUGHT = -20.0
+    
+    # ==================== RISK MANAGEMENT ====================
     TARGET_FRACTION = 0.25  # fraction of balance to use per trade
     MIN_QUANTITY = 0.001
+    MAX_POSITION_SIZE = 0.5  # maximum position size as fraction of balance
+    
+    # ==================== TRADING RULES ====================
+    MIN_SIGNALS_FOR_DECISION = 1  # minimum number of strategies that must agree
+    CONFIDENCE_THRESHOLD = 0.6  # minimum confidence for trade execution
     
     @classmethod
     def get_symbol_name(cls) -> str:
@@ -174,13 +202,17 @@ class TradingConfig:
 class DashboardConfig:
     """Configuration for dashboard and web interface."""
     
-    # Flask settings
+    # ==================== FLASK SETTINGS ====================
     HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
     PORT = int(os.getenv("DASHBOARD_PORT", "5000"))
     
-    # Features
+    # ==================== FEATURES ====================
     USE_FLASK = True
     USE_PLOT = False
+    AUTO_OPEN_BROWSER = True
+    
+    # ==================== TIMEOUTS ====================
+    PORT_WAIT_TIMEOUT = 10  # seconds to wait for dashboard to start
     
     @classmethod
     def get_url(cls) -> str:
@@ -191,40 +223,95 @@ class DashboardConfig:
 class LoggingConfig:
     """Configuration for logging system."""
     
-    # Log cleanup settings
+    # ==================== LOG CLEANUP ====================
     CLEAN_LOGS_MAX_AGE_HOURS = int(os.getenv("CLEAN_LOGS_MAX_AGE_HOURS", "24"))
     
-    # Logger names
+    # ==================== LOGGER NAMES ====================
     MAIN_LOGGER_NAME = "MainBot"
     MAIN_LOGGER_TAG = "[MAIN]"
     MAIN_LOGGER_FILE = os.path.join(Config.LOGS_DIR, "mainbot.log")
     
-    # Dashboard logging
+    # ==================== DASHBOARD LOGGING ====================
     DASHBOARD_LOG_FILE = os.path.join(Config.LOGS_DIR, "dashboard.out.log")
     
-    # State file path
+    # ==================== STATE FILE ====================
     STATE_PATH = os.path.join(Config.STATIC_DIR, "state.json")
 
 
 class APIConfig:
     """Configuration for API connections."""
     
-    # API selection (MockAPI is fastest for simulation)
+    # ==================== API SELECTION ====================
+    # MockAPI is fastest for simulation and testing
     USE_MOCK_API = True
     USE_BYBIT_API = False
+    USE_COINBASE_API = False
+    USE_BINANCE_API = False
     
-    # API credentials (loaded from environment)
+    # ==================== API CREDENTIALS ====================
+    # Loaded from environment variables
     API_KEY = Config.get('API_KEY')
     API_SECRET = Config.get('API_SECRET')
     TESTNET = Config.get('TESTNET', True)
+    
+    # ==================== API SETTINGS ====================
+    REQUEST_TIMEOUT = 30  # seconds
+    MAX_RETRIES = 3
+    RATE_LIMIT_DELAY = 0.1  # seconds between requests
 
 
-# Default configuration values
+class StrategyConfig:
+    """Configuration for trading strategies."""
+    
+    # ==================== STRATEGY WEIGHTS ====================
+    # Weights for weighted voting aggregator
+    STRATEGY_WEIGHTS = {
+        "RSI": 0.20,
+        "XGB": 0.30,
+        "MACD": 0.20,
+        "BOLLINGER": 0.12,
+        "STOCHASTIC": 0.10,
+        "WILLIAMS_R": 0.08
+    }
+    
+    # ==================== AGGREGATOR SETTINGS ====================
+    DEFAULT_AGGREGATOR = "adaptive"  # "weighted", "consensus", "adaptive"
+    MIN_CONSENSUS_RATIO = 0.7  # for consensus aggregator
+    VOLATILITY_THRESHOLD = 0.02  # for adaptive aggregator
+    
+    # ==================== SIGNAL PROCESSING ====================
+    MAX_HISTORY_SIZE = 1000  # maximum number of signals to keep in history
+    SIGNAL_EXPIRY_HOURS = 24  # how long signals remain valid
+
+
+class PerformanceConfig:
+    """Configuration for performance monitoring."""
+    
+    # ==================== METRICS ====================
+    TRACK_TRADE_PERFORMANCE = True
+    TRACK_STRATEGY_PERFORMANCE = True
+    TRACK_RISK_METRICS = True
+    
+    # ==================== REPORTING ====================
+    GENERATE_DAILY_REPORTS = True
+    GENERATE_WEEKLY_REPORTS = True
+    GENERATE_MONTHLY_REPORTS = True
+    
+    # ==================== ALERTS ====================
+    ENABLE_ALERTS = False
+    ALERT_EMAIL = None
+    ALERT_WEBHOOK = None
+
+
+# ==================== DEFAULT CONFIGURATION ====================
 DEFAULT_CONFIG = {
     'API_KEY': None,
     'API_SECRET': None,
     'TESTNET': True,
     'LOG_LEVEL': 'INFO',
+    'DASHBOARD_HOST': '127.0.0.1',
+    'DASHBOARD_PORT': '5000',
+    'CLEAN_LOGS_MAX_AGE_HOURS': '24',
 }
 
 # Set default values in the config cache

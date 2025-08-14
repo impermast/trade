@@ -18,20 +18,22 @@ class BaseStrategy(ABC):
         params (Dict[str, Any]): Strategy parameters with their values
     """
 
-    def __init__(self, name: str = "BaseStrategy", indicators: Optional[List[str]] = None, 
-                 df: Optional[pd.DataFrame] = None, data_name: Optional[str] = None,
-                 output_file: str = "DATA/BTCUSDT_1m_anal.csv", save_after_init: bool = True, **params):
+    def __init__(self, df: Optional[pd.DataFrame] = None, params: Optional[Dict[str, Any]] = None, 
+                 name: str = "BaseStrategy", indicators: Optional[List[str]] = None,
+                 data_name: Optional[str] = None,
+                 output_file: str = "DATA/BTCUSDT_1m_anal.csv", save_after_init: bool = True, **kwargs):
         """
         Initialize a strategy with name, required indicators, and parameters.
 
         Args:
+            df (Optional[pd.DataFrame]): DataFrame to initialize with
+            params (Optional[Dict[str, Any]]): Strategy-specific parameters
             name (str): Name of the strategy
             indicators (Optional[List[str]]): List of indicators required by the strategy
-            df (Optional[pd.DataFrame]): DataFrame to initialize with
             data_name (Optional[str]): Name for the data
             output_file (str): Output file path
             save_after_init (bool): Whether to save after initialization
-            **params: Strategy-specific parameters that override default values
+            **kwargs: Additional parameters that override default values
 
         Raises:
             ValueError: If invalid parameters are provided
@@ -41,10 +43,12 @@ class BaseStrategy(ABC):
 
         # Get default parameters and validate user-provided parameters
         default_params = self.default_params()
-        self._validate_params(default_params, params)
+        user_params = params or {}
+        user_params.update(kwargs)
+        self._validate_params(default_params, user_params)
 
         # Merge default parameters with user-provided parameters
-        self.params = self._merge_with_defaults(default_params, params)
+        self.params = self._merge_with_defaults(default_params, user_params)
         
         # Common initialization parameters
         self._init_df = df

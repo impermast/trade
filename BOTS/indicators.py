@@ -60,8 +60,12 @@ class Indicators:
         elif indicator == "macd":
             window_fast = params.get("window_fast", 12)
             window_slow = params.get("window_slow", 26)
-            is_default = (window_fast == 12 and window_slow == 26)
-            return f"macd_{window_fast}_{window_slow}" if not is_default else "macd"
+            window_sign = params.get("window_sign", 9)
+            is_default = (window_fast == 12 and window_slow == 26 and window_sign == 9)
+            if is_default:
+                return ["macd", "macd_signal", "macd_histogram"]
+            else:
+                return [f"macd_{window_fast}_{window_slow}", f"macd_signal_{window_fast}_{window_slow}_{window_sign}", f"macd_histogram_{window_fast}_{window_slow}_{window_sign}"]
 
         elif indicator == "bollinger_bands":
             period = params.get("period", 20)
@@ -157,7 +161,14 @@ class Indicators:
         else:
             # Calculate the indicator
             self.logger.info(f"Calculating SMA with period {period}.")
-            result = SMAIndicator(self.df['close'], window=period).sma_indicator().values
+            try:
+                result = SMAIndicator(self.df['close'], window=period).sma_indicator().values
+            except TypeError:
+                try:
+                    result = SMAIndicator(self.df['close'], period=period).sma_indicator().values
+                except TypeError:
+                    # Последняя попытка с минимальными параметрами
+                    result = SMAIndicator(self.df['close']).sma_indicator().values
 
             # Cache the result
             self._cache_result("sma", params_tuple, result)
@@ -203,7 +214,14 @@ class Indicators:
         else:
             # Calculate the indicator
             self.logger.info(f"Calculating EMA with period {period}.")
-            result = EMAIndicator(self.df['close'], window=period).ema_indicator().values
+            try:
+                result = EMAIndicator(self.df['close'], window=period).ema_indicator().values
+            except TypeError:
+                try:
+                    result = EMAIndicator(self.df['close'], period=period).ema_indicator().values
+                except TypeError:
+                    # Последняя попытка с минимальными параметрами
+                    result = EMAIndicator(self.df['close']).ema_indicator().values
 
             # Cache the result
             self._cache_result("ema", params_tuple, result)
@@ -249,7 +267,14 @@ class Indicators:
         else:
             # Calculate the indicator
             self.logger.info(f"Calculating RSI with period {period}.")
-            result = RSIIndicator(self.df['close'], window=period).rsi().values
+            try:
+                result = RSIIndicator(self.df['close'], window=period).rsi().values
+            except TypeError:
+                try:
+                    result = RSIIndicator(self.df['close'], period=period).rsi().values
+                except TypeError:
+                    # Последняя попытка с минимальными параметрами
+                    result = RSIIndicator(self.df['close']).rsi().values
 
             # Cache the result
             self._cache_result("rsi", params_tuple, result)
@@ -277,19 +302,20 @@ class Indicators:
         Returns:
             DataFrame with MACD values if inplace is False, None otherwise
         """
-        # Get column name for this indicator
+        # Get column names for this indicator
         params = {
             "window_slow": window_slow,
             "window_fast": window_fast,
             "window_sign": window_sign
         }
-        col_name = self._get_column_name("macd", params)
+        col_names = self._get_column_name("macd", params)
+        col_macd, col_signal, col_hist = col_names
 
         # Check if indicator already exists
-        if self._indicator_exists(col_name):
+        if self._indicator_exists(col_names):
             self.logger.info(f"MACD with parameters {params} already calculated, using existing values.")
             if not inplace:
-                return self.df[[col_name]].copy()
+                return self.df[col_names].copy()
             return None
 
         # Check if result is cached
@@ -298,27 +324,48 @@ class Indicators:
 
         if cached_result is not None:
             self.logger.info(f"Using cached MACD with parameters {params}.")
-            result = cached_result
+            result_macd, result_signal, result_hist = cached_result
         else:
             # Calculate the indicator
             self.logger.info(f"Calculating MACD with parameters {params}.")
-            result = MACD(
-                self.df['close'],
-                window_slow=window_slow,
-                window_fast=window_fast,
-                window_sign=window_sign
-            ).macd_diff().values
+            try:
+                macd_obj = MACD(
+                    self.df['close'],
+                    window_slow=window_slow,
+                    window_fast=window_fast,
+                    window_sign=window_sign
+                )
+            except TypeError:
+                try:
+                    macd_obj = MACD(
+                        self.df['close'],
+                        slow=window_slow,
+                        fast=window_fast,
+                        signal=window_sign
+                    )
+                except TypeError:
+                    # Последняя попытка с минимальными параметрами
+                    macd_obj = MACD(self.df['close'])
+            result_macd = macd_obj.macd().values
+            result_signal = macd_obj.macd_signal().values
+            result_hist = macd_obj.macd_diff().values
 
-            # Cache the result
-            self._cache_result("macd", params_tuple, result)
+            # Cache the results as a tuple of arrays
+            self._cache_result("macd", params_tuple, (result_macd, result_signal, result_hist))
 
         # Update the DataFrame
         if inplace:
-            self.df[col_name] = result
+            self.df[col_macd] = result_macd
+            self.df[col_signal] = result_signal
+            self.df[col_hist] = result_hist
             return None
         else:
-            # Create a new DataFrame with just the indicator column
-            result_df = pd.DataFrame({col_name: result}, index=self.df.index)
+            # Create a new DataFrame with just the indicator columns
+            result_df = pd.DataFrame({
+                col_macd: result_macd,
+                col_signal: result_signal,
+                col_hist: result_hist
+            }, index=self.df.index)
             return result_df
 
     def bollinger_bands(self, period: int = 20, window_dev: float = 2, 
@@ -356,7 +403,17 @@ class Indicators:
         else:
             # Calculate the indicator
             self.logger.info(f"Calculating Bollinger Bands with period {period}.")
-            bb = BollingerBands(self.df['close'], window=period, window_dev=window_dev)
+            try:
+                bb = BollingerBands(self.df['close'], window=period, window_dev=window_dev)
+            except TypeError:
+                try:
+                    bb = BollingerBands(self.df['close'], period=period, dev=window_dev)
+                except TypeError:
+                    try:
+                        bb = BollingerBands(self.df['close'], period=period)
+                    except TypeError:
+                        # Последняя попытка с минимальными параметрами
+                        bb = BollingerBands(self.df['close'])
             result_h = bb.bollinger_hband().values
             result_m = bb.bollinger_mavg().values
             result_l = bb.bollinger_lband().values
@@ -411,12 +468,29 @@ class Indicators:
         else:
             # Calculate the indicator
             self.logger.info(f"Calculating Williams %R with period {period}.")
-            williams_r = WilliamsRIndicator(
-                high=self.df['high'],
-                low=self.df['low'],
-                close=self.df['close'],
-                window=period
-            )
+            try:
+                # Пробуем разные варианты параметров для совместимости
+                williams_r = WilliamsRIndicator(
+                    high=self.df['high'],
+                    low=self.df['low'],
+                    close=self.df['close'],
+                    window=period
+                )
+            except TypeError:
+                try:
+                    williams_r = WilliamsRIndicator(
+                        high=self.df['high'],
+                        low=self.df['low'],
+                        close=self.df['close'],
+                        lbp=period
+                    )
+                except TypeError:
+                    # Последняя попытка с минимальными параметрами
+                    williams_r = WilliamsRIndicator(
+                        high=self.df['high'],
+                        low=self.df['low'],
+                        close=self.df['close']
+                    )
             result = williams_r.williams_r().values
 
             # Cache the result
@@ -466,13 +540,30 @@ class Indicators:
         else:
             # Calculate the indicator
             self.logger.info(f"Calculating Stochastic Oscillator with parameters {params}.")
-            stoch = StochasticOscillator(
-                high=self.df['high'],
-                low=self.df['low'],
-                close=self.df['close'],
-                window=k_period,
-                smooth_window=d_period
-            )
+            try:
+                # Пробуем разные варианты параметров для совместимости
+                stoch = StochasticOscillator(
+                    high=self.df['high'],
+                    low=self.df['low'],
+                    close=self.df['close'],
+                    window=k_period,
+                    smooth_window=d_period
+                )
+            except TypeError:
+                try:
+                    stoch = StochasticOscillator(
+                        high=self.df['high'],
+                        low=self.df['low'],
+                        close=self.df['close'],
+                        window=k_period
+                    )
+                except TypeError:
+                    # Последняя попытка с минимальными параметрами
+                    stoch = StochasticOscillator(
+                        high=self.df['high'],
+                        low=self.df['low'],
+                        close=self.df['close']
+                    )
             result_k = stoch.stoch().values
             result_d = stoch.stoch_signal().values
 

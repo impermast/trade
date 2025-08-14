@@ -20,8 +20,8 @@ class StochasticOscillatorStrategy(BaseStrategy):
     и сигналы на продажу при перекупленности (K > 80).
     """
     
-    def __init__(self, df: pd.DataFrame, params: Dict[str, Any] = None):
-        super().__init__(df, params)
+    def __init__(self, df: Optional[pd.DataFrame] = None, params: Optional[Dict[str, Any]] = None):
+        super().__init__(df=df, params=params, name="Stochastic Oscillator Strategy", indicators=["stochastic_oscillator"])
         # Setup logger
         from CORE.log_manager import Logger
         self.logger = Logger(name="STOCHASTIC", tag="[STOCHASTIC]", logfile="LOGS/stochastic.log", console=False).get_logger()

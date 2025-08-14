@@ -381,8 +381,6 @@ class TradingEngineFactory:
             engine.add_custom_strategy(name, strategy)
         
         return engine
-
-
 if __name__ == "__main__":
     # Тестирование
     logging.basicConfig(level=logging.INFO)
@@ -431,3 +429,5 @@ if __name__ == "__main__":
     
     # Запускаем тест
     asyncio.run(test_engine())
+
+

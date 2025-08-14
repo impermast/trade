@@ -20,8 +20,8 @@ class RSIonly_Strategy(BaseStrategy):
     и сигналы на продажу при перекупленности (RSI > 70).
     """
     
-    def __init__(self, df: pd.DataFrame, params: Dict[str, Any] = None):
-        super().__init__(df, params)
+    def __init__(self, df: Optional[pd.DataFrame] = None, params: Optional[Dict[str, Any]] = None):
+        super().__init__(df=df, params=params, name="RSI Strategy", indicators=["rsi"])
         # Setup logger
         from CORE.log_manager import Logger
         self.logger = Logger(name="RSI", tag="[RSI]", logfile="LOGS/rsi.log", console=False).get_logger()

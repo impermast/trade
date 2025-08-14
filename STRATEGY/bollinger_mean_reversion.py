@@ -20,8 +20,8 @@ class BollingerMeanReversionStrategy(BaseStrategy):
     и сигналы на продажу при касании верхней полосы (перекупленность).
     """
     
-    def __init__(self, df: pd.DataFrame, params: Dict[str, Any] = None):
-        super().__init__(df, params)
+    def __init__(self, df: Optional[pd.DataFrame] = None, params: Optional[Dict[str, Any]] = None):
+        super().__init__(df=df, params=params, name="Bollinger Mean Reversion Strategy", indicators=["bollinger_bands"])
         # Setup logger
         from CORE.log_manager import Logger
         self.logger = Logger(name="BOLLINGER", tag="[BOLLINGER]", logfile="LOGS/bollinger.log", console=False).get_logger()

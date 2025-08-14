@@ -90,14 +90,31 @@ class Analytic:
         elif name == "macd":
             fast = params.get("window_fast")
             slow = params.get("window_slow")
-            is_def = is_default("window_fast", fast) and is_default("window_slow", slow)
-            suffix = f"_{fast}_{slow}" if not is_def else ""
-            return [f"macd{suffix}"]
+            signal = params.get("window_sign", 9)
+            is_def = is_default("window_fast", fast) and is_default("window_slow", slow) and is_default("window_sign", signal)
+            if is_def:
+                return ["macd", "macd_signal", "macd_histogram"]
+            else:
+                return [f"macd_{fast}_{slow}", f"macd_signal_{fast}_{slow}_{signal}", f"macd_histogram_{fast}_{slow}_{signal}"]
 
         elif name == "bollinger_bands":
             p = params["period"]
             suffix = f"_{p}" if not is_default("period", p) else ""
             return [f"bb_h{suffix}", f"bb_m{suffix}", f"bb_l{suffix}"]
+        
+        elif name == "stochastic_oscillator":
+            k_period = params.get("k_period", 14)
+            d_period = params.get("d_period", 3)
+            is_def = (k_period == 14 and d_period == 3)
+            if is_def:
+                return ["stoch_k", "stoch_d"]
+            else:
+                return [f"stoch_k_{k_period}_{d_period}", f"stoch_d_{k_period}_{d_period}"]
+        
+        elif name == "williams_r":
+            period = params.get("period", 14)
+            suffix = f"_{period}" if period != 14 else ""
+            return [f"williams_r{suffix}"]
 
         return []
 
@@ -137,7 +154,12 @@ class Analytic:
 
         # Check if the indicator is already calculated
         expected_columns = self._get_expected_columns_dict(indicator_name, params)
+        self.logger.info(f"Expected columns for {indicator_name}: {expected_columns}")
+        self.logger.info(f"Current DataFrame columns: {list(self.df.columns)}")
+        
         missing = [col for col in expected_columns if col not in self.df.columns]
+        self.logger.info(f"Missing columns for {indicator_name}: {missing}")
+        
         if not missing:
             self.logger.info(f"Skipping {indicator_name} - already calculated.")
             return False
@@ -145,6 +167,7 @@ class Analytic:
         # Filter only valid parameters for the method
         method_params = inspect.signature(method).parameters
         filtered_params = {k: v for k, v in params.items() if k in method_params}
+        self.logger.info(f"Filtered parameters for {indicator_name}: {filtered_params}")
 
         # Calculate the indicator
         try:
@@ -156,7 +179,7 @@ class Analytic:
             return False
 
     def make_calc(self, indicators: List[str], stratparams: Dict[str, Dict[str, Any]], 
-              parallel: bool = True) -> None:
+               parallel: bool = True) -> None:
         """
         Calculate indicators based on strategy parameters.
 
@@ -166,9 +189,11 @@ class Analytic:
             parallel: Whether to calculate indicators in parallel
         """
         self.logger.info(f"Calculating indicators: {stratparams}")
+        self.logger.info(f"Requested indicators: {indicators}")
 
         # Filter indicators that are in stratparams
         indicators_to_calculate = [ind for ind in indicators if ind in stratparams]
+        self.logger.info(f"Indicators to calculate: {indicators_to_calculate}")
 
         if not indicators_to_calculate:
             self.logger.warning("No indicators to calculate")
@@ -178,7 +203,9 @@ class Analytic:
             # Calculate indicators sequentially
             for indicator_name in indicators_to_calculate:
                 params = stratparams.get(indicator_name, {})
-                self._calculate_single_indicator(indicator_name, params)
+                self.logger.info(f"Processing indicator: {indicator_name} with params: {params}")
+                result = self._calculate_single_indicator(indicator_name, params)
+                self.logger.info(f"Result for {indicator_name}: {result}")
         else:
             # Calculate indicators in parallel
             # Use ThreadPoolExecutor since indicator calculations are mostly I/O-bound

@@ -22,11 +22,19 @@ class XGBStrategy(BaseStrategy):
     Uses machine learning model to predict price movements and generate trading signals.
     """
     
-    def __init__(self, df: pd.DataFrame, params: Dict[str, Any] = None):
-        super().__init__(df, params)
+    def __init__(self, df: Optional[pd.DataFrame] = None, params: Optional[Dict[str, Any]] = None):
+        super().__init__(df=df, params=params, name="XGB Strategy", 
+                        indicators=["rsi", "ema", "sma", "macd", "bollinger_bands"])
         # Setup logger
         from CORE.log_manager import Logger
         self.logger = Logger(name="XGB", tag="[XGB]", logfile="LOGS/xgb.log", console=False).get_logger()
+        
+        # Define features and batch size
+        self.features = ["rsi", "ema", "sma", "macd", "bb_h", "bb_l"]
+        self.batch_size = 100
+        
+        # Initialize model (placeholder for now)
+        self.model = None
 
     # ----- BaseStrategy required -----
     def default_params(self) -> Dict[str, Dict[str, Any]]:
@@ -99,6 +107,13 @@ class XGBStrategy(BaseStrategy):
                 s = 1 if s > 0 else (-1 if s < 0 else 0)
                 out.append((s, 0.0))
         return out
+
+    def _cached_predict(self, feature_tuple: Tuple[float, ...]) -> Tuple[int, float]:
+        """Cached prediction for single feature tuple."""
+        if self.model is None:
+            # Return default values if model is not loaded
+            return 0, 0.0
+        return self._predict(feature_tuple)
 
     def _try_ensure_features(self, df: pd.DataFrame) -> None:
         """If features are missing on prev bar, recalc via Analytic."""

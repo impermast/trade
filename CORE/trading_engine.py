@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 import pandas as pd
 
-from CORE.config import TradingConfig, LoggingConfig
+from CORE.config import Config
 # from CORE.security import Security
 from STRATEGY.base import BaseStrategy
 from CORE.strategy_manager import StrategyManager, AggregatorFactory, SignalType
@@ -42,16 +42,16 @@ class TradingEngine:
         self.last_update = None
         
         # Configuration
-        self.symbol = TradingConfig.SYMBOL
-        self.timeframe = TradingConfig.TIMEFRAME
-        self.update_interval = TradingConfig.UPDATE_INTERVAL
-        self.target_fraction = TradingConfig.TARGET_FRACTION
-        self.min_quantity = TradingConfig.MIN_QUANTITY
+        self.symbol = Config.TRADING.SYMBOL
+        self.timeframe = Config.TRADING.TIMEFRAME
+        self.update_interval = Config.TRADING.UPDATE_INTERVAL
+        self.target_fraction = Config.TRADING.TARGET_FRACTION
+        self.min_quantity = Config.TRADING.MIN_QUANTITY
         
         # Пути для сохранения данных
-        self.csv_raw_path = TradingConfig.get_csv_paths()['raw']
-        self.csv_anal_path = TradingConfig.get_csv_paths()['anal']  # единый файл для всех стратегий
-        self.state_path = LoggingConfig.STATE_PATH
+        self.csv_raw_path = Config.TRADING.get_csv_paths()['raw']
+        self.csv_anal_path = Config.TRADING.get_csv_paths()['anal']  # единый файл для всех стратегий
+        self.state_path = Config.LOGGING.STATE_PATH
         
         # Инициализация логгера
         from .log_manager import Logger

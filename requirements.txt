@@ -1,5 +1,5 @@
 # Python version
-python>=3.8
+# python>=3.8
 
 # Core data science libraries
 pandas>=2.0.0

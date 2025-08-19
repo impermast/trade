@@ -5,6 +5,9 @@
 
   // Длительность кроссфейда темы
   const XFADE_MS = 220;
+  
+  // Флаг для предотвращения прерывания анимации
+  let themeChangeInProgress = false;
 
   theme.applyTheme = function(t){
     document.documentElement.setAttribute("data-theme", t);
@@ -41,8 +44,21 @@
 
   // Плавная смена темы: кроссфейд всей страницы
   function crossfadeTo(nextTheme){
+    // Защита от прерывания анимации
+    if (themeChangeInProgress) {
+      console.log('Смена темы уже в процессе, игнорируем новый запрос');
+      return;
+    }
+    
+    themeChangeInProgress = true;
+    
     // Добавляем класс для анимации иконки
     const themeToggle = document.getElementById('themeToggle');
+    if (!themeToggle) { 
+      theme.applyTheme(nextTheme); 
+      themeChangeInProgress = false;
+      return; 
+    }
     const label = themeToggle.nextElementSibling;
     
     if (nextTheme === 'light') {
@@ -75,6 +91,9 @@
           setTimeout(() => {
             label.classList.remove('theme-toggle-pulse');
           }, 600);
+          
+          // Сбрасываем флаг анимации
+          themeChangeInProgress = false;
         }, XFADE_MS);
       }, Math.floor(XFADE_MS/2));
     });

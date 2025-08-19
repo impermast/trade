@@ -15,9 +15,10 @@
     const tb=$("#posTbody"); tb.empty();
     if(!positions || !positions.length){ tb.append(`<tr><td colspan="5" class="text-muted">Открытых позиций нет</td></tr>`); return; }
     positions.forEach(p=>{
-      const sym=(p.symbol||p.ticker||"—"), qty=(p.qty||p.size||p.amount||0);
+      const symRaw=(p.symbol||p.ticker||"—"), qty=(p.qty||p.size||p.amount||0);
       const entry=(+p.entry_price||+p.entry||+p.avg_entry||0), price=(+p.price||+p.mark_price||+p.last||0);
       const pnl=(price && entry)?(price-entry)*qty:(p.unrealized_pnl ?? 0);
+      const sym = window.App.util.escapeHtml(String(symRaw));
       tb.append(`<tr><td>${sym}</td><td class="num">${fmtNumber(qty,4)}</td><td class="num">${fmtNumber(entry,2)}</td><td class="num">${fmtNumber(price,2)}</td><td class="num ${pnl>=0?'text-success':'text-danger'}">${fmtNumber(pnl,2)}</td></tr>`);
     });
   }
@@ -36,6 +37,14 @@
       renderPositions(s?.positions||[]);
     }catch(e){
       console.warn('Ошибка при загрузке состояния:', e);
+      
+      // Fallback данные для отображения
+      const fallbackData = {
+        balance: { total: 0, currency: "USDT" },
+        positions: [],
+        updated: new Date().toISOString()
+      };
+      
       // Показываем пользователю, что данные не загружены
       $("#kpi-balance").text("—");
       $("#kpi-balance-cur").text("—");
@@ -43,6 +52,18 @@
       $("#kpi-updated").text("—");
       $("#state-balance").text("—");
       renderPositions([]);
+      
+      // Показываем уведомление об ошибке
+      if (App.util && App.util.showSnack) {
+        App.util.showSnack("Ошибка загрузки данных состояния", 3000);
+      }
+      
+      // Логируем детали ошибки для отладки
+      console.error('Детали ошибки загрузки состояния:', {
+        error: e.message,
+        stack: e.stack,
+        timestamp: new Date().toISOString()
+      });
     }
   }
 

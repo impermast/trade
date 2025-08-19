@@ -1,0 +1,112 @@
+/* === СТИЛИ ДЛЯ ИКОНОК ДАШБОРДА === */
+
+/* Базовые стили для всех иконок */
+[data-lucide] {
+  display: inline-block;
+  vertical-align: middle;
+  transition: all 0.2s ease;
+}
+
+/* Размеры иконок */
+.icon-xs { width: 12px; height: 12px; }
+.icon-sm { width: 16px; height: 16px; }
+.icon-md { width: 20px; height: 20px; }
+.icon-lg { width: 24px; height: 24px; }
+.icon-xl { width: 32px; height: 32px; }
+
+/* Цвета иконок */
+.icon-primary { color: var(--primary); }
+.icon-secondary { color: var(--secondary); }
+.icon-success { color: #21d09c; }
+.icon-warning { color: #f4b942; }
+.icon-error { color: var(--error); }
+.icon-muted { color: var(--on-surface-variant); }
+
+/* Hover эффекты */
+.icon-hover:hover {
+  transform: scale(1.1);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+/* Анимации для иконок */
+.icon-spin {
+  animation: iconSpin 1s linear infinite;
+}
+
+.icon-pulse {
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+.icon-bounce {
+  animation: iconBounce 1s ease-in-out infinite;
+}
+
+/* Keyframes для анимаций */
+@keyframes iconSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes iconPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+@keyframes iconBounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-8px); }
+  60% { transform: translateY(-4px); }
+}
+
+/* Специальные стили для иконок в кнопках */
+.btn .icon {
+  margin-right: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.btn:hover .icon {
+  transform: scale(1.1);
+}
+
+/* Стили для иконок в навигации */
+.navbar .icon {
+  transition: all 0.3s ease;
+}
+
+.navbar .icon:hover {
+  transform: scale(1.1) rotate(5deg);
+}
+
+/* Стили для иконок в KPI */
+.kpi .icon {
+  transition: all 0.3s ease;
+}
+
+.kpi:hover .icon {
+  transform: scale(1.1);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* Адаптивность для иконок */
+@media (max-width: 768px) {
+  .icon-lg { width: 20px; height: 20px; }
+  .icon-xl { width: 24px; height: 24px; }
+}
+
+@media (max-width: 576px) {
+  .icon-md { width: 16px; height: 16px; }
+  .icon-lg { width: 18px; height: 18px; }
+}
+
+/* Уважение системной настройки reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .icon-spin,
+  .icon-pulse,
+  .icon-bounce {
+    animation: none !important;
+  }
+  
+  [data-lucide] {
+    transition: none !important;
+  }
+}

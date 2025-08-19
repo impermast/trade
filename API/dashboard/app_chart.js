@@ -65,11 +65,15 @@
       if (kpiFile && kpiFile.length) {
         kpiFile.text(sel.val() || "—");
       }
-    } catch {
-      sel.append(new Option("BTCUSDT_1m.csv","BTCUSDT_1m.csv"));
+    } catch (e) {
+      console.warn('Ошибка загрузки списка CSV файлов, используем fallback:', e);
+      // Fallback данные
+      const fallbackFiles = ["BTCUSDT_1m.csv", "ETHUSDT_1m.csv", "BNBUSDT_1m.csv"];
+      fallbackFiles.forEach(f => sel.append(new Option(f, f)));
+      sel.val(fallbackFiles[0]);
       const kpiFile = $("#kpi-file");
       if (kpiFile && kpiFile.length) {
-        kpiFile.text(sel.val() || "—");
+        kpiFile.text(fallbackFiles[0]);
       }
     }
   }
@@ -110,9 +114,15 @@
     if (isAuto) Plotly.relayout(gd, {'xaxis.autorange': true});
   }
   
-  function renderEmpty(containerId, title="Нет данных", sub="Загрузите CSV или измените фильтры"){
+  function renderEmpty(containerId, title="Нет данных", sub="Загрузите CSV или измените фильтры", showRetryButton=false){
     const el = document.getElementById(containerId);
     if (!el) return;
+    
+    const retryButton = showRetryButton ? 
+      `<button class="btn btn-outline-light btn-sm mt-3" onclick="window.App.chart.drawChart(false)">
+        <i data-lucide="refresh-cw" class="btn-icon"></i>
+        Попробовать снова
+      </button>` : '';
     
     el.innerHTML = `
       <div class="empty">
@@ -129,7 +139,25 @@
         </svg>
         <div class="title">${title}</div>
         <div class="sub">${sub}</div>
+        ${retryButton}
       </div>`;
+      
+    // Инициализируем иконки если есть кнопка повтора
+    if (showRetryButton && window.lucide) {
+      lucide.createIcons();
+    }
+  }
+
+  // Небольшая визуальная вспышка контейнера графика при обновлении
+  function flashChart(){
+    try {
+      const actions = document.querySelector('.chart-actions');
+      if (!actions) return;
+      actions.classList.remove('flash');
+      void actions.offsetWidth; // reflow
+      actions.classList.add('flash');
+      setTimeout(()=> actions.classList.remove('flash'), 260);
+    } catch(_){ /* noop */ }
   }
 
   async function drawChart(animate){
@@ -184,6 +212,8 @@
 
           _lastTs = tsArr[tsArr.length-1];
           keepRightEdge();
+          // Визуальная вспышка, чтобы подчеркнуть обновление
+          flashChart();
           const kpiFile = $("#kpi-file");
           if (kpiFile && kpiFile.length) {
             kpiFile.text($("#csvFile").val()||"—");
@@ -237,10 +267,15 @@
         y2Range = [0, 100];
       }
 
-      // Candles
+      // Candles (с улучшенным hover и читаемыми подсказками)
+      const priceHover = '%{x|%Y-%m-%d %H:%M:%S}<br>'+
+                         'O:%{open:.2f}  H:%{high:.2f}<br>'+
+                         'L:%{low:.2f}   C:%{close:.2f}';
       traces.push({
         type:"candlestick", x:ts, open, high, low, close, name:"OHLC", yaxis:"y",
-        increasing:{line:{color:cSecondary, width:1}}, decreasing:{line:{color:cError, width:1}}
+        increasing:{line:{color:cSecondary, width:1}}, decreasing:{line:{color:cError, width:1}},
+        hovertemplate: priceHover,
+        hoverlabel: { font: { family: 'JetBrains Mono, monospace', size: 11 } }
       });
 
       if($("#sma20").is(":checked"))
@@ -288,8 +323,13 @@
         showlegend:true,
         legend:{ orientation:"h", y:1.12, x:1, xanchor:"right", bgcolor:"rgba(0,0,0,0)", borderwidth:0, font:{size:11} },
         margin:{t:20,r:10,b:40,l:50}, paper_bgcolor, plot_bgcolor, font:{color:font_color},
-        xaxis:{ gridcolor:grid, gridwidth:0.4, ticklen:4, ticks:"outside", nticks: 8, anchor:"y", domain:[0,1], autorange:true },
-        yaxis:{ title:"Цена", type:(isLog?"log":"linear"), gridcolor:grid, gridwidth:0.4, ticklen:4, ticks:"outside", domain:[0.35,1], autorange:false, range:yPriceRange },
+        // Улучшенный hover/гайдлайны и контроль диапазона
+        hovermode: 'x unified',
+        transition: { duration: 220, easing: 'cubic-in-out' },
+        xaxis:{ gridcolor:grid, gridwidth:0.4, ticklen:4, ticks:"outside", nticks: 8, anchor:"y", domain:[0,1], autorange:true,
+                showspikes:true, spikemode:'across', spikesnap:'cursor', spikedash:'dot',
+                rangeslider:{ visible:true, thickness:0.08 } },
+        yaxis:{ title:"Цена", type:(isLog?"log":"linear"), gridcolor:grid, gridwidth:0.4, ticklen:4, ticks:"outside", domain:[0.35,1], autorange:false, range:yPriceRange, showspikes:true },
         xaxis2:{gridcolor:grid, gridwidth:0.4, anchor:"y2", domain:[0,1], matches:"x", nticks:6, ticklen:3 },
         yaxis2:{ title: ($("#lowerPanel").val()==="volume" ? "Объём" : "RSI"), gridcolor:grid, gridwidth:0.4, domain:[0,0.28], autorange:false, range:y2Range, ticklen:3, ticks:"outside" }
       };
@@ -329,10 +369,15 @@
               }, [0]);
               lastK = k;
             }
-            if (p < 1){ requestAnimationFrame(step); }
-            else { Plotly.restyle(gd, { x:[ts], open:[open], high:[high], low:[low], close:[close] }, [0]); }
+            if (p < 1){ 
+              window._chartAppearRAF = requestAnimationFrame(step); 
+            }
+            else { 
+              Plotly.restyle(gd, { x:[ts], open:[open], high:[high], low:[low], close:[close] }, [0]); 
+              window._chartAppearRAF = null;
+            }
           }
-          requestAnimationFrame(step);
+          window._chartAppearRAF = requestAnimationFrame(step);
         }
       }
 
@@ -350,17 +395,27 @@
       
       // Более информативное сообщение об ошибке
       let errorMessage = "Проверьте CSV и колонки (time/open/high/low/close)";
+      let errorTitle = "Ошибка загрузки";
+      let showRetry = true;
+      
       if (e.message) {
         if (e.message.includes('fetch')) {
           errorMessage = "Ошибка сети. Проверьте подключение к серверу.";
+          errorTitle = "Ошибка сети";
         } else if (e.message.includes('JSON')) {
           errorMessage = "Ошибка формата данных. Проверьте CSV файл.";
+          errorTitle = "Ошибка формата";
         } else if (e.message.includes('CSV')) {
           errorMessage = "Ошибка CSV файла. Проверьте структуру данных.";
+          errorTitle = "Ошибка CSV";
+        } else if (e.message.includes('Элемент выбора CSV файла не найден')) {
+          errorMessage = "Проблема с интерфейсом. Перезагрузите страницу.";
+          errorTitle = "Ошибка интерфейса";
+          showRetry = false;
         }
       }
       
-      renderEmpty("chart", "Ошибка загрузки", errorMessage);
+      renderEmpty("chart", errorTitle, errorMessage, showRetry);
     }
   }
 
@@ -368,6 +423,12 @@
   let chartTimer=null, fabRAF=null, nextRefreshAt=0;
   const CHART_INTERVAL_KEY="chart-interval-seconds";
   const CHART_AUTO_KEY="chart-auto";
+  
+  // Инициализируем массив для хранения таймеров анимаций
+  if (!window._chartAnimationTimers) {
+    window._chartAnimationTimers = [];
+  }
+  
   function getChartInterval(){
     const v = +($("#chartInterval").val() || localStorage.getItem(CHART_INTERVAL_KEY) || 10);
     return Math.max(5, v|0);
@@ -577,7 +638,7 @@
     }
     const chartInterval = $("#chartInterval");
     if (chartInterval && chartInterval.length) {
-      chartInterval.on("change", U.debounce(()=>{ saveIv(); startChartTimer(); updateFabCountdown(); updateFabRing(); U.showSnack(`Интервал: ${getChartInterval()} с`); }, 300));
+      chartInterval.on("change", U.debounce(()=>{ saveIv(); startChartTimer(); startFabCountdown(); updateFabRing(); U.showSnack(`Интервал: ${getChartInterval()} с`); }, 300));
     }
   }
 
@@ -605,6 +666,30 @@
           console.warn('Ошибка при очистке графика:', e);
         }
       }
+      
+      // Очищаем все активные анимации
+      if (typeof requestAnimationFrame !== 'undefined') {
+        // Отменяем все pending RAF
+        if (window._chartRAF) {
+          cancelAnimationFrame(window._chartRAF);
+          window._chartRAF = null;
+        }
+        // Отменяем RAF для анимации появления
+        if (window._chartAppearRAF) {
+          cancelAnimationFrame(window._chartAppearRAF);
+          window._chartAppearRAF = null;
+        }
+      }
+      
+      // Очищаем все таймеры анимаций
+      if (window._chartAnimationTimers) {
+        window._chartAnimationTimers.forEach(timer => {
+          if (timer) clearTimeout(timer);
+        });
+        window._chartAnimationTimers = [];
+      }
+      
+      console.log('Ресурсы графика очищены');
     } catch (e) {
       console.warn('Ошибка при очистке ресурсов графика:', e);
     }
@@ -635,7 +720,10 @@
           console.log(`Кнопка ${i+1}: tail=${tail}, active=${isActive}`);
         });
       }
-    }
+    },
+    // Добавляем недостающие функции
+    setupChartControls: setupChartControls,
+    setupAdvancedControls: setupAdvancedControls
   };
   } // закрываем initChart
 })();

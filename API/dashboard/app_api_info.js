@@ -47,16 +47,20 @@
       tooltip.dispose();
     }
     
-    // Формируем подробный tooltip
-    let tooltipText = `${apiInfo.description || "API информация"}\n`;
-    tooltipText += `Статус: ${apiInfo.status || "неизвестно"}`;
-    
-    if (apiInfo.features && apiInfo.features.length > 0) {
-      tooltipText += `\nВозможности:\n• ${apiInfo.features.join('\n• ')}`;
-    }
+    // Формируем подробный tooltip как безопасный HTML
+    const esc = (s)=> window.App && window.App.util && window.App.util.escapeHtml ? window.App.util.escapeHtml(String(s==null?"":s)) : String(s==null?"":s);
+    const desc = esc(apiInfo.description || "API информация");
+    const status = esc(apiInfo.status || "неизвестно");
+    const feat = Array.isArray(apiInfo.features) ? apiInfo.features.map(f=>`<li>${esc(f)}</li>`).join("") : "";
+    const tooltipHtml = `
+      <div class="text-start">
+        <div><strong>${desc}</strong></div>
+        <div class="mt-1">Статус: <span class="badge bg-secondary">${status}</span></div>
+        ${feat?`<div class="mt-1">Возможности:<ul class="mb-0 ps-3">${feat}</ul></div>`:""}
+      </div>`;
     
     new bootstrap.Tooltip(indicator, {
-      title: tooltipText,
+      title: tooltipHtml,
       placement: "bottom",
       trigger: "hover",
       html: true
@@ -73,17 +77,8 @@
   function updateApiIcon(iconElement, apiType) {
     if (!iconElement) return;
     
-    // Удаляем старую иконку
-    iconElement.remove();
-    
-    // Создаем новую иконку
-    const newIcon = document.createElement("i");
-    newIcon.className = "api-icon";
-    newIcon.id = "apiIcon";
-    
     // Выбираем иконку в зависимости от типа API
     let iconName = "server"; // по умолчанию
-    
     switch (apiType) {
       case "simulation":
         iconName = "bot";
@@ -101,12 +96,21 @@
         iconName = "server";
     }
     
+    // Создаем новый placeholder для Lucide и безопасно заменяем текущий узел
+    const newIcon = document.createElement("i");
+    newIcon.className = "api-icon";
+    newIcon.id = "apiIcon";
     newIcon.setAttribute("data-lucide", iconName);
     
-    // Вставляем новую иконку
-    iconElement.parentNode.insertBefore(newIcon, iconElement.nextSibling);
+    if (typeof iconElement.replaceWith === "function") {
+      iconElement.replaceWith(newIcon);
+    } else if (iconElement.parentNode) {
+      // Fallback для старых браузеров
+      iconElement.parentNode.insertBefore(newIcon, iconElement.nextSibling);
+      iconElement.parentNode.removeChild(iconElement);
+    }
     
-    // Создаем иконку через Lucide
+    // Перерисовываем SVG через Lucide
     if (window.lucide) {
       lucide.createIcons();
     }
@@ -137,6 +141,18 @@
     }
   }
   
+  // Изменение интервала обновления
+  function setApiInfoInterval(seconds) {
+    const interval = Math.max(10, Math.min(300, seconds)); // от 10 до 300 секунд
+    localStorage.setItem(API_INFO_INTERVAL_KEY, interval.toString());
+    
+    if (apiInfoTimer) {
+      startApiInfoTimer(); // перезапускаем с новым интервалом
+    }
+    
+    console.log(`API Info интервал изменен на ${interval} секунд`);
+  }
+  
   // Обработчик изменения видимости страницы
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
@@ -158,6 +174,7 @@
     loadApiInfo,
     startApiInfoTimer,
     stopApiInfoTimer,
+    setApiInfoInterval,
     cleanup
   };
   
@@ -173,9 +190,10 @@
   });
   
   // Автоматический запуск при загрузке модуля
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", startApiInfoTimer);
-  } else {
-    startApiInfoTimer();
-  }
+  // Убираем автоматический запуск, так как он будет вызван из app_init.js
+  // if (document.readyState === "loading") {
+  //   document.addEventListener("DOMContentLoaded", startApiInfoTimer);
+  // } else {
+  //   startApiInfoTimer();
+  // }
 })();

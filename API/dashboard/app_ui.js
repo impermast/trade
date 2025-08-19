@@ -12,12 +12,21 @@
   // Bootstrap tooltips
   function initTooltips() {
     try {
+      // Проверяем, загружен ли Bootstrap
+      if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
+        console.warn('Bootstrap Tooltip не загружен, пропускаем инициализацию tooltips');
+        return;
+      }
+      
       const tList=[].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"],[title][data-bs-toggle2]'));
       tList.forEach(el=> {
         try {
           // Проверяем, не инициализирован ли уже tooltip
           if (!el._tooltip) {
-            el._tooltip = new bootstrap.Tooltip(el);
+            // Проверяем, что элемент существует и видим
+            if (el && el.offsetParent !== null) {
+              el._tooltip = new bootstrap.Tooltip(el);
+            }
           }
         } catch (e) {
           console.warn('Ошибка создания tooltip для элемента:', el, e);
@@ -28,11 +37,68 @@
     }
   }
 
-  // Инициализируем tooltips при готовности DOM
+  // Улучшенная инициализация Bootstrap компонентов
+  function initBootstrapComponents() {
+    try {
+      // Проверяем, загружен ли Bootstrap
+      if (typeof bootstrap === 'undefined') {
+        console.warn('Bootstrap не загружен, откладываем инициализацию компонентов');
+        // Повторяем попытку через 100мс
+        setTimeout(initBootstrapComponents, 100);
+        return;
+      }
+      
+      // Проверяем готовность основных компонентов Bootstrap
+      if (!bootstrap.Tooltip || !bootstrap.Popover || !bootstrap.Dropdown) {
+        console.warn('Не все компоненты Bootstrap загружены, откладываем инициализацию');
+        setTimeout(initBootstrapComponents, 100);
+        return;
+      }
+      
+      // Инициализируем tooltips
+      initTooltips();
+      
+      // Инициализируем popovers если они есть
+      if (bootstrap.Popover) {
+        const popoverElements = document.querySelectorAll('[data-bs-toggle="popover"]');
+        popoverElements.forEach(el => {
+          try {
+            if (!el._popover) {
+              el._popover = new bootstrap.Popover(el);
+            }
+          } catch (e) {
+            console.warn('Ошибка создания popover для элемента:', el, e);
+          }
+        });
+      }
+      
+      // Инициализируем dropdowns если они есть
+      if (bootstrap.Dropdown) {
+        const dropdownElements = document.querySelectorAll('[data-bs-toggle="dropdown"]');
+        dropdownElements.forEach(el => {
+          try {
+            if (!el._dropdown) {
+              el._dropdown = new bootstrap.Dropdown(el);
+            }
+          } catch (e) {
+            console.warn('Ошибка создания dropdown для элемента:', el, e);
+          }
+        });
+      }
+      
+      console.log('Bootstrap компоненты инициализированы');
+    } catch (e) {
+      console.warn('Ошибка инициализации Bootstrap компонентов:', e);
+      // Повторяем попытку через 200мс при ошибке
+      setTimeout(initBootstrapComponents, 200);
+    }
+  }
+
+  // Инициализируем Bootstrap компоненты при готовности DOM
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initTooltips);
+    document.addEventListener('DOMContentLoaded', initBootstrapComponents);
   } else {
-    initTooltips();
+    initBootstrapComponents();
   }
 
   // === NiceSelect / Number inputs (без изменений) ===
@@ -286,6 +352,7 @@
     // экспорт ink обновления, чтобы app_init мог вызывать
     updateTabsInk,
     initTabAnimations, cleanup, addMutationObserver,
+    initBootstrapComponents, // Добавляем новую функцию
     _mutationObservers
   };
 })();

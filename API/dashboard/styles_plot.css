@@ -27,12 +27,20 @@
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes shimmerMove{0%{transform:translateX(-10%)}50%{transform:translateX(8%)}100%{transform:translateX(-10%)}}
 
+/* Уважение системной настройки reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none !important; }
+  .skeleton::after { animation: none !important; }
+}
+
 /* Прогресс-лайн */
 #topProgress{ position:fixed; left:0; right:0; top:0; height:3px; background:var(--grad-1);
   width:0; transition:width .25s; display:none; z-index:1200; pointer-events:none;
   background-size:200% 200%; animation:gradientShift 10s ease infinite; }
 
 .chart-actions{ position:relative; }
+.chart-actions.flash{ animation: chartFlash .26s ease-out; }
+@keyframes chartFlash{ 0%{ box-shadow: 0 0 0 0 rgba(255,255,255,0.14) } 100%{ box-shadow: 0 0 0 0 rgba(255,255,255,0) } }
 
 /* FAB */
 .fab{

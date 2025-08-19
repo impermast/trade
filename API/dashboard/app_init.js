@@ -19,6 +19,11 @@
   }
 
   $(async function(){
+    // Глобальный переключатель подробных логов: localStorage.debug === '1'
+    const DEBUG = (localStorage.getItem('debug') === '1');
+    if (!DEBUG) {
+      try { console.log = function(){}; } catch (e) {}
+    }
     console.log("Инициализация дашборда...");
     try {
       // Theme & health
@@ -30,10 +35,35 @@
         console.warn('App.theme.initTheme не найден');
       }
       
+      // API Info initialization
+      console.log("Инициализация информации об API...");
+      if (App.apiInfo && App.apiInfo.startApiInfoTimer) {
+        console.log("Вызов App.apiInfo.startApiInfoTimer");
+        App.apiInfo.startApiInfoTimer();
+      } else {
+        console.warn('App.apiInfo.startApiInfoTimer не найден');
+      }
+      
       if (U.pingHealth) {
         console.log("Вызов U.pingHealth");
-        U.pingHealth();
-        setInterval(U.pingHealth, 5000);
+        // Менеджер пинга с паузой при скрытии вкладки
+        let _pingTimer = null;
+        const startPing = () => {
+          if (_pingTimer) { clearInterval(_pingTimer); _pingTimer = null; }
+          // Мгновенный пинг
+          try { U.pingHealth(); } catch (e) {}
+          // Запускаем периодический пинг только когда вкладка видима
+          _pingTimer = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+              try { U.pingHealth(); } catch (e) {}
+            }
+          }, 5000);
+        };
+        const stopPing = () => { if (_pingTimer) { clearInterval(_pingTimer); _pingTimer = null; } };
+        startPing();
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') startPing(); else stopPing();
+        });
       } else {
         console.warn('U.pingHealth не найден');
       }
@@ -86,12 +116,19 @@
         console.warn('App.ui.initEnhancers не найден');
       }
       
-      if (App.ui && App.ui.initTabAnimations) {
-        console.log("Вызов App.ui.initTabAnimations");
-        App.ui.initTabAnimations();
-      } else {
-        console.warn('App.ui.initTabAnimations не найден');
-      }
+             if (App.ui && App.ui.initTabAnimations) {
+         console.log("Вызов App.ui.initTabAnimations");
+         App.ui.initTabAnimations();
+       } else {
+         console.warn('App.ui.initTabAnimations не найден');
+       }
+       
+       if (App.ui && App.ui.initBootstrapComponents) {
+         console.log("Вызов App.ui.initBootstrapComponents");
+         App.ui.initBootstrapComponents();
+       } else {
+         console.warn('App.ui.initBootstrapComponents не найден');
+       }
 
       // Controls
       console.log("Настройка элементов управления...");
@@ -212,6 +249,24 @@
         }
       }
       
+      // Strategy Voting initialization
+      console.log("Инициализация модуля голосования стратегий...");
+      if (App.strategyVoting && App.strategyVoting.init) {
+        console.log("Вызов App.strategyVoting.init");
+        App.strategyVoting.init();
+      } else {
+        console.warn('App.strategyVoting.init не найден');
+      }
+      
+      // KPI initialization
+      console.log("Инициализация KPI модуля...");
+      if (App.kpi && App.kpi.init) {
+        console.log("Вызов App.kpi.init");
+        App.kpi.init();
+      } else {
+        console.warn('App.kpi.init не найден');
+      }
+      
       if(App.logs && App.logs.loadLogTail) {
         console.log("Вызов App.logs.loadLogTail");
         await App.logs.loadLogTail();
@@ -281,34 +336,19 @@
           if(App.ui && App.ui.cleanup) App.ui.cleanup();
           if(App.theme && App.theme.cleanup) App.theme.cleanup();
           if(App.util && App.util.cleanup) App.util.cleanup();
+          if(App.apiInfo && App.apiInfo.cleanup) App.apiInfo.cleanup();
+          if(App.strategyVoting && App.strategyVoting.cleanup) App.strategyVoting.cleanup();
+          if(App.kpi && App.kpi.cleanup) App.kpi.cleanup();
         } catch (e) {
           console.warn('Ошибка при очистке ресурсов:', e);
         }
       });
 
-      // Очистка ресурсов при скрытии страницы
+      // Убираем доступ к внутренним таймерам модулей; модули сами учитывают visibility
+      // Здесь оставляем только мягкое перезапускание публичных таймеров при возврате
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') {
+        if (document.visibilityState === 'visible') {
           try {
-            // Останавливаем таймеры при скрытии страницы
-            if(App.chart && App.chart.startChartTimer) {
-              if(App.chart.chartTimer) {
-                clearInterval(App.chart.chartTimer);
-                App.chart.chartTimer = null;
-              }
-            }
-            if(App.state && App.state.stateTimer) {
-              if(App.state.stateTimer) {
-                clearInterval(App.state.stateTimer);
-                App.state.stateTimer = null;
-              }
-            }
-          } catch (e) {
-            console.warn('Ошибка при остановке таймеров:', e);
-          }
-        } else if (document.visibilityState === 'visible') {
-          try {
-            // Перезапускаем таймеры при возвращении на страницу
             if(App.chart && App.chart.startChartTimer) App.chart.startChartTimer();
             if(App.state && App.state.startStateTimer) App.state.startStateTimer();
           } catch (e) {

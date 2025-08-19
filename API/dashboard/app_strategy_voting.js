@@ -92,9 +92,16 @@
 
     // Настройка мониторинга данных
     setupDataMonitoring: function() {
+      // Используем debouncing для обновлений
+      const debouncedUpdate = window.App.util && window.App.util.debounce ? 
+        window.App.util.debounce(() => {
+          this.updateVotingAnimation();
+        }, 2000) : 
+        () => this.updateVotingAnimation();
+      
       // Обновляем анимацию каждые 5 секунд
-      setInterval(() => {
-        this.updateVotingAnimation();
+      this._updateTimer = setInterval(() => {
+        debouncedUpdate();
       }, 5000);
 
       // Обновляем при изменении CSV данных
@@ -299,6 +306,26 @@
     // Принудительное обновление с новыми данными
     updateWithData: function(signals) {
       this.updateBars(signals);
+    },
+    
+    // Функция для очистки ресурсов
+    cleanup: function() {
+      try {
+        // Очищаем все таймеры
+        if (this._updateTimer) {
+          clearInterval(this._updateTimer);
+          this._updateTimer = null;
+        }
+        
+        // Очищаем контейнер
+        if (this.container && this.container.length) {
+          this.container.empty();
+        }
+        
+        console.log('Strategy Voting модуль очищен');
+      } catch (e) {
+        console.warn('Ошибка при очистке Strategy Voting модуля:', e);
+      }
     }
   };
 
@@ -306,9 +333,10 @@
   window.App.strategyVoting = StrategyVoting;
 
   // Инициализация при готовности DOM
-  $(document).ready(function() {
-    StrategyVoting.init();
-  });
+  // Убираем автоматическую инициализацию, так как она будет вызвана из app_init.js
+  // $(document).ready(function() {
+  //   StrategyVoting.init();
+  // });
 
   // Экспорт для использования в других модулях
   if (typeof module !== 'undefined' && module.exports) {

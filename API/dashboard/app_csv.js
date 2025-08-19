@@ -43,26 +43,28 @@
       
       // Переименовываем столбцы ORDERS и добавляем атрибуты для стилизации
       if (col.toLowerCase() === 'orders_rsi') {
-        displayName = 'ORDERS_RSI';
+        displayName = 'RSI';
         dataAttr = ' data-orders-type="rsi"';
       } else if (col.toLowerCase() === 'orders_macd') {
-        displayName = 'ORDERS_MACD';
+        displayName = 'MACD';
         dataAttr = ' data-orders-type="macd"';
       } else if (col.toLowerCase() === 'orders_bollinger') {
-        displayName = 'ORDERS_BOLL';
+        displayName = 'BOLL';
         dataAttr = ' data-orders-type="bollinger"';
       } else if (col.toLowerCase() === 'orders_stochastic') {
-        displayName = 'ORDERS_STOCH';
+        displayName = 'STOCH';
         dataAttr = ' data-orders-type="stochastic"';
       } else if (col.toLowerCase() === 'orders_williams_r') {
-        displayName = 'ORDERS_W%R';
+        displayName = 'W%R';
         dataAttr = ' data-orders-type="williams_r"';
       } else if (col.toLowerCase() === 'orders_xgb') {
-        displayName = 'ORDERS_XGB';
+        displayName = 'XGB';
         dataAttr = ' data-orders-type="xgb"';
       }
       
-      return `<th${dataAttr}>${displayName}</th>`;
+      // Экранируем заголовок
+      const safeDisplay = window.App.util.escapeHtml(String(displayName));
+      return `<th${dataAttr}>${safeDisplay}</th>`;
     }).join("");
     
     thead.append(`<tr>${headerHtml}</tr>`);
@@ -94,7 +96,9 @@
           }
         }
         
-        return `<td${cellClassAttr}>${cellValue}</td>`;
+        // Экранируем строковые значения, чтобы защититься от XSS
+        const safeValue = (typeof cellValue === 'number') ? String(cellValue) : window.App.util.escapeHtml(String(cellValue));
+        return `<td${cellClassAttr}>${safeValue}</td>`;
       }).join("");
       
       return `<tr${classAttr}>${cells}</tr>`;

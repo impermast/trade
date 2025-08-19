@@ -3,6 +3,26 @@
   window.App = window.App || {};
   const util = {};
 
+  // Функция ожидания всех критических зависимостей
+  function waitForDependencies() {
+    return new Promise((resolve) => {
+      const check = () => {
+        if (window.jQuery && window.bootstrap && window.Plotly) {
+          console.log('Все зависимости загружены');
+          resolve();
+        } else {
+          console.log('Ожидание зависимостей...', {
+            jQuery: !!window.jQuery,
+            Bootstrap: !!window.bootstrap,
+            Plotly: !!window.Plotly
+          });
+          setTimeout(check, 100);
+        }
+      };
+      check();
+    });
+  }
+
   // Проверка загрузки jQuery
   const $ = window.jQuery || window.$;
   if (!$) {
@@ -10,10 +30,11 @@
     return;
   }
 
-  // Проверка готовности DOM
+  // Проверка готовности DOM и зависимостей
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       try {
+        await waitForDependencies();
         initCore();
       } catch (e) {
         console.error('Ошибка инициализации core:', e);
@@ -22,8 +43,12 @@
     return;
   }
 
-  // Если DOM уже готов, инициализируем сразу
-  initCore();
+  // Если DOM уже готов, ждем зависимости и инициализируем
+  waitForDependencies().then(() => {
+    initCore();
+  }).catch(e => {
+    console.error('Ошибка ожидания зависимостей:', e);
+  });
 
   function initCore() {
     console.log("Инициализация core модуля...");
@@ -143,8 +168,6 @@
     }
   };
 
-
-
   // Chips binding + hidden checkboxes state
   util.bindChip = function(id, checkboxSel){
     const chip=$(id), cb=$(checkboxSel);
@@ -217,6 +240,9 @@
       console.warn('Ошибка при очистке ресурсов util:', e);
     }
   };
+
+  // Экспортируем функцию ожидания зависимостей
+  util.waitForDependencies = waitForDependencies;
 
   window.App.util = util;
   } // закрываем initCore

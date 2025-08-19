@@ -290,14 +290,21 @@
 
     // Настройка обновлений KPI
     setupKPIUpdates: function() {
+      // Используем debouncing для обновлений
+      const debouncedUpdate = window.App.util && window.App.util.debounce ? 
+        window.App.util.debounce(() => {
+          this.updateKPIStatuses();
+        }, 1000) : 
+        () => this.updateKPIStatuses();
+      
       // Автоматическое обновление каждые 30 секунд
-      setInterval(() => {
-        this.updateKPIStatuses();
+      this._updateTimer = setInterval(() => {
+        debouncedUpdate();
       }, 30000);
 
       // Обновление при фокусе на странице
       $(window).on('focus', () => {
-        this.updateKPIStatuses();
+        debouncedUpdate();
       });
     },
 
@@ -378,16 +385,44 @@
           $kpi.removeClass('kpi-highlight');
         }, 1000);
       }
+    },
+    
+    // Функция для очистки ресурсов
+    cleanup: function() {
+      try {
+        // Очищаем все таймеры
+        if (this._updateTimer) {
+          clearInterval(this._updateTimer);
+          this._updateTimer = null;
+        }
+        
+        // Очищаем все анимации
+        $('.kpi').removeClass('kpi-clicked kpi-hovered kpi-touched kpi-highlight');
+        
+        console.log('KPI модуль очищен');
+      } catch (e) {
+        console.warn('Ошибка при очистке KPI модуля:', e);
+      }
     }
   };
 
   // Добавляем в глобальный App объект
   window.App.kpi = KPI;
+  
+  // Добавляем недостающие функции в экспорт
+  if (window.App.kpi) {
+    window.App.kpi.setupKPIAnimations = KPI.setupKPIAnimations;
+    window.App.kpi.setupKPIInteractions = KPI.setupKPIInteractions;
+    window.App.kpi.setupKPIUpdates = KPI.setupKPIUpdates;
+    window.App.kpi.observeKPIVisibility = KPI.observeKPIVisibility;
+    window.App.kpi.setupDataUpdateAnimations = KPI.setupDataUpdateAnimations;
+  }
 
   // Инициализация при готовности DOM
-  $(document).ready(function() {
-    KPI.init();
-  });
+  // Убираем автоматическую инициализацию, так как она будет вызвана из app_init.js
+  // $(document).ready(function() {
+  //   KPI.init();
+  // });
 
   // Экспорт для использования в других модулях
   if (typeof module !== 'undefined' && module.exports) {

@@ -511,3 +511,56 @@
     height: 12px;
   }
 }
+
+/* === СТИЛИ ДЛЯ КНОПОК БЫСТРОГО ХВОСТА === */
+.tail-segments .btn {
+  min-width: 60px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  margin: 0 0.25rem;
+  transition: all 0.2s ease;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--on-surface);
+}
+
+.tail-segments .btn:hover {
+  background: var(--field-bg-focus);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.tail-segments .btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  box-shadow: 0 2px 8px rgba(123, 90, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.tail-segments .btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(123, 90, 255, 0.25);
+}
+
+/* Адаптивность для кнопок быстрого хвоста */
+@media (max-width: 768px) {
+  .tail-segments .btn {
+    min-width: 50px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    margin: 0 0.2rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .tail-segments .btn {
+    min-width: 45px;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.75rem;
+    margin: 0 0.15rem;
+  }
+}

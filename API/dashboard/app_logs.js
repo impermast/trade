@@ -5,7 +5,27 @@
 
   // Logs by file
   let logsTimer=null;
-  async function loadLogFiles(){ const sel=$("#logFile"); sel.empty(); try{ const r=await U.withProgress(fetch("/logs")); const files=await r.json(); files.forEach(f=> sel.append(new Option(f,f))); }catch{} }
+  async function loadLogFiles(){ 
+    const sel=$("#logFile"); 
+    sel.empty(); 
+    try{ 
+      const r=await U.withProgress(fetch("/logs")); 
+      const files=await r.json(); 
+      files.forEach(f=> sel.append(new Option(f,f))); 
+    } catch(e) {
+      console.warn('Ошибка загрузки списка лог файлов, используем fallback:', e);
+      // Fallback лог файлы
+      const fallbackLogs = ["app.log", "error.log", "debug.log"];
+      fallbackLogs.forEach(f => sel.append(new Option(f, f)));
+      sel.val(fallbackLogs[0]);
+      
+      // Показываем уведомление об ошибке
+      if (U.showSnack) {
+        U.showSnack("Ошибка загрузки списка логов", 3000);
+      }
+    } 
+  }
+  
   function colorizeLogLine(line){
     const up = line.toUpperCase();
     let cls="log-info";
@@ -15,19 +35,44 @@
     else if (up.includes(" DEBUG") || up.includes("[DEBUG")) cls="log-debug";
     return `<div class="${cls}">${escapeHtml(line)}</div>`;
   }
+  
   async function loadLogTail(){
     $("#logLoader").show();
     try{
-      const file=$("#logFile").val(); const n=Math.max(100, +$("#logTail").val()||500);
-      if(!file){ $("#logBox").html(`<div class="empty"><div class="title">Нет файла</div><div class="sub">Выберите лог слева</div></div>`); return; }
+      const file=$("#logFile").val(); 
+      const n=Math.max(100, +$("#logTail").val()||500);
+      if(!file){ 
+        $("#logBox").html(`<div class="empty">
+          <div class="title">Нет файла</div>
+          <div class="sub">Выберите лог слева</div>
+          <button class="btn btn-outline-light btn-sm mt-3" onclick="window.App.logs.loadLogFiles()">
+            <i data-lucide="refresh-cw" class="btn-icon"></i>
+            Обновить список
+          </button>
+        </div>`); 
+        return; 
+      }
       const r=await U.withProgress(fetch(`/api/log_tail?filename=${encodeURIComponent(file)}&n=${n}`));
       if(!r.ok) throw new Error("Ошибка загрузки логов");
       const data=await r.json();
       const lines=(data?.lines||[]).map(colorizeLogLine).join("") || "";
       $("#logBox").html(lines || "Лог пуст");
       const el=document.getElementById("logBox"); el.scrollTop=el.scrollHeight;
-    }catch{
-      $("#logBox").html(`<div class="empty"><div class="title">Ошибка чтения</div><div class="sub">Проверьте путь к логам</div></div>`);
+    } catch(e){
+      console.error('Ошибка загрузки лог файла:', e);
+      $("#logBox").html(`<div class="empty">
+        <div class="title">Ошибка чтения</div>
+        <div class="sub">Проверьте путь к логам</div>
+        <button class="btn btn-outline-light btn-sm mt-3" onclick="window.App.logs.loadLogTail()">
+          <i data-lucide="refresh-cw" class="btn-icon"></i>
+          Попробовать снова
+        </button>
+      </div>`);
+      
+      // Показываем уведомление об ошибке
+      if (U.showSnack) {
+        U.showSnack("Ошибка загрузки логов", 3000);
+      }
     }
     finally{ $("#logLoader").hide(); }
   }
@@ -57,8 +102,21 @@
       const lines=arr.map(e=>colorizeAllEntry(e.ts??"", e.level??"", e.src??"", e.msg??"")).join("");
       $("#logsAllBox").html(lines || "Логи пусты");
       const el=document.getElementById("logsAllBox"); el.scrollTop=el.scrollHeight;
-    }catch{
-      $("#logsAllBox").html(`<div class="empty"><div class="title">Ошибка</div><div class="sub">Не удалось загрузить логи</div></div>`);
+    } catch(e){
+      console.error('Ошибка загрузки всех логов:', e);
+      $("#logsAllBox").html(`<div class="empty">
+        <div class="title">Ошибка</div>
+        <div class="sub">Не удалось загрузить логи</div>
+        <button class="btn btn-outline-light btn-sm mt-3" onclick="window.App.logs.loadLogsAll()">
+          <i data-lucide="refresh-cw" class="btn-icon"></i>
+          Попробовать снова
+        </button>
+      </div>`);
+      
+      // Показываем уведомление об ошибке
+      if (U.showSnack) {
+        U.showSnack("Ошибка загрузки всех логов", 3000);
+      }
     }
     finally{ $("#logsAllLoader").hide(); }
   }

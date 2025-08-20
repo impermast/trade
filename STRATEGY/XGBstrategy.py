@@ -33,8 +33,42 @@ class XGBStrategy(BaseStrategy):
         self.features = ["rsi", "ema", "sma", "macd", "bb_h", "bb_l"]
         self.batch_size = 100
         
-        # Initialize model (placeholder for now)
-        self.model = None
+        # Load XGB model and features
+        self.model = self._load_model()
+        self.model_features = self._load_features()
+
+    def _load_model(self):
+        """Загружает обученную XGB модель"""
+        try:
+            model_path = os.path.join("STRATEGY", "predicter", "xgb_model_multi.joblib")
+            if os.path.exists(model_path):
+                model = joblib.load(model_path)
+                self.logger.info(f"[XGB] Модель успешно загружена из {model_path}")
+                return model
+            else:
+                self.logger.error(f"[XGB] Файл модели не найден: {model_path}")
+                return None
+        except Exception as e:
+            self.logger.error(f"[XGB] Ошибка загрузки модели: {e}")
+            return None
+
+    def _load_features(self):
+        """Загружает список признаков модели"""
+        try:
+            features_path = os.path.join("STRATEGY", "predicter", "xgb_model_features.joblib")
+            if os.path.exists(features_path):
+                features = joblib.load(features_path)
+                self.logger.info(f"[XGB] Признаки модели загружены: {features}")
+                # Обновляем self.features для совместимости
+                if isinstance(features, list) and len(features) > 0:
+                    self.features = features
+                return features
+            else:
+                self.logger.warning(f"[XGB] Файл признаков не найден: {features_path}")
+                return self.features  # возвращаем значения по умолчанию
+        except Exception as e:
+            self.logger.error(f"[XGB] Ошибка загрузки признаков: {e}")
+            return self.features  # возвращаем значения по умолчанию
 
     # ----- BaseStrategy required -----
     def default_params(self) -> Dict[str, Dict[str, Any]]:
@@ -59,54 +93,141 @@ class XGBStrategy(BaseStrategy):
     def _have_all_features(self, row: pd.Series) -> bool:
         return all((f in row) and pd.notna(row[f]) for f in self.features)
 
+    def _map_features(self, row: pd.Series) -> Tuple[float, ...]:
+        """Преобразует признаки из DataFrame в правильный формат для модели"""
+        feature_values = []
+        
+        for feature in self.features:
+            if feature in row and pd.notna(row[feature]):
+                feature_values.append(float(row[feature]))
+            elif feature == "bb_h" and "BBU_20_2.0" in row:
+                # Bollinger Upper Band
+                feature_values.append(float(row["BBU_20_2.0"]))
+            elif feature == "bb_l" and "BBL_20_2.0" in row:
+                # Bollinger Lower Band
+                feature_values.append(float(row["BBL_20_2.0"]))
+            elif feature == "rsi" and "RSI_14" in row:
+                # RSI with different period naming
+                feature_values.append(float(row["RSI_14"]))
+            elif feature == "ema" and "EMA_10" in row:
+                # EMA with different period naming
+                feature_values.append(float(row["EMA_10"]))
+            elif feature == "sma" and "SMA_10" in row:
+                # SMA with different period naming
+                feature_values.append(float(row["SMA_10"]))
+            elif feature == "macd" and "MACD_12_26_9" in row:
+                # MACD with specific parameters
+                feature_values.append(float(row["MACD_12_26_9"]))
+            else:
+                # Если признак не найден, используем 0.0
+                self.logger.warning(f"[XGB] Признак {feature} не найден в данных, используем 0.0")
+                feature_values.append(0.0)
+        
+        return tuple(feature_values)
+
+    def _have_all_features_mapped(self, row: pd.Series) -> bool:
+        """Проверяет наличие всех признаков с учётом mapping"""
+        try:
+            mapped_features = self._map_features(row)
+            # Проверяем, что все значения не NaN и не inf
+            return all(isinstance(val, (int, float)) and not (np.isnan(val) or np.isinf(val)) 
+                      for val in mapped_features)
+        except Exception:
+            return False
+
     def _predict(self, feature_tuple: Tuple[float, ...]) -> Tuple[int, float]:
         """Return (signal, amount). Signal in {-1,0,1}."""
-        X = np.array(feature_tuple, dtype=float).reshape(1, -1)
-        y = self.model.predict(X)
+        try:
+            X = np.array(feature_tuple, dtype=float).reshape(1, -1)
+            y = self.model.predict(X)
 
-        # classifier
-        if hasattr(self.model, "classes_") or hasattr(self.model, "n_classes_"):
-            cls = int(np.atleast_1d(y)[0])
-            # normalize {0,1,2} -> {-1,0,1}
-            if cls in (0, 1, 2):
-                mapping = {0: -1, 1: 0, 2: 1}
-                return mapping.get(cls, 0), 0.0
-            # otherwise sign
-            return 1 if cls > 0 else (-1 if cls < 0 else 0), 0.0
+            # classifier
+            if hasattr(self.model, "classes_") or hasattr(self.model, "n_classes_"):
+                cls = int(np.atleast_1d(y)[0])
+                # Исправленный mapping: учитываем, что в bdt.py используется 1=buy, 2=sell
+                if cls == 1:
+                    return 1, 0.0  # BUY
+                elif cls == 2:
+                    return -1, 0.0  # SELL (исправлено с 2 на -1)
+                else:
+                    return 0, 0.0  # HOLD
 
-        # regressor
-        y0 = np.atleast_2d(y)[0]
-        if len(y0) >= 2:
-            signal_raw, amount = float(y0[0]), float(y0[1])
-        else:
-            signal_raw, amount = float(y0[0]), 0.0
-        sig = int(round(signal_raw))
-        sig = 1 if sig > 0 else (-1 if sig < 0 else 0)
-        return sig, float(amount)
+            # regressor - многомерный выход [signal, amount]
+            y0 = np.atleast_2d(y)[0]
+            if len(y0) >= 2:
+                signal_raw, amount = float(y0[0]), float(y0[1])
+                
+                # Преобразуем сигнал в дискретные значения
+                if signal_raw > 0.5:
+                    sig = 1  # BUY
+                elif signal_raw < -0.5:
+                    sig = -1  # SELL
+                else:
+                    sig = 0  # HOLD
+                    
+                return sig, max(0.0, float(amount))
+            else:
+                # Одномерный выход - только сигнал
+                signal_raw = float(y0[0])
+                if signal_raw > 0.5:
+                    return 1, 0.0  # BUY
+                elif signal_raw < -0.5:
+                    return -1, 0.0  # SELL
+                else:
+                    return 0, 0.0  # HOLD
+                    
+        except Exception as e:
+            self.logger.error(f"[XGB] Ошибка предсказания: {e}")
+            return 0, 0.0  # Возвращаем HOLD в случае ошибки
 
     def _batch_predict(self, X: np.ndarray) -> List[Tuple[int, float]]:
-        y = self.model.predict(X)
-        out: List[Tuple[int, float]] = []
-        # classifier
-        if hasattr(self.model, "classes_") or hasattr(self.model, "n_classes_"):
-            arr = np.atleast_1d(y)
-            for cls in arr:
-                cls = int(cls)
-                mapping = {0: -1, 1: 0, 2: 1}
-                out.append((mapping.get(cls, 0), 0.0))
+        try:
+            y = self.model.predict(X)
+            out: List[Tuple[int, float]] = []
+            
+            # classifier
+            if hasattr(self.model, "classes_") or hasattr(self.model, "n_classes_"):
+                arr = np.atleast_1d(y)
+                for cls in arr:
+                    cls = int(cls)
+                    # Исправленный mapping: 1=buy, 2=sell -> 1, -1
+                    if cls == 1:
+                        out.append((-1, 0.0))  # BUY
+                    elif cls == 2:
+                        out.append((1, 0.0))  # SELL
+                    else:
+                        out.append((0, 0.0))  # HOLD
+                return out
+                
+            # regressor
+            arr2d = np.atleast_2d(y)
+            for row in arr2d:
+                if hasattr(row, "__len__") and len(row) >= 2:
+                    signal_raw = float(row[0])
+                    amount = float(row[1])
+                    
+                    # Преобразуем в дискретные сигналы
+                    if signal_raw > 0.5:
+                        sig = 1  # BUY
+                    elif signal_raw < -0.5:
+                        sig = -1  # SELL
+                    else:
+                        sig = 0  # HOLD
+                        
+                    out.append((sig, max(0.0, amount)))
+                else:
+                    signal_raw = float(row[0])
+                    if signal_raw > 0.5:
+                        out.append((1, 0.0))  # BUY
+                    elif signal_raw < -0.5:
+                        out.append((-1, 0.0))  # SELL
+                    else:
+                        out.append((0, 0.0))  # HOLD
             return out
-        # regressor
-        arr2d = np.atleast_2d(y)
-        for row in arr2d:
-            if hasattr(row, "__len__") and len(row) >= 2:
-                s = int(round(float(row[0])))
-                s = 1 if s > 0 else (-1 if s < 0 else 0)
-                out.append((s, float(row[1])))
-            else:
-                s = int(round(float(row[0])))
-                s = 1 if s > 0 else (-1 if s < 0 else 0)
-                out.append((s, 0.0))
-        return out
+            
+        except Exception as e:
+            self.logger.error(f"[XGB] Ошибка batch предсказания: {e}")
+            return [(0, 0.0)] * len(X)  # Возвращаем HOLD для всех записей
 
     def _cached_predict(self, feature_tuple: Tuple[float, ...]) -> Tuple[int, float]:
         """Cached prediction for single feature tuple."""
@@ -149,11 +270,12 @@ class XGBStrategy(BaseStrategy):
 
         self._ensure_orders_col(df)
 
-        # Ensure features
-        if not self._have_all_features(df.iloc[-2]):
+        # Ensure features (используем новый метод с mapping)
+        if not self._have_all_features_mapped(df.iloc[-2]):
             self._try_ensure_features(df)
-        if not self._have_all_features(df.iloc[-2]):
+        if not self._have_all_features_mapped(df.iloc[-2]):
             # still missing
+            self.logger.warning("[XGB] Не удалось получить все необходимые признаки")
             return 0
 
         t0 = time.time()
@@ -170,8 +292,8 @@ class XGBStrategy(BaseStrategy):
                 valid_rows: List[Tuple[float, ...]] = []
                 valid_idx: List[int] = []
                 for ridx, row in batch.iterrows():
-                    if self._have_all_features(row):
-                        valid_rows.append(tuple(float(row[f]) for f in self.features))
+                    if self._have_all_features_mapped(row):
+                        valid_rows.append(self._map_features(row))
                         valid_idx.append(ridx)
                 if valid_rows:
                     X = np.array(valid_rows, dtype=float)
@@ -189,10 +311,10 @@ class XGBStrategy(BaseStrategy):
 
         # Single-step latest prediction from prev bar into last bar
         prev = df.iloc[-2]
-        feature_tuple = tuple(float(prev[f]) for f in self.features)
+        feature_tuple = self._map_features(prev)
         signal, amount = self._cached_predict(feature_tuple)
         self._set_signal(df, df.index[-1], int(signal), float(amount), overwrite=True)
-        self.logger.info(f"[XGB] single prediction in {time.time()-t0:.2f}s")
+        self.logger.info(f"[XGB] single prediction in {time.time()-t0:.2f}s, signal={signal}")
         return int(signal)
 
 

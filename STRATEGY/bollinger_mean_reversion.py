@@ -58,14 +58,20 @@ class BollingerMeanReversionStrategy(BaseStrategy):
     
     def _is_touching_band(self, price: float, band_value: float, tolerance: float = 0.001) -> bool:
         """Проверяет, касается ли цена полосы Боллинджера с заданной точностью"""
+        if pd.isna(price) or pd.isna(band_value):
+            return False
         return abs(price - band_value) <= tolerance
     
     def _is_below_band(self, price: float, band_value: float) -> bool:
         """Проверяет, находится ли цена ниже полосы Боллинджера"""
+        if pd.isna(price) or pd.isna(band_value):
+            return False
         return price <= band_value
     
     def _is_above_band(self, price: float, band_value: float) -> bool:
         """Проверяет, находится ли цена выше полосы Боллинджера"""
+        if pd.isna(price) or pd.isna(band_value):
+            return False
         return price >= band_value
     
     # ----- public -----

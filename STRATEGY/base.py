@@ -165,6 +165,33 @@ class BaseStrategy(ABC):
         # Return simple name instead of strategy name to avoid complex paths
         return "DATA"
 
+    def _validate_dataframe(self, df: pd.DataFrame) -> bool:
+        """
+        Validate input DataFrame for basic requirements.
+        
+        Args:
+            df (pd.DataFrame): DataFrame to validate
+            
+        Returns:
+            bool: True if valid, False otherwise
+        """
+        if df.empty:
+            return False
+            
+        # Check for required columns (at least one price column)
+        price_columns = ['close', 'high', 'low', 'open']
+        if not any(col in df.columns for col in price_columns):
+            return False
+            
+        # Check for excessive NaN values
+        for col in price_columns:
+            if col in df.columns:
+                nan_ratio = df[col].isna().sum() / len(df)
+                if nan_ratio > 0.1:  # More than 10% NaN values
+                    return False
+                    
+        return True
+
     def _ensure_indicators_and_save(self, df: pd.DataFrame) -> None:
         """
         Ensure required indicators are calculated via Analytic.
@@ -172,12 +199,16 @@ class BaseStrategy(ABC):
         Args:
             df (pd.DataFrame): DataFrame to calculate indicators for
         """
+        # Validate input data first
+        if not self._validate_dataframe(df):
+            raise ValueError(f"[{self.name}] Invalid DataFrame: missing price columns or too many NaN values")
+            
         # Lazy import to avoid circular dependencies
         from BOTS.analbot import Analytic  # type: ignore
         
         indicators, stratparams = self.check_indicators()
-        # Используем простой data_name, чтобы избежать сложных путей
-        data_name = "BTCUSDT"  # Простое имя для файла
+        # Используем более гибкое имя для файла
+        data_name = self._resolve_data_name(df)
         anal = Analytic(df=df, data_name=data_name, output_file="1m_anal.csv", create_cache_dir=False)
         anal.make_calc(indicators=indicators, stratparams=stratparams, parallel=False)
         if self._save_after_init:

@@ -15,8 +15,8 @@ xgboost>=1.7.0
 # Technical analysis libraries
 ta>=0.10.0
 pandas-ta>=0.3.14b0
-# Указываем конкретную версию ta для совместимости
-ta-lib>=0.4.0
+# TA-Lib опциональна, может потребовать дополнительной установки на Windows
+# ta-lib>=0.4.0  # Закомментировано, так как может вызывать проблемы на Windows
 
 # Trading API libraries
 ccxt>=4.0.0

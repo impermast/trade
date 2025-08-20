@@ -100,24 +100,12 @@ class XGBStrategy(BaseStrategy):
         for feature in self.features:
             if feature in row and pd.notna(row[feature]):
                 feature_values.append(float(row[feature]))
-            elif feature == "bb_h" and "BBU_20_2.0" in row:
-                # Bollinger Upper Band
-                feature_values.append(float(row["BBU_20_2.0"]))
-            elif feature == "bb_l" and "BBL_20_2.0" in row:
-                # Bollinger Lower Band
-                feature_values.append(float(row["BBL_20_2.0"]))
-            elif feature == "rsi" and "RSI_14" in row:
-                # RSI with different period naming
-                feature_values.append(float(row["RSI_14"]))
-            elif feature == "ema" and "EMA_10" in row:
-                # EMA with different period naming
-                feature_values.append(float(row["EMA_10"]))
-            elif feature == "sma" and "SMA_10" in row:
-                # SMA with different period naming
-                feature_values.append(float(row["SMA_10"]))
-            elif feature == "macd" and "MACD_12_26_9" in row:
-                # MACD with specific parameters
-                feature_values.append(float(row["MACD_12_26_9"]))
+            elif feature == "bb_h" and "bb_h" in row:
+                # Bollinger Upper Band - используем правильное имя колонки
+                feature_values.append(float(row["bb_h"]))
+            elif feature == "bb_l" and "bb_l" in row:
+                # Bollinger Lower Band - используем правильное имя колонки
+                feature_values.append(float(row["bb_l"]))
             else:
                 # Если признак не найден, используем 0.0
                 self.logger.warning(f"[XGB] Признак {feature} не найден в данных, используем 0.0")

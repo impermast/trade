@@ -126,7 +126,7 @@ class TradingConfig:
             'raw': f"DATA/{symbol_name}_{self.TIMEFRAME}.csv",
             'anal': f"DATA/{symbol_name}_{self.TIMEFRAME}_anal.csv",
         }
-        
+
     def get_symbol_name(self) -> str:
         """Get symbol name without slash."""
         return self.SYMBOL.replace("/", "")    
@@ -155,7 +155,7 @@ class TradingConfig:
                     print(f"[Config] Warning: Неверный вес для стратегии '{name}'. Она будет проигнорирована.")
         return weights
 
-
+@dataclass
 class DashboardConfig:
     """Dashboard configuration settings."""
     
@@ -175,12 +175,16 @@ class DashboardConfig:
         """Load values from environment variables after initialization."""
         self.HOST = os.getenv('DASHBOARD_HOST', self.HOST)
         self.PORT = int(os.getenv('DASHBOARD_PORT', str(self.PORT)))
-        self.USE_FLASK = self._parse_bool(os.getenv('USE_FLASK', str(self.USE_FLASK)))
-        self.USE_PLOT = self._parse_bool(os.getenv('USE_PLOT', str(self.USE_PLOT)))
+        self.USE_FLASK = _parse_bool(os.getenv('USE_FLASK', str(self.USE_FLASK)))
+        self.USE_PLOT = _parse_bool(os.getenv('USE_PLOT', str(self.USE_PLOT)))
+        
+        print(f"[DEBUG] DashboardConfig - USE_FLASK: {self.USE_FLASK}, USE_PLOT: {self.USE_PLOT}")
     
     def get_url(self) -> str:
         """Get dashboard URL."""
         return f"http://{self.HOST}:{self.PORT}"
+    
+
 
 
 @dataclass

@@ -36,7 +36,7 @@ class Security:
     """
     
     # Default location for the secure storage file
-    _SECURE_STORAGE_FILE = Path(Config.get('DATA_DIR', 'DATA')) / '.secure_storage'
+    _SECURE_STORAGE_FILE = Path(Config.DATA_DIR) / '.secure_storage'
     
     # Default salt for key derivation
     _DEFAULT_SALT = b'trade_project_salt'
@@ -87,7 +87,7 @@ class Security:
             
         try:
             # Create data directory if it doesn't exist
-            data_dir = Path(Config.get('DATA_DIR', 'DATA'))
+            data_dir = Path(Config.DATA_DIR)
             data_dir.mkdir(exist_ok=True)
             
             # Generate encryption key from password

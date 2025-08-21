@@ -96,6 +96,11 @@ class TradingConfig:
         self.SYMBOL: str = os.getenv("TRADING_SYMBOL", "BTC/USDT")
         self.TIMEFRAME: str = os.getenv("TRADING_TIMEFRAME", "1m")
         self.UPDATE_INTERVAL: int = int(os.getenv("UPDATE_INTERVAL", 10))
+        self.MIN_QUANTITY: float = float(os.getenv("MIN_QUANTITY", 0.0001))
+        self.DEFAULT_ORDER_TYPE: str = os.getenv("DEFAULT_ORDER_TYPE", "market")
+        self.LEVERAGE: int = int(os.getenv("LEVERAGE", 1))
+        self.TRADE_FEE: float = float(os.getenv("TRADE_FEE", 0.00075))
+        self.SLIPPAGE: float = float(os.getenv("SLIPPAGE", 0.001))
         
         # Загрузка стратегий и их весов из одной переменной .env
         self.STRATEGY_WEIGHTS: Dict[str, float] = self._load_strategy_config()
@@ -109,10 +114,22 @@ class TradingConfig:
             }
         
         self.STRATEGIES: List[str] = list(self.STRATEGY_WEIGHTS.keys())
+        self.TARGET_FRACTION: float = float(os.getenv("TARGET_FRACTION", 0.01))
         
         print(f"[Config] Загруженные стратегии: {self.STRATEGIES}")
         print(f"[Config] Загруженные веса: {self.STRATEGY_WEIGHTS}")
 
+    def get_csv_paths(self) -> Dict[str, str]:
+        """Get CSV file paths for different data types."""
+        symbol_name = self.get_symbol_name()
+        return {
+            'raw': f"DATA/{symbol_name}_{self.TIMEFRAME}.csv",
+            'anal': f"DATA/{symbol_name}_{self.TIMEFRAME}_anal.csv",
+        }
+        
+    def get_symbol_name(self) -> str:
+        """Get symbol name without slash."""
+        return self.SYMBOL.replace("/", "")    
     def _load_strategy_config(self) -> Dict[str, float]:
         """
         Загружает конфигурацию стратегий из переменной окружения STRATEGY_CONFIG.

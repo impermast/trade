@@ -1,21 +1,22 @@
-# STRATEGY/__init__.py
+import sys
+import os
+from pathlib import Path
+
+# Add project root to sys.path to allow absolute imports
+project_root = Path(__file__).parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 """
-Инициализация пакета стратегий.
+Initialization of the strategy package and strategy manager.
 
-Этот файл содержит центральный реестр (STRATEGY_REGISTRY), который позволяет
-легко добавлять и управлять всеми доступными торговыми стратегиями в проекте.
-
-Для добавления новой стратегии:
-1. Импортируйте класс вашей новой стратегии из ее файла.
-   (например, from .my_new_strategy import MyNewStrategy)
-2. Добавьте новую запись в словарь STRATEGY_REGISTRY.
-   - Ключ: Короткое, уникальное имя для использования в .env (например, "MY_NEW_STRATEGY").
-   - Значение: Словарь, содержащий:
-     - "class": Ссылка на класс вашей стратегии (например, MyNewStrategy).
-     - "params": Словарь с параметрами по умолчанию для этой стратегии.
+This file contains:
+1. A central registry (STRATEGY_REGISTRY) for all trading strategies.
 """
 
-# 1. Импорт классов всех реализованных стратегий
+# --- Part 1: Strategy Registration ---
+
+# 1.1. Import classes of all implemented strategies
 from .bollinger_mean_reversion import BollingerMeanReversionStrategy
 from .XGBstrategy import XGBStrategy
 from .macd_crossover import MACDCrossoverStrategy
@@ -23,7 +24,7 @@ from .rsi import RSIonly_Strategy
 from .stochastic_oscillator import StochasticOscillatorStrategy
 from .williams_r import WilliamsRStrategy
 
-# 2. Регистрация стратегий и их параметров по умолчанию
+# 1.2. Register strategies and their default parameters
 STRATEGY_REGISTRY = {
     "BOLLINGER": {
         "class": BollingerMeanReversionStrategy,
@@ -67,5 +68,8 @@ STRATEGY_REGISTRY = {
     },
 }
 
-# Это позволяет импортировать реестр напрямую из пакета: from STRATEGY import STRATEGY_REGISTRY
-__all__ = ["STRATEGY_REGISTRY"]
+# --- Part 2: Export ---
+
+__all__ = [
+    "STRATEGY_REGISTRY", 
+]

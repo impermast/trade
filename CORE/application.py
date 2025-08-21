@@ -14,7 +14,7 @@ from .config import Config
 from .dashboard_manager import DashboardManager
 from .trading_engine import TradingEngine, TradingEngineFactory
 from .log_manager import LogManager, Logger, clean_logs_by_age
-from .strategy_manager import StrategyManager
+from STRATEGY.manager import StrategyManager
 from .dependency_injection import get_container, register_service, register_singleton
 
 

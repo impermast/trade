@@ -48,7 +48,8 @@ class BybitAPI(BirzaAPI):
             'options': {
                 'verify': True,
                 'timeout': 30000,
-                'defaultType': 'spot'
+                'defaultType': 'spot',
+                'recvWindow': 10000
             }
         })
 
@@ -61,7 +62,8 @@ class BybitAPI(BirzaAPI):
             'options': {
                 'verify': True,
                 'timeout': 30000,
-                'defaultType': 'spot'
+                'defaultType': 'spot',
+                'recvWindow': 10000
             }
         })
 
@@ -207,7 +209,7 @@ class BybitAPI(BirzaAPI):
         except Exception as e:
             return await self._handle_error_async(f"checking status of order {order_id}", e, {})
 
-    async def download_candels_to_csv_async(self, symbol: str, start_date: str = "2023-01-01T00:00:00Z",
+    async def download_candels_to_csv_async(self, symbol: str, start_date: str = "2025-01-01T00:00:00Z",
                                timeframe: str = "1h", save_folder: str = "DATA") -> pd.DataFrame:
         return await super().download_candels_to_csv_async(symbol, start_date, timeframe, save_folder)
 

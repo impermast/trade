@@ -24,7 +24,7 @@ except ImportError:
     logging.warning("cryptography not installed. Secure storage will be disabled.")
     logging.warning("To enable secure storage, install cryptography: pip install cryptography")
 
-from CORE.config import Config
+from .config import Config
 
 
 class Security:

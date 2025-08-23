@@ -16,8 +16,10 @@ import pandas as pd
 from CORE.config import Config
 # from CORE.security import Security
 from STRATEGY.base import BaseStrategy
-from CORE.strategy_manager import StrategyManager, AggregatorFactory, SignalType
-from CORE.dashboard_manager import write_state_fallback
+from STRATEGY.manager import StrategyManager
+from STRATEGY.aggregators import AggregatorFactory
+from STRATEGY.signals import SignalType
+from .dashboard_manager import write_state_fallback
 
 
 class TradingEngine:
@@ -58,7 +60,7 @@ class TradingEngine:
         self.logger = Logger(name="TradingEngine", tag="[ENGINE]", logfile="LOGS/trading_engine.log", console=False).get_logger()
         
         # Инициализация менеджера стратегий
-        from .strategy_manager import StrategyManager
+        from STRATEGY.manager import StrategyManager
         self.strategy_manager = StrategyManager()
         
         # Инициализация статистики

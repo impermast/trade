@@ -39,20 +39,674 @@
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-  <!-- App scripts (split) -->
+  <!-- App scripts (улучшенный порядок загрузки) -->
+  <!-- 1. Core - основа всех модулей -->
   <script defer src="app_core.js"></script>
+  
+  <!-- 2. Module Loader - управление загрузкой модулей -->
+  <script defer src="app_module_loader.js"></script>
+  
+  <!-- 3. Базовые модули -->
   <script defer src="app_theme.js"></script>
   <script defer src="app_ui.js"></script>
+  
+  <!-- 4. Функциональные модули -->
   <script defer src="app_state.js"></script>
   <script defer src="app_api_info.js"></script>
   <script defer src="app_chart.js"></script>
   <script defer src="app_logs.js"></script>
   <script defer src="app_csv.js"></script>
-  <script defer src="app_init.js"></script>
   <script defer src="app_kpi.js"></script>
   <script defer src="app_strategy_voting.js"></script>
+  
+  <!-- 5. Инициализация - последний -->
+  <script defer src="app_init.js"></script>
+
+  <!-- Индикатор загрузки -->
+  <style>
+    .loading-indicator {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.8s ease;
+      overflow: hidden;
+    }
+    
+    .loading-indicator.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    /* Анимированный фон с торговыми элементами */
+    .trading-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.1;
+      z-index: 1;
+    }
+    
+    .trading-grid {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        linear-gradient(rgba(110, 70, 255, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(110, 70, 255, 0.1) 1px, transparent 1px);
+      background-size: 50px 50px;
+      animation: gridMove 20s linear infinite;
+    }
+    
+    @keyframes gridMove {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(50px, 50px); }
+    }
+    
+    /* Дополнительные фоновые элементы */
+    .trading-background::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 20% 80%, rgba(110, 70, 255, 0.05) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 20%, rgba(32, 201, 195, 0.05) 0%, transparent 50%);
+      animation: backgroundPulse 8s ease-in-out infinite;
+    }
+    
+    @keyframes backgroundPulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+    
+    /* Центральный контейнер */
+    .loading-center {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      animation: centerFloat 6s ease-in-out infinite;
+    }
+    
+    @keyframes centerFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    /* Анимированный спиннер в виде графика */
+    .chart-spinner {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 30px;
+      position: relative;
+      filter: drop-shadow(0 0 40px rgba(110, 70, 255, 0.4));
+    }
+    
+    .chart-circle {
+      width: 100%;
+      height: 100%;
+      border: 3px solid transparent;
+      border-top: 3px solid #6E46FF;
+      border-right: 3px solid #20C9C3;
+      border-radius: 50%;
+      animation: chartRotate 2s linear infinite;
+      position: relative;
+      filter: drop-shadow(0 0 20px rgba(110, 70, 255, 0.3));
+    }
+    
+    .chart-circle::before {
+      content: '';
+      position: absolute;
+      top: -3px;
+      left: -3px;
+      right: -3px;
+      bottom: -3px;
+      border: 2px solid transparent;
+      border-top: 2px solid rgba(110, 70, 255, 0.3);
+      border-radius: 50%;
+      animation: chartRotate 1.5s linear infinite reverse;
+      filter: drop-shadow(0 0 15px rgba(110, 70, 255, 0.2));
+    }
+    
+    .chart-circle::after {
+      content: '';
+      position: absolute;
+      top: -6px;
+      left: -6px;
+      right: -6px;
+      bottom: -6px;
+      border: 1px solid transparent;
+      border-top: 1px solid rgba(32, 201, 195, 0.2);
+      border-radius: 50%;
+      animation: chartRotate 3s linear infinite;
+      filter: drop-shadow(0 0 10px rgba(32, 201, 195, 0.1));
+    }
+    
+    @keyframes chartRotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Центральная иконка бота */
+    .bot-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(45deg, #6E46FF, #20C9C3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: botPulse 2s ease-in-out infinite;
+      box-shadow: 0 0 30px rgba(110, 70, 255, 0.5);
+    }
+    
+    .bot-icon::before {
+      content: '🤖';
+      font-size: 20px;
+      animation: botWiggle 1s ease-in-out infinite;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    }
+    
+    @keyframes botPulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.1); }
+    }
+    
+    @keyframes botWiggle {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-5deg); }
+      75% { transform: rotate(5deg); }
+    }
+    
+    /* Текст загрузки */
+    .loading-text {
+      color: #ffffff;
+      font-size: 24px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      margin-bottom: 20px;
+      text-shadow: 0 0 20px rgba(110, 70, 255, 0.5);
+      animation: textGlow 2s ease-in-out infinite;
+      position: relative;
+    }
+    
+    .loading-text::after {
+      content: '';
+      position: absolute;
+      bottom: -5px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #6E46FF, #20C9C3);
+      animation: textUnderline 2s ease-in-out infinite;
+    }
+    
+    @keyframes textGlow {
+      0%, 100% { text-shadow: 0 0 20px rgba(110, 70, 255, 0.5); }
+      50% { text-shadow: 0 0 30px rgba(110, 70, 255, 0.8), 0 0 40px rgba(32, 201, 195, 0.6); }
+    }
+    
+    @keyframes textUnderline {
+      0%, 100% { width: 0; }
+      50% { width: 100%; }
+    }
+    
+    /* Прогресс-бар как растущий график */
+    .progress-container {
+      width: 400px;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+      margin: 20px 0;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #6E46FF, #20C9C3, #6E46FF);
+      background-size: 200% 100%;
+      border-radius: 4px;
+      width: 0%;
+      transition: width 0.5s ease;
+      position: relative;
+      animation: progressShine 2s linear infinite;
+      box-shadow: 0 0 20px rgba(110, 70, 255, 0.4);
+    }
+    
+    @keyframes progressShine {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    /* Свечи на прогрессе */
+    .progress-candles {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    
+    .candle {
+      position: absolute;
+      width: 2px;
+      height: 12px;
+      background: #20C9C3;
+      border-radius: 1px;
+      animation: candleGrow 0.5s ease-out;
+    }
+    
+    .candle::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 2px;
+      background: #6E46FF;
+      border-radius: 1px;
+    }
+    
+    @keyframes candleGrow {
+      0% { height: 0; opacity: 0; }
+      100% { height: 12px; opacity: 1; }
+    }
+    
+    /* Статус загрузки */
+    .loading-status {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 15px;
+      opacity: 0;
+      animation: statusFadeIn 0.5s ease 0.5s forwards;
+      transition: all 0.3s ease;
+      padding: 8px 16px;
+      background: rgba(110, 70, 255, 0.1);
+      border-radius: 20px;
+      border: 1px solid rgba(110, 70, 255, 0.2);
+      backdrop-filter: blur(10px);
+    }
+    
+    @keyframes statusFadeIn {
+      to { opacity: 1; }
+    }
+    
+    /* Летающие элементы дашборда */
+    .flying-elements {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+    
+    .element {
+      position: absolute;
+      opacity: 0;
+      animation: elementFly 3s ease-in-out infinite;
+    }
+    
+    .element.chart { animation-delay: 0s; }
+    .element.kpi { animation-delay: 0.5s; }
+    .element.logs { animation-delay: 1s; }
+    .element.csv { animation-delay: 1.5s; }
+    
+    @keyframes elementFly {
+      0% {
+        opacity: 0;
+        transform: translateY(100px) scale(0.5) rotate(-180deg);
+      }
+      20% {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotate(0deg);
+      }
+      80% {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotate(0deg);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-100px) scale(0.5) rotate(180deg);
+      }
+    }
+    
+    /* Иконки элементов */
+    .element-icon {
+      width: 30px;
+      height: 30px;
+      background: linear-gradient(45deg, #6E46FF, #20C9C3);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 16px;
+      box-shadow: 0 4px 15px rgba(110, 70, 255, 0.3);
+      animation: elementPulse 2s ease-in-out infinite;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .element-icon::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      transform: rotate(45deg);
+      animation: elementShine 3s linear infinite;
+    }
+    
+    @keyframes elementPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    
+    @keyframes elementShine {
+      0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+      100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+    }
+    
+    /* Частицы */
+    .particles {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+    }
+    
+    .particle {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: #6E46FF;
+      border-radius: 50%;
+      animation: particleFloat 4s linear infinite;
+      box-shadow: 0 0 6px currentColor;
+    }
+    
+    @keyframes particleFloat {
+      0% {
+        opacity: 0;
+        transform: translateY(100vh) scale(0) rotate(0deg);
+      }
+      10% {
+        opacity: 1;
+        transform: translateY(90vh) scale(1) rotate(180deg);
+      }
+      90% {
+        opacity: 1;
+        transform: translateY(10vh) scale(1) rotate(360deg);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(0) scale(0) rotate(720deg);
+      }
+    }
+    
+    /* Улучшенные свечи */
+    .candle {
+      position: absolute;
+      width: 2px;
+      height: 12px;
+      background: #20C9C3;
+      border-radius: 1px;
+      animation: candleGrow 0.5s ease-out;
+      box-shadow: 0 0 8px rgba(32, 201, 195, 0.6);
+    }
+    
+    .candle::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 2px;
+      background: #6E46FF;
+      border-radius: 1px;
+      box-shadow: 0 0 6px rgba(110, 70, 255, 0.8);
+    }
+    
+    .candle::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 6px;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 0.5px;
+    }
+    
+    @keyframes candleGrow {
+      0% { 
+        height: 0; 
+        opacity: 0; 
+        transform: scaleY(0);
+      }
+      50% {
+        transform: scaleY(1.2);
+      }
+      100% { 
+        height: 12px; 
+        opacity: 1; 
+        transform: scaleY(1);
+      }
+    }
+    
+    /* Улучшенный спиннер */
+    .chart-circle {
+      width: 100%;
+      height: 100%;
+      border: 3px solid transparent;
+      border-top: 3px solid #6E46FF;
+      border-right: 3px solid #20C9C3;
+      border-radius: 50%;
+      animation: chartRotate 2s linear infinite;
+      position: relative;
+      filter: drop-shadow(0 0 20px rgba(110, 70, 255, 0.3));
+    }
+    
+    .chart-circle::before {
+      content: '';
+      position: absolute;
+      top: -3px;
+      left: -3px;
+      right: -3px;
+      bottom: -3px;
+      border: 2px solid transparent;
+      border-top: 2px solid rgba(110, 70, 255, 0.3);
+      border-radius: 50%;
+      animation: chartRotate 1.5s linear infinite reverse;
+      filter: drop-shadow(0 0 15px rgba(110, 70, 255, 0.2));
+    }
+    
+    .chart-circle::after {
+      content: '';
+      position: absolute;
+      top: -6px;
+      left: -6px;
+      right: -6px;
+      bottom: -6px;
+      border: 1px solid transparent;
+      border-top: 1px solid rgba(32, 201, 195, 0.2);
+      border-radius: 50%;
+      animation: chartRotate 3s linear infinite;
+      filter: drop-shadow(0 0 10px rgba(32, 201, 195, 0.1));
+    }
+    
+    /* Улучшенная иконка бота */
+    .bot-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(45deg, #6E46FF, #20C9C3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: botPulse 2s ease-in-out infinite;
+      box-shadow: 0 0 30px rgba(110, 70, 255, 0.5);
+    }
+    
+    .bot-icon::before {
+      content: '🤖';
+      font-size: 20px;
+      animation: botWiggle 1s ease-in-out infinite;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    }
+    
+    /* Улучшенный прогресс-бар */
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #6E46FF, #20C9C3, #6E46FF);
+      background-size: 200% 100%;
+      border-radius: 4px;
+      width: 0%;
+      transition: width 0.5s ease;
+      position: relative;
+      animation: progressShine 2s linear infinite;
+      box-shadow: 0 0 20px rgba(110, 70, 255, 0.4);
+    }
+    
+    /* Анимация появления */
+    .loading-indicator.animate-in {
+      animation: loadingAppear 1s ease-out;
+    }
+    
+    @keyframes loadingAppear {
+      0% {
+        opacity: 0;
+        transform: scale(0.9) rotate(-2deg);
+      }
+      50% {
+        transform: scale(1.02) rotate(1deg);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+      }
+    }
+    
+    /* Анимация исчезновения */
+    .loading-indicator.animate-out {
+      animation: loadingDisappear 0.8s ease-in forwards;
+    }
+    
+    @keyframes loadingDisappear {
+      0% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(1.1) rotate(5deg);
+      }
+    }
+    
+    /* Адаптивность */
+    @media (max-width: 768px) {
+      .progress-container {
+        width: 300px;
+      }
+      
+      .loading-text {
+        font-size: 20px;
+      }
+      
+      .chart-spinner {
+        width: 100px;
+        height: 100px;
+      }
+      
+      .bot-icon {
+        width: 35px;
+        height: 35px;
+      }
+      
+      .bot-icon::before {
+        font-size: 18px;
+      }
+    }
+  </style>
 </head>
 <body class="cyrillic-text">
+  <!-- Индикатор загрузки -->
+  <div id="loadingIndicator" class="loading-indicator animate-in">
+    <!-- Анимированный фон -->
+    <div class="trading-background">
+      <div class="trading-grid"></div>
+    </div>
+    
+    <!-- Частицы -->
+    <div class="particles" id="particles"></div>
+    
+    <!-- Летающие элементы дашборда -->
+    <div class="flying-elements">
+      <div class="element chart" style="top: 20%; left: 15%;">
+        <div class="element-icon">📊</div>
+      </div>
+      <div class="element kpi" style="top: 25%; right: 20%;">
+        <div class="element-icon">📈</div>
+      </div>
+      <div class="element logs" style="bottom: 30%; left: 10%;">
+        <div class="element-icon">📝</div>
+      </div>
+      <div class="element csv" style="bottom: 25%; right: 15%;">
+        <div class="element-icon">📋</div>
+      </div>
+    </div>
+    
+    <!-- Центральный контент -->
+    <div class="loading-center">
+      <!-- Спиннер в виде графика -->
+      <div class="chart-spinner">
+        <div class="chart-circle"></div>
+        <div class="bot-icon"></div>
+      </div>
+      
+      <!-- Текст загрузки -->
+      <div class="loading-text">Инициализация дашборда</div>
+      
+      <!-- Прогресс-бар как график -->
+      <div class="progress-container">
+        <div class="progress-bar" id="loadingProgressBar"></div>
+        <div class="progress-candles" id="progressCandles"></div>
+      </div>
+      
+      <!-- Статус загрузки -->
+      <div class="loading-status" id="loadingStatus">Подготовка системы...</div>
+    </div>
+  </div>
+
   <!-- Содержимое страницы без изменений -->
   <nav class="navbar navbar-expand-lg navbar-dark px-3">
     <div class="d-flex align-items-center gap-2">
@@ -204,7 +858,7 @@
             </div>
             <div class="group narrow">
               <label class="form-label">Хвост (строк)</label>
-              <input id="tailRows" type="number" min="50" step="50" value="500" class="form-control form-control-sm field-outlined" title="Сколько последних строк загрузить" data-bs-toggle="tooltip"/>
+              <input id="tailRows" type="number" min="50" step="50" value="200" class="form-control form-control-sm field-outlined" title="Сколько последних строк загрузить" data-bs-toggle="tooltip"/>
             </div>
             <div class="group">
               <label class="form-label">Быстрый хвост</label>
@@ -230,12 +884,12 @@
               <div class="chips">
                 <div class="chip" id="chipSMA20" data-bind="#sma20" title="Включить/выключить SMA 20" data-bs-toggle="tooltip"><i data-lucide="activity" class="chip-icon"></i> SMA 20</div>
                 <div class="chip" id="chipSMA50" data-bind="#sma50" title="Включить/выключить SMA 50" data-bs-toggle="tooltip"><i data-lucide="activity" class="chip-icon"></i> SMA 50</div>
-                <div class="chip selected" id="chipSigRSI" data-bind="#signals_rsi" title="RSI" data-bs-toggle="tooltip"><i data-lucide="zap" class="chip-icon"></i> RSI</div>
-                <div class="chip selected" id="chipSigXGB" data-bind="#signals_xgb" title="XGB" data-bs-toggle="tooltip"><i data-lucide="bot" class="chip-icon"></i> XGB</div>
-                <div class="chip selected" id="chipSigMACD" data-bind="#signals_macd" title="MACD" data-bs-toggle="tooltip"><i data-lucide="trending-up" class="chip-icon"></i> MACD</div>
-                <div class="chip selected" id="chipSigBOLLINGER" data-bind="#signals_bollinger" title="Bollinger" data-bs-toggle="tooltip"><i data-lucide="move" class="chip-icon"></i> Bollinger</div>
-                <div class="chip selected" id="chipSigStochastic" data-bind="#signals_stochastic" title="Stochastic" data-bs-toggle="tooltip"><i data-lucide="activity" class="chip-icon"></i> Stochastic</div>
-                <div class="chip selected" id="chipSigWilliamsR" data-bind="#signals_williams_r" title="Williams %R" data-bs-toggle="tooltip"><i data-lucide="gauge" class="chip-icon"></i> Williams %R</div>
+                <div class="chip" id="chipSigRSI" data-bind="#signals_rsi" title="RSI" data-bs-toggle="tooltip"><i data-lucide="zap" class="chip-icon"></i> RSI</div>
+                <div class="chip" id="chipSigXGB" data-bind="#signals_xgb" title="XGB" data-bs-toggle="tooltip"><i data-lucide="bot" class="chip-icon"></i> XGB</div>
+                <div class="chip" id="chipSigMACD" data-bind="#signals_macd" title="MACD" data-bs-toggle="tooltip"><i data-lucide="trending-up" class="chip-icon"></i> MACD</div>
+                <div class="chip" id="chipSigBOLLINGER" data-bind="#signals_bollinger" title="Bollinger" data-bs-toggle="tooltip"><i data-lucide="move" class="chip-icon"></i> Bollinger</div>
+                <div class="chip" id="chipSigStochastic" data-bind="#signals_stochastic" title="Stochastic" data-bs-toggle="tooltip"><i data-lucide="activity" class="chip-icon"></i> Stochastic</div>
+                <div class="chip" id="chipSigWilliamsR" data-bind="#signals_williams_r" title="Williams %R" data-bs-toggle="tooltip"><i data-lucide="gauge" class="chip-icon"></i> Williams %R</div>
               </div>
             </div>
             <div class="ms-auto">
@@ -483,11 +1137,273 @@
     </div>
   </div>
 
-  <!-- Инициализация Lucide иконок -->
+  <!-- Инициализация Lucide иконок и скрытие индикатора загрузки -->
   <script>
     // Инициализируем все Lucide иконки после загрузки страницы
     document.addEventListener('DOMContentLoaded', function() {
       lucide.createIcons();
+    });
+
+    // Система управления индикатором загрузки
+    const LoadingManager = {
+      progress: 0,
+      maxProgress: 100,
+      statusMessages: [
+        'Подготовка системы...',
+        'Загрузка зависимостей...',
+        'Инициализация модулей...',
+        'Настройка интерфейса...',
+        'Подключение к API...',
+        'Загрузка данных...',
+        'Финальная настройка...',
+        'Готово!'
+      ],
+      currentStatusIndex: 0,
+      particles: [],
+      
+      init: function() {
+        this.createParticles();
+        this.animateParticles();
+      },
+      
+      createParticles: function() {
+        const particlesContainer = document.getElementById('particles');
+        if (!particlesContainer) return;
+        
+        // Создаем 20 частиц
+        for (let i = 0; i < 20; i++) {
+          const particle = document.createElement('div');
+          particle.className = 'particle';
+          
+          // Случайная позиция и задержка
+          particle.style.left = Math.random() * 100 + '%';
+          particle.style.animationDelay = Math.random() * 4 + 's';
+          particle.style.animationDuration = (Math.random() * 2 + 3) + 's';
+          
+          // Случайный размер
+          const size = Math.random() * 3 + 1;
+          particle.style.width = size + 'px';
+          particle.style.height = size + 'px';
+          
+          // Случайный цвет
+          const colors = ['#6E46FF', '#20C9C3', '#FF6B6B', '#4ECDC4'];
+          particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+          
+          particlesContainer.appendChild(particle);
+          this.particles.push(particle);
+        }
+      },
+      
+      animateParticles: function() {
+        // Анимация частиц каждые 100мс
+        setInterval(() => {
+          this.particles.forEach((particle, index) => {
+            if (Math.random() > 0.95) {
+              // Случайно меняем позицию
+              particle.style.left = Math.random() * 100 + '%';
+              particle.style.animationDelay = '0s';
+              particle.style.animationDuration = (Math.random() * 2 + 3) + 's';
+            }
+          });
+        }, 100);
+      },
+      
+      updateProgress: function(value) {
+        this.progress = Math.min(value, this.maxProgress);
+        const progressBar = document.getElementById('loadingProgressBar');
+        if (progressBar) {
+          progressBar.style.width = this.progress + '%';
+        }
+        
+        // Обновляем статус
+        this.updateStatus();
+        
+        // Добавляем свечи на прогресс
+        this.addCandles();
+        
+        // Ускоряем частицы при прогрессе
+        this.updateParticleSpeed();
+      },
+      
+      updateStatus: function() {
+        const statusElement = document.getElementById('loadingStatus');
+        if (!statusElement) return;
+        
+        // Плавно меняем статус
+        statusElement.style.opacity = '0';
+        setTimeout(() => {
+          const progressPercent = (this.progress / this.maxProgress) * 100;
+          const statusIndex = Math.floor((progressPercent / 100) * (this.statusMessages.length - 1));
+          
+          if (statusIndex !== this.currentStatusIndex && statusIndex < this.statusMessages.length) {
+            this.currentStatusIndex = statusIndex;
+            statusElement.textContent = this.statusMessages[statusIndex];
+            
+            // Добавляем эффект при смене статуса
+            statusElement.style.transform = 'scale(1.1)';
+            setTimeout(() => {
+              statusElement.style.transform = 'scale(1)';
+            }, 200);
+          }
+          
+          statusElement.style.opacity = '1';
+        }, 200);
+      },
+      
+      addCandles: function() {
+        const candlesContainer = document.getElementById('progressCandles');
+        if (!candlesContainer) return;
+        
+        // Добавляем свечу каждые 10% прогресса
+        if (this.progress % 10 === 0 && this.progress > 0) {
+          const candle = document.createElement('div');
+          candle.className = 'candle';
+          
+          // Позиционируем свечу на прогресс-баре
+          const position = (this.progress / this.maxProgress) * 100;
+          candle.style.left = position + '%';
+          
+          // Случайная высота свечи (как на реальном графике)
+          const height = Math.random() * 8 + 8; // 8-16px
+          candle.style.height = height + 'px';
+          
+          // Случайный цвет (зеленый/красный как на графике)
+          const isGreen = Math.random() > 0.5;
+          candle.style.background = isGreen ? '#20C9C3' : '#FF6B6B';
+          
+          // Добавляем тень в зависимости от цвета
+          if (isGreen) {
+            candle.style.boxShadow = '0 0 8px rgba(32, 201, 195, 0.6)';
+          } else {
+            candle.style.boxShadow = '0 0 8px rgba(255, 107, 107, 0.6)';
+          }
+          
+          candlesContainer.appendChild(candle);
+          
+          // Удаляем свечу через некоторое время
+          setTimeout(() => {
+            if (candle.parentNode) {
+              candle.style.opacity = '0';
+              candle.style.transform = 'scale(0.5)';
+              setTimeout(() => {
+                if (candle.parentNode) {
+                  candle.parentNode.removeChild(candle);
+                }
+              }, 300);
+            }
+          }, 3000);
+        }
+      },
+      
+      updateParticleSpeed: function() {
+        // Ускоряем частицы при прогрессе
+        const speedMultiplier = 1 + (this.progress / 100) * 0.5;
+        this.particles.forEach(particle => {
+          particle.style.animationDuration = (4 / speedMultiplier) + 's';
+        });
+      },
+      
+      hide: function() {
+        const indicator = document.getElementById('loadingIndicator');
+        if (indicator) {
+          indicator.classList.add('animate-out');
+          setTimeout(() => {
+            indicator.style.display = 'none';
+          }, 800);
+        }
+      },
+      
+      show: function() {
+        const indicator = document.getElementById('loadingIndicator');
+        if (indicator) {
+          indicator.style.display = 'flex';
+          indicator.classList.remove('animate-out');
+          indicator.classList.add('animate-in');
+        }
+      },
+      
+      // Анимация завершения загрузки
+      complete: function() {
+        const indicator = document.getElementById('loadingIndicator');
+        if (!indicator) return;
+        
+        // Показываем финальный статус
+        const statusElement = document.getElementById('loadingStatus');
+        if (statusElement) {
+          statusElement.textContent = '🎉 Дашборд готов!';
+          statusElement.style.color = '#20C9C3';
+          statusElement.style.fontWeight = 'bold';
+          statusElement.style.textShadow = '0 0 20px rgba(32, 201, 195, 0.8)';
+        }
+        
+        // Финальная анимация частиц
+        this.particles.forEach((particle, index) => {
+          setTimeout(() => {
+            particle.style.animation = 'none';
+            particle.style.transform = 'scale(2) rotate(360deg)';
+            particle.style.opacity = '0';
+            particle.style.transition = 'all 0.5s ease';
+          }, index * 50);
+        });
+        
+        // Анимация успешного завершения
+        setTimeout(() => {
+          this.hide();
+        }, 2000);
+      }
+    };
+
+    // Слушаем событие готовности дашборда
+    window.addEventListener('dashboardReady', function() {
+      console.log('🎉 Дашборд готов! Завершаем анимацию загрузки...');
+      LoadingManager.updateProgress(100);
+      LoadingManager.complete();
+    });
+
+    // Обновляем прогресс при загрузке зависимостей
+    if (window.App && window.App.DependencyManager) {
+      const checkProgress = () => {
+        const status = window.App.DependencyManager.getDependencyStatus();
+        const readyCount = Object.values(status).filter(Boolean).length;
+        const totalCount = Object.keys(status).length;
+        const progress = Math.round((readyCount / totalCount) * 40); // 40% за зависимости
+        LoadingManager.updateProgress(progress);
+        
+        if (readyCount < totalCount) {
+          setTimeout(checkProgress, 100);
+        }
+      };
+      checkProgress();
+    }
+
+    // Обновляем прогресс при загрузке модулей
+    if (window.App && window.App.ModuleLoader) {
+      const checkModuleProgress = () => {
+        const status = window.App.ModuleLoader.getLoadStatus();
+        if (Object.keys(status).length === 0) {
+          setTimeout(checkModuleProgress, 100);
+          return;
+        }
+        
+        const loadedCount = Object.values(status).filter(m => m.loaded).length;
+        const totalCount = Object.keys(status).length;
+        const progress = 40 + Math.round((loadedCount / totalCount) * 40); // 40-80% за модули
+        LoadingManager.updateProgress(progress);
+        
+        if (loadedCount < totalCount) {
+          setTimeout(checkModuleProgress, 100);
+        }
+      };
+      
+      // Ждем появления ModuleLoader
+      setTimeout(checkModuleProgress, 500);
+    }
+
+    // Анимация появления при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+      LoadingManager.show();
+      LoadingManager.init(); // Инициализируем частицы
+      LoadingManager.updateProgress(5); // Начальный прогресс
     });
   </script>
 </body>

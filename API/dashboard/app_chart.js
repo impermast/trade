@@ -97,7 +97,7 @@
     }
     
     const file = csvFile.val(); 
-    const tail = Math.max(50, +(tailRows ? tailRows.val() : 500) || 500);
+    const tail = Math.max(50, +(tailRows ? tailRows.val() : 200) || 200);
     
     const r = await fetch(`/api/candles?file=${encodeURIComponent(file)}&tail=${tail}`);
     if(!r.ok) throw new Error("Ошибка загрузки свечей");
@@ -203,7 +203,7 @@
           const addL = rows.slice(idx).map(r => r.low).filter(v => v != null);
           const addC = rows.slice(idx).map(r => r.close).filter(v => v != null);
 
-          const tailMax = Math.max(50, +$("#tailRows").val()||500);
+          const tailMax = Math.max(50, +$("#tailRows").val()||200);
 
           Plotly.extendTraces(gdInc,
             { x:[addX], open:[addO], high:[addH], low:[addL], close:[addC] },

@@ -3,14 +3,30 @@
 
 # ==================== API CREDENTIALS ====================
 # Your exchange API credentials (for real trading)
-API_KEY=your_api_key_here
-API_SECRET=your_api_secret_here
+
+
+USE_MOCK_API=False
+USE_BYBIT_API=True
+USE_COINBASE_API=False
+USE_BINANCE_API=False
+
+
+API_KEY=""
+API_SECRET=""
+
 TESTNET=true
+
+BYBIT_TOKEN=""
+BYBIT_SECRET=""
+
+
 
 # ==================== DASHBOARD SETTINGS ====================
 # Web dashboard configuration
 DASHBOARD_HOST=127.0.0.1
 DASHBOARD_PORT=5000
+USE_FLASK=True
+USE_PLOT=False
 
 # ==================== LOGGING ====================
 # Log cleanup settings
@@ -18,11 +34,12 @@ CLEAN_LOGS_MAX_AGE_HOURS=24
 
 # ==================== TRADING PARAMETERS ====================
 # These can be overridden in CORE/config.py
-# SYMBOL=BTC/USDT
-# TIMEFRAME=1m
-# UPDATE_INTERVAL=10
+SYMBOL=BTC/USDT
+TIMEFRAME=1m
+UPDATE_INTERVAL=10
 
 # ==================== STRATEGY PARAMETERS ====================
+STRATEGY_CONFIG="RSI:0.30,MACD:0.70"
 # RSI Strategy
 # RSI_PERIOD=14
 # RSI_LOWER=30.0

@@ -24,6 +24,9 @@ from .rsi import RSIonly_Strategy
 from .stochastic_oscillator import StochasticOscillatorStrategy
 from .williams_r import WilliamsRStrategy
 
+from .manager import StrategyManager
+
+
 # 1.2. Register strategies and their default parameters
 STRATEGY_REGISTRY = {
     "BOLLINGER": {
@@ -71,5 +74,6 @@ STRATEGY_REGISTRY = {
 # --- Part 2: Export ---
 
 __all__ = [
-    "STRATEGY_REGISTRY", 
+    "STRATEGY_REGISTRY",
+    "StrategyManager",
 ]

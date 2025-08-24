@@ -16,7 +16,7 @@ import ssl
 
 sys.path.append(os.path.abspath("."))
 
-from API.birza_api import BirzaAPI
+from API import BirzaAPI
 from CORE.security import Security
 
 class BybitAPI(BirzaAPI):
@@ -49,7 +49,7 @@ class BybitAPI(BirzaAPI):
                 'verify': True,
                 'timeout': 30000,
                 'defaultType': 'spot',
-                'recvWindow': 10000
+                'recvWindow': 20000
             }
         })
 

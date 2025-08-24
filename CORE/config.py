@@ -18,10 +18,6 @@ project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from STRATEGY import STRATEGY_REGISTRY
-# --- Strategy Registry ---
-# Import the central strategy registry. This allows the config to be aware of available strategies.
-
 
 # --- Environment Initialization ---
 # This block ensures environment is loaded before any config classes are defined.
@@ -135,6 +131,7 @@ class TradingConfig:
         Загружает конфигурацию стратегий из переменной окружения STRATEGY_CONFIG.
         Формат: "RSI:0.3,MACD:0.7".
         """
+        from STRATEGY import STRATEGY_REGISTRY
         config_str = os.getenv("STRATEGY_CONFIG")
         if not config_str:
             return {}

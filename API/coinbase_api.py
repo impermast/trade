@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional
 
 sys.path.append(os.path.abspath("."))
 
-from API.birza_api import BirzaAPI
+from API import BirzaAPI
 
 class CoinbaseAPI(BirzaAPI):
     """

@@ -14,8 +14,6 @@ import numpy as np
 from .base import BaseStrategy
 from .signals import StrategySignal, AggregatedDecision, StrategyStatus, SignalType
 from .aggregators import SignalAggregator, AdaptiveAggregator
-from . import STRATEGY_REGISTRY
-from CORE.config import Config
 
 
 class StrategyManager:
@@ -46,6 +44,8 @@ class StrategyManager:
 
     def _register_strategies_from_registry(self) -> None:
         """Registers strategy instances based on the STRATEGY_REGISTRY and active strategies from config."""
+        from . import STRATEGY_REGISTRY
+        from CORE.config import Config
         active_strategies = Config.TRADING.STRATEGIES
         self.logger.info(f"Registering active strategies: {active_strategies}")
         for name in active_strategies:

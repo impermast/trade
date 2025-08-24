@@ -8,7 +8,7 @@ import pandas as pd
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime, timedelta, timezone
 
-from API.birza_api import BirzaAPI
+from API import BirzaAPI
 
 
 class MockAPI(BirzaAPI):

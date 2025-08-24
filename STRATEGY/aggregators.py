@@ -12,7 +12,6 @@ from collections import defaultdict, deque
 import numpy as np
 import pandas as pd
 
-from CORE.config import Config
 from .signals import SignalType, AggregatedDecision, StrategySignal
 
 
@@ -29,6 +28,7 @@ class WeightedVotingAggregator(SignalAggregator):
     """Aggregator based on weighted voting"""
     
     def __init__(self, strategy_weights: Optional[Dict[str, float]] = None):
+        from CORE.config import Config
         self.strategy_weights = strategy_weights or Config.TRADING.STRATEGY_WEIGHTS
     
     def aggregate(self, signals: List[StrategySignal], **kwargs) -> AggregatedDecision:

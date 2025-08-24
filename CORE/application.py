@@ -14,9 +14,8 @@ from .config import Config
 from .dashboard_manager import DashboardManager
 from .trading_engine import TradingEngine, TradingEngineFactory
 from .log_manager import LogManager, Logger, clean_logs_by_age
-from STRATEGY.manager import StrategyManager
 from .dependency_injection import get_container, register_service, register_singleton
-
+from STRATEGY import StrategyManager
 
 class Application:
     """
@@ -69,21 +68,21 @@ class Application:
     def _create_api_client(self) -> Any:
         """Create API client based on configuration."""
         if Config.API.USE_MOCK_API:
-            from API.mock_api import MockAPI
+            from API import MockAPI
             return MockAPI()
         elif Config.API.USE_BYBIT_API:
-            from API.bybit_api import BybitAPI
+            from API import BybitAPI
             return BybitAPI()
         elif Config.API.USE_COINBASE_API:
             # TODO: Implement CoinbaseAPI
-            from API.mock_api import MockAPI
+            from API import MockAPI
             return MockAPI()  # fallback
         elif Config.API.USE_BINANCE_API:
             # TODO: Implement BinanceAPI
-            from API.mock_api import MockAPI
+            from API import MockAPI
             return MockAPI()  # fallback
         else:
-            from API.mock_api import MockAPI
+            self.logger.warning("API not found!")
             return MockAPI()
     
     def _create_trading_engine(self) -> TradingEngine:
@@ -185,7 +184,7 @@ class Application:
         self.logger.info("Starting Flask dashboard")
         
         try:
-            from API.dashboard_api import run_flask_in_new_terminal, stop_flask
+            from API import run_flask_in_new_terminal, stop_flask
             
             # Start Flask in new terminal
             raw_popen = run_flask_in_new_terminal(
@@ -241,7 +240,7 @@ class Application:
         self.logger.info("Starting PlotBot visualization")
         
         try:
-            from BOTS.PLOTBOTS.plotbot import PlotBot
+            from BOTS import PlotBot
             
             def _start():
                 plotbot = PlotBot(
@@ -301,7 +300,7 @@ class Application:
         if self.dashboard_process and Config.DASHBOARD.USE_FLASK:
             self.logger.info("Stopping dashboard")
             try:
-                from API.dashboard_api import stop_flask
+                from API import stop_flask
                 stop_flask(self.dashboard_process)
             except Exception as e:
                 self.logger.error(f"Error stopping dashboard: {e}")

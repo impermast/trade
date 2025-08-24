@@ -14,9 +14,9 @@ from typing import Dict, List, Any, Optional, Union, Type, Callable, TypeVar, ca
 
 sys.path.append(os.path.abspath("."))
 from CORE.log_manager import Logger
-from BOTS.indicators import Indicators
-from STRATEGY.rsi import RSIonly_Strategy
-from STRATEGY.base import BaseStrategy
+from BOTS import Indicators
+from STRATEGY import RSIonly_Strategy
+from STRATEGY import BaseStrategy
 
 # Type variable for strategy classes
 T = TypeVar('T', bound=BaseStrategy)
